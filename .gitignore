@@ -1,0 +1,122 @@
+# Unity .gitignore
+# Black Bart's Gold Project
+
+# =============== #
+# Unity generated #
+# =============== #
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+[Uu]serSettings/
+
+# ============ #
+# Asset Store  #
+# ============ #
+/Assets/AssetStoreTools*
+
+# =================== #
+# Visual Studio/Rider #
+# =================== #
+.vs/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.vspscc
+*.vssscc
+.idea/
+
+# ============ #
+# OS Generated #
+# ============ #
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ================ #
+# Packaging/Build  #
+# ================ #
+*.apk
+*.aab
+*.ipa
+*.unitypackage
+*.app
+ExportedObj/
+*.jar
+*.java
+
+# ============ #
+# Crashlytics  #
+# ============ #
+crashlytics-build.properties
+sysinfo.txt
+
+# ============ #
+# Compression  #
+# ============ #
+*.rar
+*.zip
+*.gz
+*.7z
+
+# =================== #
+# Gradle (Android)    #
+# =================== #
+*.gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+gradlew
+gradlew.bat
+local.properties
+
+# =================== #
+# Xcode (iOS)         #
+# =================== #
+*.xcworkspace/
+*.xcuserdata/
+DerivedData/
+
+# ============== #
+# Recorder Files #
+# ============== #
+Recordings/
+
+# ================== #
+# Plastic/Collab SCM #
+# ================== #
+/.plastic/
+.collabignore
+CollabSettings.collabextension
+
+# ============== #
+# TextMesh Pro   #
+# ============== #
+Assets/TextMesh Pro/
+
+# ============== #
+# Addressables   #
+# ============== #
+/[Aa]ddressables*
+/[Aa]ssets/AddressableAssetsData/*/*.bin*
+/[Aa]ssets/StreamingAssets/aa/*
+/[Aa]ssets/StreamingAssets/aa.meta
