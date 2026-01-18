@@ -4,180 +4,217 @@
 
 Black Bart's Gold is an augmented reality mobile game where players hunt for virtual gold coins in the real world. Players use their phone's camera to see and collect 3D coins placed in their physical environment, with the collected coins having real cryptocurrency value.
 
+**Built with Unity + AR Foundation** for production-quality AR that can scale to millions of users.
+
 ---
 
-## 🎯 Core Concept
+## 🎯 The Vision
 
 ### The Hook
 "What if you could walk around your neighborhood and find real money just lying on the ground?"
 
-### Gameplay Loop
-1. **Explore** - Walk around the real world with your phone
-2. **Discover** - AR coins appear in your camera view when you're close
-3. **Collect** - Tap coins to add them to your wallet
-4. **Earn** - Collected coins have real BBG (Black Bart's Gold) value
+### The Experience
+1. **Open the app** → See a pirate-themed interface
+2. **Start hunting** → AR camera activates with HUD overlay
+3. **Explore** → Walk around your real environment
+4. **Discover** → Virtual gold doubloons appear through your camera
+5. **Collect** → Get within range, center crosshairs, tap to collect
+6. **Celebrate** → Coin flies to screen, Black Bart congratulates you
+7. **Profit** → Real BBG (Black Bart's Gold) added to your wallet
+
+### What Makes It Special
+- **Real Value**: Coins convert to Bitcoin, not just points
+- **Physical Activity**: Must walk to find treasure
+- **Social Competition**: Leaderboards, friends, guilds
+- **Fair Economy**: Hide coins to unlock finding bigger ones
 
 ---
 
 ## 🛠️ Technology Stack
 
+### Why Unity + AR Foundation?
+
+| Factor | ViroReact (Previous) | Unity + AR Foundation |
+|--------|---------------------|----------------------|
+| **Stability** | ❌ Crashes with React Native 0.81+ | ✅ Production-proven |
+| **Community** | ⚠️ Small, limited support | ✅ Massive ecosystem |
+| **Performance** | ⚠️ JavaScript bridge overhead | ✅ Native C++ core |
+| **Cross-Platform** | ⚠️ Separate native modules | ✅ Single codebase |
+| **Scale** | ❓ Unproven at scale | ✅ Powers Pokémon GO |
+
+### Tech Stack Details
+
 | Layer | Technology | Why |
 |-------|------------|-----|
-| **Game Engine** | Unity 2022.3 LTS | Industry standard, proven at scale (Pokémon Go uses Unity) |
-| **AR Framework** | AR Foundation 5.x | Cross-platform AR (wraps ARCore + ARKit) |
+| **Game Engine** | Unity 6 (2024 LTS) | Latest stable, best AR support |
+| **AR Framework** | AR Foundation 5.x | Unity's cross-platform AR abstraction |
 | **Android AR** | ARCore XR Plugin | Google's AR SDK, native performance |
 | **iOS AR** | ARKit XR Plugin | Apple's AR SDK, native performance |
-| **Language** | C# | Unity's primary language, robust and performant |
+| **Language** | C# | Unity's primary language, robust |
 | **Backend** | TBD | Firebase or custom Node.js/Express |
 | **Database** | TBD | Firestore or PostgreSQL |
 
-### Why Unity + AR Foundation?
+### Platform Support
 
-1. **Production Proven** - Pokémon Go, Harry Potter: Wizards Unite use Unity
-2. **Cross-Platform** - Single codebase for Android + iOS
-3. **Native Performance** - Direct ARCore/ARKit integration
-4. **Massive Community** - Extensive documentation, tutorials, support
-5. **Asset Ecosystem** - Unity Asset Store for 3D models, effects, etc.
-
----
-
-## 🎮 Core Features
-
-### Phase 1: AR Treasure Hunt (MVP)
-- [ ] AR camera view with coin rendering
-- [ ] GPS-based coin spawning
-- [ ] Tap-to-collect mechanic
-- [ ] Basic coin counter HUD
-- [ ] Distance-based coin visibility
-
-### Phase 2: User System
-- [ ] User registration/login
-- [ ] Profile management
-- [ ] Session persistence
-- [ ] Cloud save
-
-### Phase 3: Economy System
-- [ ] BBG wallet balance
-- [ ] Gas tank mechanics ($0.33/day)
-- [ ] Parked coins system
-- [ ] Transaction history
-- [ ] Find limits (hide coins to unlock)
-
-### Phase 4: Map & Navigation
-- [ ] 2D map view with coin markers
-- [ ] Distance/direction indicators
-- [ ] Radar proximity system
-- [ ] Coin clustering for dense areas
-
-### Phase 5: Social & Polish
-- [ ] Leaderboards
-- [ ] Achievements
-- [ ] Sound effects & haptics
-- [ ] Beautiful 3D coin models
-- [ ] Particle effects
+| Platform | Status | Requirements |
+|----------|--------|--------------|
+| **Android** | Primary | Android 7.0+, ARCore compatible |
+| **iOS** | Secondary | iOS 11.0+, ARKit compatible (A9+) |
 
 ---
 
-## 💰 Economy Design
+## 🎮 Core Game Systems
 
-### Gas System
-- **Daily Cost**: $0.33 worth of BBG
-- **Purpose**: Sustainable ecosystem, prevents exploitation
-- **Low Gas Warning**: Alert when < 7 days remaining
-- **No Gas**: Cannot hunt until refueled
+### 1. AR Treasure Hunt
+```
+Player Position (GPS) ──► AR Scene ──► Coins at relative positions
+        │                    │                    │
+        ▼                    ▼                    ▼
+   Real World         Camera View          3D Gold Doubloons
+```
 
-### Find Limits
-| Level | Daily Finds | Requirement |
-|-------|-------------|-------------|
-| 1 | 10 coins | Default |
-| 2 | 25 coins | Hide 5 coins |
-| 3 | 50 coins | Hide 15 coins |
-| 4 | 100 coins | Hide 30 coins |
-| 5 | Unlimited | Hide 50 coins |
+- Coins spawn at real GPS coordinates
+- AR converts GPS to 3D positions relative to player
+- Coins visible through device camera
+- Must physically walk to collect
 
-### Coin Types
-- **Fixed Coins**: Always in same location, respawn after cooldown
-- **Random Coins**: Spawn randomly in valid areas
-- **Hidden Coins**: Player-placed coins for others to find
-- **Event Coins**: Special time-limited coins
+### 2. Economy System
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    $10 Purchase                      │
+├─────────────────────────────────────────────────────┤
+│  $9 → Distributed as coins near player              │
+│  $1 → Gas fee (our revenue)                         │
+├─────────────────────────────────────────────────────┤
+│  Daily: ~$0.33 consumed from gas tank               │
+│  No gas = Can't play                                │
+└─────────────────────────────────────────────────────┘
+```
+
+### 3. Find Limit System
+
+```
+Your Find Limit = Highest coin you've ever hidden
+
+┌────────────┬─────────────┬──────────────────┐
+│ Hidden     │ Can Find    │ Tier             │
+├────────────┼─────────────┼──────────────────┤
+│ Nothing    │ Up to $1    │ Cabin Boy        │
+│ $5 coin    │ Up to $5    │ Deck Hand        │
+│ $25 coin   │ Up to $25   │ Captain          │
+│ $100 coin  │ Up to $100  │ King of Pirates  │
+└────────────┴─────────────┴──────────────────┘
+
+Coins above your limit appear LOCKED (red, can't collect)
+```
 
 ---
 
 ## 🎨 Visual Design
 
 ### Color Palette
+
 | Color | Hex | Usage |
 |-------|-----|-------|
-| **Gold** | #FFD700 | Primary - coins, highlights, CTAs |
+| **Gold** | #FFD700 | Primary - coins, buttons, highlights |
 | **Deep Sea Blue** | #1A365D | Secondary - backgrounds, headers |
-| **Pirate Red** | #8B0000 | Accent - warnings, important actions |
+| **Pirate Red** | #8B0000 | Accent - warnings, locked items |
 | **Parchment** | #F5E6D3 | Text backgrounds, cards |
-| **Ocean Teal** | #0D7377 | Success states, positive feedback |
+| **Dark Brown** | #3D2914 | Text color |
+| **Silver** | #C0C0C0 | Silver tier coins |
+| **Bronze** | #CD7F32 | Bronze tier coins |
 
-### Typography
-- **Headers**: Bold, nautical feel
-- **Body**: Clean, readable
-- **Numbers**: Monospace for values
+### AR HUD Layout
 
-### UI Theme
-- Pirate/nautical aesthetic
-- Treasure map textures
-- Rope borders
-- Compass elements
-- Anchor iconography
+```
+┌─────────────────────────────────────────────────┐
+│ [🧭 N]                           [Find: $5.00]  │
+│  ↖ 47m                                          │
+│                                                 │
+│                      ⊕                          │
+│                                                 │
+│  ┌─────┐                              ║████████║│
+│  │ 🗺️  │                              ║░░░░░░░░║│
+│  │radar│                              ║  GAS   ║│
+│  └─────┘                              ║ 25 days║│
+└─────────────────────────────────────────────────┘
+
+🧭 = Compass (direction to selected coin)
+⊕ = Crosshairs (target center)
+🗺️ = Mini-map/radar (nearby coins)
+GAS = Gas meter (days remaining)
+```
+
+### Coin Visual States
+
+| State | Appearance |
+|-------|------------|
+| **Normal** | Gold, spinning, sparkles |
+| **Pool** | Silver, shows "?" for value |
+| **Locked** | Red tint, lock overlay |
+| **In Range** | Crosshairs turn green |
+| **Collecting** | Flies to camera, celebration |
 
 ---
 
-## 📱 Technical Requirements
+## 📱 User Flow
 
-### Android
-- **Minimum**: Android 7.0 (API 24)
-- **AR Support**: ARCore compatible device
-- **Permissions**: Camera, Location (fine), Internet
-- **Storage**: ~100MB
+### First Launch
+```
+Install → Onboarding → Create Account → Tutorial Hunt → Main Menu
+```
 
-### iOS
-- **Minimum**: iOS 11.0
-- **AR Support**: ARKit compatible (iPhone 6s+)
-- **Permissions**: Camera, Location, Internet
-- **Storage**: ~100MB
+### Daily Play
+```
+Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect → Wallet
+```
+
+### Hunt Flow
+```
+1. Check gas (block if empty)
+2. Start AR camera
+3. Get GPS position
+4. Load nearby coins
+5. Walk around, find coins
+6. Center crosshairs, tap
+7. Collection animation
+8. Wallet updated
+9. Continue or exit
+```
 
 ---
 
 ## 🗓️ Development Phases
 
-### Phase 0: Foundation (Week 1)
-- Unity project setup
-- AR Foundation configuration
-- Android build pipeline
-- Basic AR test scene
+### Phase 0: Foundation (Current)
+- [x] Unity Hub installed
+- [x] Unity 6 installed with Android Build Support
+- [x] Documentation complete
+- [ ] Unity project created
+- [ ] AR Foundation installed
+- [ ] Basic AR test
 
-### Phase 1: Core AR (Weeks 2-3)
-- GPS integration
-- Coin spawning system
-- Collection mechanics
-- Basic HUD
+### Phase 1: MVP (Sprints 1-8)
+- [ ] Scene navigation
+- [ ] AR camera with coin rendering
+- [ ] GPS tracking
+- [ ] Coin collection
+- [ ] User auth
+- [ ] Wallet & economy
+- [ ] Backend integration
 
-### Phase 2: User System (Week 4)
-- Authentication
-- Profile management
-- Cloud persistence
+### Phase 2: Enhanced Features
+- [ ] Multiple hunt types
+- [ ] Social features
+- [ ] Coin hiding
+- [ ] Polish & audio
 
-### Phase 3: Economy (Week 5)
-- Wallet implementation
-- Gas mechanics
-- Transactions
-
-### Phase 4: Map & Nav (Week 6)
-- Map view
-- Navigation helpers
-- Radar system
-
-### Phase 5: Polish (Weeks 7-8)
-- iOS build
-- Sound & haptics
-- Visual polish
-- Testing
+### Phase 3: Advanced
+- [ ] Guilds
+- [ ] Sponsor hunts
+- [ ] iOS release
+- [ ] Scale testing
 
 ---
 
@@ -186,37 +223,93 @@ Black Bart's Gold is an augmented reality mobile game where players hunt for vir
 ### Technical
 - 60 FPS AR rendering
 - < 3 second GPS lock
-- < 100ms tap-to-collect response
+- < 100ms tap response
 - 99.9% crash-free sessions
 
 ### User Experience
-- < 30 seconds from launch to first coin seen
-- Clear understanding of mechanics within first session
-- Compelling reason to return daily
+- < 30 seconds to first coin visible
+- Clear tutorial completion
+- Daily active return rate
 
 ---
 
-## 🔄 Migration Notes
+## 🔄 Migration from React Native
 
-This project was migrated from React Native + ViroReact due to:
-1. ViroReact library instability with React Native 0.81+
-2. Fabric architecture incompatibility
-3. Limited community support for ViroReact
-4. Need for production-quality AR at scale
+### What We Learned
+1. **ViroReact limitations**: Not production-ready for complex apps
+2. **Architecture matters**: New arch (Fabric) broke libraries
+3. **Community support**: Small community = slow bug fixes
+4. **Choose proven tech**: Unity has decade of AR games
 
-Unity + AR Foundation was chosen because:
-1. Industry standard (Pokémon Go, etc.)
-2. Native ARCore/ARKit performance
-3. Cross-platform from single codebase
-4. Massive community and support
+### What We're Keeping
+- All game design documents
+- Economy mechanics
+- UI/UX concepts
+- Backend API design
+
+### What's New
+- Unity engine (C#)
+- AR Foundation framework
+- Native platform builds
+- Unity-specific patterns
 
 ---
 
-## 👥 Team
+## 👥 Team & Collaboration
 
-- **Developer**: Building with AI assistance
-- **Platform**: Initially Android (OnePlus 9 Pro), then iOS
+### AI Assistant Guidelines
+
+When working on this project:
+
+1. **Always read first**: Start sessions by reading this file and `DEVELOPMENT-LOG.md`
+2. **Use BUILD-GUIDE.md**: Follow sprint prompts for structured development
+3. **Be additive**: Don't delete working code
+4. **Explain clearly**: Long explanations with file paths
+5. **Use emojis**: Keep energy high! 🏴‍☠️
+6. **Test on device**: AR doesn't work in Unity Editor
+
+### File Path Convention
+Always include full paths in code blocks:
+```
+Assets/Scripts/AR/CoinController.cs
+```
 
 ---
 
-*"Dead men tell no tales, but their gold still glitters!" 🏴‍☠️*
+## 📚 Documentation Index
+
+| Document | Purpose |
+|----------|---------|
+| **project-vision.md** | This file - overview & decisions |
+| **BUILD-GUIDE.md** | Sprint-by-sprint prompts |
+| **DEVELOPMENT-LOG.md** | Progress tracking |
+| **PROMPT-GUIDE.md** | AI assistant templates |
+| **project-scope.md** | Business model & phases |
+| **economy-and-currency.md** | BBG, gas, find limits |
+| **coins-and-collection.md** | Coin mechanics |
+| **prize-finder-details.md** | AR HUD design |
+| **treasure-hunt-types.md** | Hunt configurations |
+| **user-accounts-security.md** | Auth & anti-cheat |
+| **social-features.md** | Friends & leaderboards |
+| **admin-dashboard.md** | Admin tools |
+| **dynamic-coin-distribution.md** | Coin spawning |
+| **safety-and-legal-research.md** | Legal considerations |
+
+---
+
+## 🏴‍☠️ The Pirate Philosophy
+
+> "Dead men tell no tales, but their gold still glitters!"
+
+This game is about:
+- **Adventure**: Get outside, explore
+- **Discovery**: Find hidden treasure
+- **Fairness**: Give to receive
+- **Fun**: Pirate theme, celebrations
+- **Value**: Real rewards
+
+Build it like a pirate: Bold, adventurous, and with an eye for treasure! 💰
+
+---
+
+*"X marks the spot!"* 🗺️
