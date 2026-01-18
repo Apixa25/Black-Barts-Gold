@@ -10,9 +10,10 @@
 |------|-------|
 | **Project Path** | `C:\Users\Admin\Black-Barts-Gold` |
 | **Repository** | https://github.com/Apixa25/Black-Barts-Gold.git |
-| **Engine** | Unity 6 (6000.3.4f1) |
-| **Current Sprint** | Sprint 0 - Foundation Setup |
-| **Current Status** | Unity Installed, Documentation Complete |
+| **Engine** | Unity 6 (6000.3.4f1 LTS) |
+| **Current Sprint** | Sprint 0 Complete ✅ → Ready for Sprint 1 |
+| **Current Status** | AR Foundation Working on Device! 🎉 |
+| **Test Device** | OnePlus 9 Pro (Android, ARM64, ARCore) |
 | **Last Updated** | January 17, 2026 |
 
 ---
@@ -25,7 +26,7 @@
 
 This project was **migrated from React Native + ViroReact** due to:
 1. ViroReact library instability with React Native 0.81+
-2. Fabric architecture incompatibility (ClassCastException crashes)
+2. Fabric architecture incompatibility (ClassCastException crashes on AR exit)
 3. Limited community support for ViroReact
 4. Need for production-quality AR at scale (millions of users)
 
@@ -43,7 +44,7 @@ This project was **migrated from React Native + ViroReact** due to:
 
 ### Key Files to Read First
 1. `project-vision.md` - Full project philosophy and tech decisions
-2. `BUILD-GUIDE.md` - Step-by-step sprint prompts for Unity
+2. `BUILD-GUIDE.md` - Step-by-step sprint prompts for Unity (8 sprints!)
 3. This file - Current progress and patterns
 
 ---
@@ -53,69 +54,36 @@ This project was **migrated from React Native + ViroReact** due to:
 | Component | Technology | Version |
 |-----------|------------|---------|
 | **Game Engine** | Unity | 6 (6000.3.4f1 LTS) |
-| **AR Framework** | AR Foundation | 5.x (to install) |
-| **Android AR** | ARCore XR Plugin | Latest |
-| **iOS AR** | ARKit XR Plugin | Latest |
+| **AR Framework** | AR Foundation | 5.x |
+| **Android AR** | Google ARCore XR Plugin | Latest |
+| **iOS AR** | Apple ARKit XR Plugin | Latest |
 | **Language** | C# | .NET Standard 2.1 |
 | **Backend** | TBD | Node.js/Express or Firebase |
 
 ---
 
-## 📁 Project Structure (Planned)
+## 📁 Project Structure
 
 ```
-Assets/
-├── Scripts/
-│   ├── AR/              # AR-specific scripts
-│   │   ├── ARSessionManager.cs
-│   │   ├── CoinController.cs
-│   │   ├── CoinManager.cs
-│   │   ├── CoinSpawner.cs
-│   │   └── ARRaycastController.cs
-│   ├── Core/            # Core game systems
-│   │   ├── GameManager.cs
-│   │   ├── SceneLoader.cs
-│   │   ├── PlayerData.cs
-│   │   ├── SaveSystem.cs
-│   │   ├── AuthService.cs
-│   │   ├── ApiClient.cs
-│   │   └── Models/
-│   ├── Economy/         # Wallet, gas, transactions
-│   │   ├── WalletService.cs
-│   │   ├── GasService.cs
-│   │   ├── CollectionService.cs
-│   │   └── FindLimitService.cs
-│   ├── Location/        # GPS, distance calculations
-│   │   ├── LocationService.cs
-│   │   ├── GeoUtils.cs
-│   │   └── HapticService.cs
-│   ├── UI/              # UI controllers
-│   │   ├── MainMenuController.cs
-│   │   ├── WalletController.cs
-│   │   ├── MapController.cs
-│   │   ├── ARHUD.cs
-│   │   └── [HUD Components]
-│   └── Utils/           # Helper utilities
-├── Scenes/
-│   ├── MainMenu.unity
-│   ├── ARHunt.unity
-│   ├── Map.unity
-│   ├── Wallet.unity
-│   └── Settings.unity
-├── Prefabs/
-│   ├── Coins/           # Coin prefabs
-│   ├── UI/              # UI prefabs
-│   └── Effects/         # Particle effects
-├── Materials/
-│   └── Coins/           # Coin materials (Gold, Silver, Bronze, Locked)
-├── Models/
-│   └── Coins/           # 3D coin models
-├── Audio/
-│   ├── SFX/             # Sound effects
-│   └── Voice/           # Black Bart voice lines
-├── Textures/
-├── Fonts/
-└── Resources/           # Runtime-loaded assets
+C:\Users\Admin\Black-Barts-Gold\
+├── Docs/                    # Documentation
+│   ├── BUILD-GUIDE.md       # Unity sprint prompts (8 sprints)
+│   ├── DEVELOPMENT-LOG.md   # This file
+│   ├── project-vision.md    # Technical overview
+│   ├── PROMPT-GUIDE.md      # AI assistant templates
+│   └── [10 business docs]   # Economy, coins, hunts, etc.
+│
+├── BlackBartsGold/          # Unity Project
+│   ├── Assets/
+│   │   ├── Scenes/
+│   │   │   └── ARTest.unity # Working AR test scene ✅
+│   │   └── [Materials, etc.]
+│   ├── Packages/
+│   │   └── manifest.json    # AR Foundation, ARCore, ARKit
+│   └── ProjectSettings/
+│
+├── README.md
+└── .gitignore
 ```
 
 ---
@@ -160,77 +128,81 @@ public static class Colors
 
 ## ✅ Completed Work
 
-### January 17, 2026 - Project Setup
+### 🎉 January 17, 2026 - MAJOR MILESTONE: First AR Test Success!
 
-#### Environment Setup ✅
+#### Sprint 0: Foundation Setup - COMPLETE ✅
+
+**Environment Setup:**
 - [x] Unity Hub installed
 - [x] Unity 6 (6000.3.4f1 LTS) installed
 - [x] Android Build Support module installed
-- [x] Android SDK & NDK configured
+- [x] Android SDK & NDK configured (Unity bundled)
 - [x] Git repository created and pushed
 
-#### Documentation ✅
-- [x] README.md - Project overview
-- [x] project-vision.md - Technical vision and decisions
-- [x] BUILD-GUIDE.md - Sprint-by-sprint prompts for Unity
-- [x] DEVELOPMENT-LOG.md - This file
-- [x] PROMPT-GUIDE.md - AI assistant prompting guide
-- [x] All business docs migrated from previous project:
-  - project-scope.md
-  - economy-and-currency.md
-  - coins-and-collection.md
-  - treasure-hunt-types.md
-  - prize-finder-details.md
-  - user-accounts-security.md
-  - social-features.md
-  - admin-dashboard.md
-  - dynamic-coin-distribution.md
-  - safety-and-legal-research.md
+**AR Foundation Setup:**
+- [x] AR Foundation 5.x package installed
+- [x] Google ARCore XR Plugin installed
+- [x] Apple ARKit XR Plugin installed
+- [x] XR Plug-in Management configured (ARCore enabled for Android)
+
+**Android Build Configuration:**
+- [x] Platform switched to Android
+- [x] Package name: `com.blackbart.gold`
+- [x] Minimum API Level: **Android 10.0 (API 29)** ⚠️ Required for ARCore+Vulkan
+- [x] Scripting Backend: IL2CPP
+- [x] Target Architecture: ARM64
+
+**AR Test Scene:**
+- [x] Created `ARTest.unity` scene
+- [x] Added AR Session
+- [x] Added XR Origin (AR) with camera
+- [x] Added test cube (gold colored, position 0,0,3)
+- [x] Created gold material
+
+**Build & Deploy:**
+- [x] Fixed Gradle build issue (set User Home to `C:\gradle-home`)
+- [x] Successfully built APK
+- [x] Deployed to OnePlus 9 Pro
+- [x] **AR WORKING!** Golden cube visible in real-world AR! 🎉
+
+**Documentation:**
+- [x] All 13 documentation files in place
+- [x] BUILD-GUIDE.md completely rewritten for Unity (8 sprints)
+- [x] DEVELOPMENT-LOG.md updated
 
 ---
 
-## 🚧 Current Sprint: 0 - Foundation Setup
+## 🔧 Issues Encountered & Solutions
 
-### Goals
-- [ ] Create Unity project with AR template
-- [ ] Install AR Foundation packages
-- [ ] Configure Android build settings
-- [ ] Create folder structure
-- [ ] Basic AR test scene
-- [ ] Build and test on OnePlus 9 Pro
+### Issue 1: ARCore API Level Requirement
+**Error:** `ARCore Required apps using Vulkan require a minimum SDK version of AndroidApiLevel29`
 
-### Next Steps
-1. Open Unity Hub
-2. Create new project in `C:\Users\Admin\Black-Barts-Gold`
-3. Install AR Foundation via Package Manager
-4. Configure XR Plug-in Management for ARCore
+**Solution:** Changed Minimum API Level from 24 to **29** in Player Settings.
+
+**Location:** Edit → Project Settings → Player → Android → Other Settings → Minimum API Level
 
 ---
 
-## 🎉 Migration Summary
+### Issue 2: Gradle Build Failed
+**Error:** `CommandInvocationFailure: Gradle build failed`
 
-### What We're Keeping (from React Native project)
-- ✅ All business logic documentation (economy, coins, hunts, etc.)
-- ✅ Game design decisions
-- ✅ UI/UX concepts (HUD layout, pirate theme)
-- ✅ Backend API design (will reuse or recreate)
+**Solution:** Set Gradle User Home to a short path to avoid Windows long path issues.
 
-### What's New (Unity-specific)
-- 🆕 Unity project structure
-- 🆕 C# scripts (replacing TypeScript)
-- 🆕 AR Foundation (replacing ViroReact)
-- 🆕 Unity UI (replacing React Native)
-- 🆕 Native platform builds
+**Location:** Edit → Preferences → External Tools → Gradle → User Home
 
-### What We're NOT Keeping
-- ❌ React Native code
-- ❌ ViroReact components
-- ❌ Node.js mobile services (will use Unity-native)
-- ❌ Zustand stores (will use Unity patterns)
+**Value:** `C:\gradle-home`
+
+**Note:** This is the same fix we used in the React Native project! Windows + Gradle = path problems.
 
 ---
 
 ## 📌 Key Patterns & Conventions
+
+### Unity Project Location
+The Unity project is in a **subfolder**: `BlackBartsGold/` within the repo.
+```
+C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
+```
 
 ### File Naming (Unity Standard)
 - Scripts: `PascalCase.cs`
@@ -238,22 +210,9 @@ public static class Colors
 - Prefabs: `PascalCase.prefab`
 - Materials: `PascalCase.mat`
 
-### Code Style
-```csharp
-// Use regions for organization
-#region Public Methods
-public void Initialize() { }
-#endregion
-
-// Use [SerializeField] for inspector-exposed privates
-[SerializeField] private GameObject coinPrefab;
-
-// Events with System.Action
-public event Action<Coin> OnCoinCollected;
-
-// Singletons with DontDestroyOnLoad
-public static GameManager Instance { get; private set; }
-```
+### Build Settings Reminder
+- **Minimum API:** 29 (Android 10) - Required for ARCore + Vulkan
+- **Gradle User Home:** `C:\gradle-home` - Fixes Windows build issues
 
 ### User Preferences (from project-vision.md)
 - ✅ Include file paths in code blocks
@@ -261,19 +220,28 @@ public static GameManager Instance { get; private set; }
 - ✅ Use emojis for engagement 🎯
 - ✅ Additive code (don't break existing work)
 - ✅ Reference project-vision.md
-- ✅ Verify code context before suggesting changes
+- ✅ AI handles git commits (user preference!)
 
 ---
 
-## 🐛 Known Issues / TODOs
+## 🚀 Next Steps: Sprint 1
 
-### Active Issues
-*None yet - fresh project!*
+### Sprint 1: Unity Project Foundation
+Based on `BUILD-GUIDE.md`, next session we will:
 
-### Future Considerations
-1. **AR Foundation version** - May need specific version for Unity 6 compatibility
-2. **ARCore minimum version** - Need to verify device compatibility
-3. **iOS setup** - Will need Xcode and Apple Developer account
+1. **Scene Manager & Navigation** (Prompt 1.1)
+   - Create GameManager singleton
+   - Scene loading system
+   - Main scenes: MainMenu, ARHunt, Map, Wallet, Settings
+
+2. **Data Models** (Prompt 1.2)
+   - C# classes for: Coin, User, Wallet, Transaction, LocationData
+   - Enums for: CoinType, CoinStatus, HuntType, etc.
+
+3. **Player Data & Persistence** (Prompt 1.3)
+   - Save/Load system with JSON
+   - PlayerPrefs for settings
+   - Session persistence
 
 ---
 
@@ -282,18 +250,21 @@ public static GameManager Instance { get; private set; }
 | Property | Value |
 |----------|-------|
 | Device | OnePlus 9 Pro |
-| OS | Android |
+| OS | Android 11+ |
 | Architecture | ARM64 |
-| ARCore | Supported ✅ |
+| ARCore | Supported & Tested ✅ |
 
 ---
 
 ## 🚀 Development Commands
 
-### Build Android APK
+### Build Android APK (Unity 6)
 ```
-Unity Menu: File → Build Settings → Build
-Or: File → Build and Run (with device connected)
+File → Build and Run
+```
+Or for just building:
+```
+File → Build Profiles → Build
 ```
 
 ### View Android Logs
@@ -304,7 +275,14 @@ adb logcat -s Unity
 ### Connect Device
 ```powershell
 adb devices
-# Should show: dcbf7350    device (or similar)
+```
+
+### Git Commands (handled by AI assistant)
+```powershell
+cd "C:\Users\Admin\Black-Barts-Gold"
+git add -A
+git commit -m "Your message"
+git push origin main
 ```
 
 ---
@@ -313,24 +291,38 @@ adb devices
 
 | Date | Decision | Reason |
 |------|----------|--------|
-| 2026-01-17 | Migrate to Unity | ViroReact crashes, limited support |
-| 2026-01-17 | Unity 6 LTS | Latest stable with best AR support |
-| 2026-01-17 | AR Foundation | Cross-platform, production-proven |
-| 2026-01-17 | Android first | Primary test device available |
+| 2026-01-17 | Migrate to Unity | ViroReact crashes, limited support, not production-ready |
+| 2026-01-17 | Unity 6 LTS | Latest stable with best AR Foundation support |
+| 2026-01-17 | AR Foundation 5.x | Cross-platform, production-proven |
+| 2026-01-17 | Android first | Primary test device (OnePlus 9 Pro) available |
+| 2026-01-17 | API Level 29 | Required for ARCore + Vulkan graphics |
+| 2026-01-17 | Gradle User Home | `C:\gradle-home` fixes Windows path issues |
+| 2026-01-17 | AI handles git | User prefers AI to manage commits |
 
 ---
 
-## 🔄 How to Use This Log
+## 🔄 Migration Summary
 
-### Starting a New Session
-1. Ask the AI to read `project-vision.md` and this file
-2. Mention which sprint you want to work on
-3. Reference `BUILD-GUIDE.md` for specific prompts
+### From React Native + ViroReact
+The previous attempt used:
+- React Native 0.81.4
+- ViroReact 2.50.1
+- TypeScript
+- Zustand state management
 
-### After Completing Work
-1. Ask the AI to update this log with what was built
-2. Commit changes to Git
-3. Push to GitHub
+**Problems encountered:**
+- ViroReact crashed on AR exit (`UIManagerModule cannot be cast to Fabric`)
+- Fabric architecture incompatibility
+- Limited workarounds available
+- Small community, slow bug fixes
+
+### To Unity + AR Foundation
+New stack provides:
+- Production-quality AR (same as Pokémon GO)
+- Native performance
+- Massive community support
+- Cross-platform from single codebase
+- No "cheesy workarounds" needed!
 
 ---
 
@@ -339,14 +331,34 @@ adb devices
 | Document | Description |
 |----------|-------------|
 | [project-vision.md](./project-vision.md) | Technical vision, architecture |
-| [BUILD-GUIDE.md](./BUILD-GUIDE.md) | Sprint prompts for Unity |
+| [BUILD-GUIDE.md](./BUILD-GUIDE.md) | Sprint prompts for Unity (8 sprints) |
 | [PROMPT-GUIDE.md](./PROMPT-GUIDE.md) | AI assistant guide |
 | [project-scope.md](./project-scope.md) | Business model, phases |
 | [economy-and-currency.md](./economy-and-currency.md) | BBG, gas, find limits |
 | [coins-and-collection.md](./coins-and-collection.md) | Coin mechanics |
 | [prize-finder-details.md](./prize-finder-details.md) | AR HUD design |
 | [treasure-hunt-types.md](./treasure-hunt-types.md) | Hunt modes |
+| [user-accounts-security.md](./user-accounts-security.md) | Auth, anti-cheat |
+| [social-features.md](./social-features.md) | Friends, leaderboards |
+| [admin-dashboard.md](./admin-dashboard.md) | Admin tools |
+| [dynamic-coin-distribution.md](./dynamic-coin-distribution.md) | Coin spawning |
+| [safety-and-legal-research.md](./safety-and-legal-research.md) | Legal |
 
 ---
 
-*Last updated by Claude on January 17, 2026*
+## 🏆 Milestones
+
+| Date | Milestone | Status |
+|------|-----------|--------|
+| 2026-01-17 | Unity environment setup | ✅ |
+| 2026-01-17 | AR Foundation configured | ✅ |
+| 2026-01-17 | First AR build on device | ✅ |
+| 2026-01-17 | **FIRST AR OBJECT VISIBLE!** | 🎉✅ |
+| TBD | Spinning coin in AR | ⏳ |
+| TBD | GPS coin positioning | ⏳ |
+| TBD | Coin collection | ⏳ |
+| TBD | Full MVP | ⏳ |
+
+---
+
+*Last updated: January 17, 2026 - First successful AR test! 🏴‍☠️*
