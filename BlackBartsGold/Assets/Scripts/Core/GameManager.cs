@@ -182,12 +182,102 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void CheckAuthenticationStatus()
         {
-            // TODO: Implement proper auth check with AuthService
-            // For now, check if we have a saved session token
+            // Check with AuthService if available
+            if (AuthService.Exists && AuthService.Instance.IsLoggedIn)
+            {
+                IsAuthenticated = true;
+                Debug.Log("[GameManager] ✅ User authenticated via AuthService");
+                return;
+            }
+            
+            // Fallback: check if we have a saved session token
             string token = PlayerPrefs.GetString("auth_token", "");
             IsAuthenticated = !string.IsNullOrEmpty(token);
             
             Debug.Log($"[GameManager] Authentication status: {IsAuthenticated}");
+        }
+        
+        /// <summary>
+        /// Perform startup authentication check
+        /// Called from a loading scene or initial scene
+        /// </summary>
+        public async void PerformStartupAuthCheck()
+        {
+            Debug.Log("[GameManager] 🔄 Performing startup auth check...");
+            SetGameState(GameState.Loading);
+            
+            // Use SessionManager if available
+            if (SessionManager.Exists)
+            {
+                var result = await SessionManager.Instance.CheckSessionOnStartup();
+                
+                switch (result)
+                {
+                    case SessionCheckResult.ValidSession:
+                        Debug.Log("[GameManager] ✅ Valid session found");
+                        IsAuthenticated = true;
+                        SetGameState(GameState.Ready);
+                        OnAuthStateChanged?.Invoke(true);
+                        LoadScene(SceneNames.MainMenu);
+                        break;
+                        
+                    case SessionCheckResult.ExpiredSession:
+                        Debug.Log("[GameManager] ⚠️ Session expired");
+                        IsAuthenticated = false;
+                        SetGameState(GameState.Ready);
+                        OnAuthStateChanged?.Invoke(false);
+                        LoadScene(SceneNames.Login);
+                        break;
+                        
+                    case SessionCheckResult.NoSession:
+                    default:
+                        Debug.Log("[GameManager] 📝 No session - show onboarding");
+                        IsAuthenticated = false;
+                        SetGameState(GameState.Ready);
+                        OnAuthStateChanged?.Invoke(false);
+                        LoadScene(SceneNames.Onboarding);
+                        break;
+                }
+            }
+            else
+            {
+                // Fallback without SessionManager
+                CheckAuthenticationStatus();
+                SetGameState(GameState.Ready);
+                
+                if (IsAuthenticated)
+                {
+                    LoadScene(SceneNames.MainMenu);
+                }
+                else
+                {
+                    LoadScene(SceneNames.Onboarding);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Get the appropriate start scene based on auth state
+        /// </summary>
+        public SceneNames GetStartScene()
+        {
+            if (SessionManager.Exists)
+            {
+                return SessionManager.Instance.GetStartScene();
+            }
+            
+            if (IsAuthenticated)
+            {
+                return SceneNames.MainMenu;
+            }
+            
+            // Check if first launch
+            if (PlayerPrefs.GetInt("has_launched_before", 0) == 0)
+            {
+                return SceneNames.Onboarding;
+            }
+            
+            return SceneNames.Login;
         }
         
         #endregion

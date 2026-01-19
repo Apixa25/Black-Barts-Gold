@@ -11,8 +11,8 @@
 | **Project Path** | `C:\Users\Admin\Black-Barts-Gold` |
 | **Repository** | https://github.com/Apixa25/Black-Barts-Gold.git |
 | **Engine** | Unity 6 (6000.3.4f1 LTS) |
-| **Current Sprint** | Sprint 5 Complete ✅ → Ready for Sprint 6 |
-| **Current Status** | User Interface Complete! HUD, Menus, Wallet, Settings |
+| **Current Sprint** | Sprint 6 Complete ✅ → Ready for Sprint 7 |
+| **Current Status** | User Authentication Complete! Login, Register, Session Management |
 | **Test Device** | OnePlus 9 Pro (Android, ARM64, ARCore) |
 | **Last Updated** | January 18, 2026 |
 
@@ -117,18 +117,22 @@ C:\Users\Admin\Black-Barts-Gold\
 | **Sprint 4** | `Scripts/Location/` | 4 scripts | ~1,800 |
 | **Sprint 4** | `Scripts/UI/` | 2 scripts | ~900 |
 | **Sprint 5** | `Scripts/UI/` | 8 scripts | ~3,600 |
-| **Total** | | **36 scripts** | **~14,400 lines** |
+| **Sprint 6** | `Scripts/Core/` | 2 scripts | ~1,200 |
+| **Sprint 6** | `Scripts/UI/` | 3 scripts | ~1,400 |
+| **Total** | | **41 scripts** | **~17,020 lines** |
 
 ### Complete File Inventory
 
 ```
 Assets/Scripts/
-├── Core/                          # Sprint 1
-│   ├── GameManager.cs             (312 lines) - Game state, scene management
+├── Core/                          # Sprint 1 + Sprint 6
+│   ├── GameManager.cs             (412 lines) - Game state, scene management (+auth check)
 │   ├── SceneLoader.cs             (230 lines) - Sync/async scene loading
 │   ├── PlayerData.cs              (408 lines) - Runtime player data singleton
 │   ├── SaveSystem.cs              (337 lines) - JSON persistence with backup
-│   ├── Enums.cs                   (300 lines) - All game enumerations (+CoinVisualState)
+│   ├── Enums.cs                   (300 lines) - All game enumerations
+│   ├── AuthService.cs             (680 lines) - Authentication singleton ⭐ S6 NEW
+│   ├── SessionManager.cs          (520 lines) - Session management ⭐ S6 NEW
 │   └── Models/
 │       ├── Coin.cs                (298 lines) - Treasure coin data model
 │       ├── User.cs                (293 lines) - Player profile & settings
@@ -141,32 +145,35 @@ Assets/Scripts/
 │   ├── ARSessionManager.cs        (340 lines) - AR lifecycle management
 │   ├── ARRaycastController.cs     (430 lines) - Crosshairs targeting
 │   ├── PlaneVisualizer.cs         (380 lines) - Debug plane rendering
-│   ├── CoinController.cs          (620 lines) - Individual coin behavior ⭐ NEW
-│   ├── CoinVisuals.cs             (420 lines) - Coin visual effects ⭐ NEW
-│   ├── CoinManager.cs             (550 lines) - Coin spawning/tracking ⭐ NEW
-│   ├── CoinSpawner.cs             (450 lines) - GPS to AR conversion ⭐ NEW
+│   ├── CoinController.cs          (620 lines) - Individual coin behavior
+│   ├── CoinVisuals.cs             (420 lines) - Coin visual effects
+│   ├── CoinManager.cs             (550 lines) - Coin spawning/tracking
+│   ├── CoinSpawner.cs             (450 lines) - GPS to AR conversion
 │   ├── CoinCollectionEffect.cs    (420 lines) - Collection feedback
 │   └── TestCoinSpawner.cs         (340 lines) - Development testing
 │
-├── Location/                      # Sprint 4 ⭐ NEW
-│   ├── GPSManager.cs              (480 lines) - GPS tracking service ⭐ NEW
-│   ├── GeoUtils.cs                (380 lines) - Geospatial utilities ⭐ NEW
-│   ├── HapticService.cs           (420 lines) - Vibration feedback ⭐ NEW
-│   └── ProximityManager.cs        (520 lines) - Distance tracking ⭐ NEW
+├── Location/                      # Sprint 4
+│   ├── GPSManager.cs              (480 lines) - GPS tracking service
+│   ├── GeoUtils.cs                (380 lines) - Geospatial utilities
+│   ├── HapticService.cs           (420 lines) - Vibration feedback
+│   └── ProximityManager.cs        (520 lines) - Distance tracking
 │
-└── UI/                            # Sprint 2 + Sprint 4 + Sprint 5
+└── UI/                            # Sprint 2 + Sprint 4 + Sprint 5 + Sprint 6
     ├── CrosshairsController.cs    (380 lines) - Visual targeting feedback
     ├── ARTrackingUI.cs            (290 lines) - Tracking status UI
     ├── CompassUI.cs               (450 lines) - Direction compass
     ├── RadarUI.cs                 (450 lines) - Mini radar map
-    ├── ARHUD.cs                   (580 lines) - Main AR HUD controller ⭐ NEW
-    ├── GasMeterUI.cs              (380 lines) - Gas tank display ⭐ NEW
-    ├── FindLimitUI.cs             (350 lines) - Find limit display ⭐ NEW
-    ├── MainMenuUI.cs              (420 lines) - Home screen ⭐ NEW
-    ├── WalletUI.cs                (520 lines) - Wallet screen ⭐ NEW
-    ├── TransactionItemUI.cs       (220 lines) - Transaction list item ⭐ NEW
-    ├── SettingsUI.cs              (480 lines) - Settings screen ⭐ NEW
-    └── MapUI.cs                   (550 lines) - 2D map screen ⭐ NEW
+    ├── ARHUD.cs                   (580 lines) - Main AR HUD controller
+    ├── GasMeterUI.cs              (380 lines) - Gas tank display
+    ├── FindLimitUI.cs             (350 lines) - Find limit display
+    ├── MainMenuUI.cs              (420 lines) - Home screen
+    ├── WalletUI.cs                (520 lines) - Wallet screen
+    ├── TransactionItemUI.cs       (220 lines) - Transaction list item
+    ├── SettingsUI.cs              (490 lines) - Settings screen (+AuthService logout)
+    ├── MapUI.cs                   (550 lines) - 2D map screen
+    ├── LoginUI.cs                 (450 lines) - Login screen ⭐ S6 NEW
+    ├── RegisterUI.cs              (580 lines) - Registration screen ⭐ S6 NEW
+    └── OnboardingUI.cs            (380 lines) - Onboarding screen ⭐ S6 NEW
 ```
 
 ### Key Systems Implemented
@@ -198,6 +205,11 @@ Assets/Scripts/
 | **Wallet** | ✅ | `WalletUI`, `TransactionItemUI` |
 | **Settings** | ✅ | `SettingsUI` (audio, haptics, account) |
 | **Map Screen** | ✅ | `MapUI` (2D coin map) |
+| **Authentication** | ✅ | `AuthService` (login, register, logout) ⭐ NEW |
+| **Session Management** | ✅ | `SessionManager` (auto-login, validation) ⭐ NEW |
+| **Login Screen** | ✅ | `LoginUI` (email/password, Google) ⭐ NEW |
+| **Registration** | ✅ | `RegisterUI` (form validation) ⭐ NEW |
+| **Onboarding** | ✅ | `OnboardingUI` (first-launch welcome) ⭐ NEW |
 
 ---
 
@@ -449,28 +461,140 @@ C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
 
 ---
 
-## 🚀 Next Steps: Sprint 6
+## 🚀 Next Steps: Sprint 7
 
-### Sprint 6: User Authentication
+### Sprint 7: Wallet & Economy
 Based on `BUILD-GUIDE.md`, next session we will:
 
-1. **Auth Service** (Prompt 6.1)
-   - Login/register functionality
-   - Session management
-   - Token storage
+1. **Wallet Service** (Prompt 7.1)
+   - Balance management
+   - Park/Unpark functionality
+   - Transaction recording
 
-2. **Auth Screens** (Prompt 6.2)
-   - Login screen UI
-   - Registration screen UI
-   - Onboarding flow
+2. **Gas System** (Prompt 7.2)
+   - Daily gas consumption
+   - Low gas warnings
+   - No gas overlay
 
-3. **Google Sign-In** (Prompt 6.3)
-   - OAuth integration
-   - Social login
+3. **Purchase Flow** (Prompt 7.3)
+   - Buy gas UI
+   - Mock purchase integration
 
-4. **Session Persistence** (Prompt 6.4)
-   - Auto-login on app start
-   - Token refresh
+---
+
+### 🎉 January 18, 2026 - Sprint 6 Complete: User Authentication!
+
+#### Sprint 6: User Authentication - COMPLETE ✅
+
+**Prompt 6.1 - Auth Service:**
+- [x] `AuthService.cs` - Singleton authentication manager
+  - Register with email, password, display name, age
+  - Login with email/password
+  - Login with Google (stub for MVP)
+  - Logout with session clearing
+  - Session token management (save/clear/validate)
+  - Form validation (email format, password length, age check)
+  - Events: OnLoginSuccess, OnRegisterSuccess, OnLogoutSuccess, OnAuthError
+  - Mock responses for MVP development
+
+**Prompt 6.2 - Auth Screens:**
+- [x] `LoginUI.cs` - Login screen controller
+  - Email/password input fields
+  - Login button with async handling
+  - Google login button (stub)
+  - Create account navigation
+  - Password visibility toggle
+  - Real-time input validation
+  - Loading overlay during auth
+  - Error message display
+  - Session expired message handling
+
+- [x] `RegisterUI.cs` - Registration screen controller
+  - Email, display name, password, confirm password fields
+  - Age dropdown (13-99)
+  - Terms of Service checkbox
+  - Password strength indicator
+  - Real-time validation with icons
+  - Terms & Privacy policy links
+  - Success message with auto-navigation
+
+- [x] `OnboardingUI.cs` - First-launch welcome screen
+  - Black Bart branding
+  - Game introduction text
+  - "How It Works" expandable section (4 steps)
+  - Feature highlights with staggered animation
+  - Login/Create Account buttons
+  - Entrance animation with fade-in
+
+**Prompt 6.3 - Protected Scenes & Session:**
+- [x] `SessionManager.cs` - Session persistence manager
+  - CheckSessionOnStartup() async validation
+  - Auto-login from saved token
+  - IsProtectedScene() checker
+  - LoadProtectedScene() with auth redirect
+  - First launch detection
+  - Session expired message handling
+  - GetStartScene() helper
+
+- [x] Updated `GameManager.cs`
+  - PerformStartupAuthCheck() method
+  - GetStartScene() integration
+  - Auth state checking with AuthService
+
+- [x] Updated `SettingsUI.cs`
+  - Logout integrated with AuthService
+  - Proper session clearing
+
+**Files Created (5 new, 2 updated):**
+```
+Assets/Scripts/Core/
+├── AuthService.cs         # Authentication singleton ⭐ NEW
+└── SessionManager.cs      # Session management ⭐ NEW
+
+Assets/Scripts/UI/
+├── LoginUI.cs             # Login screen ⭐ NEW
+├── RegisterUI.cs          # Registration screen ⭐ NEW
+└── OnboardingUI.cs        # Onboarding screen ⭐ NEW
+
+Updated:
+├── GameManager.cs         # Added auth check methods
+└── SettingsUI.cs          # AuthService logout integration
+```
+
+**Key Features:**
+- ✅ Full auth flow: Register → Login → Main Menu
+- ✅ Session persistence across app restarts
+- ✅ Auto-login from saved token
+- ✅ Protected scene routing
+- ✅ First-launch onboarding experience
+- ✅ Form validation with visual feedback
+- ✅ Password strength indicator
+- ✅ Google login stub (ready for OAuth)
+- ✅ Session expiry handling
+- ✅ Pirate-themed messaging 🏴‍☠️
+
+**Auth Flow:**
+```
+App Start
+    │
+    ▼
+Is First Launch? ───Yes──▶ Onboarding Screen
+    │                           │
+    No                     Login/Register
+    │                           │
+    ▼                           ▼
+Has Saved Session? ───No──▶ Login Screen
+    │                           │
+    Yes                    Auth Success
+    │                           │
+    ▼                           ▼
+Validate Token ────Invalid──▶ Login Screen
+    │                      (Session Expired)
+    Valid
+    │
+    ▼
+Main Menu
+```
 
 ---
 
@@ -834,11 +958,11 @@ New stack provides:
 | 2026-01-18 | **Sprint 3: AR Coin System Complete** | 🎉✅ |
 | 2026-01-18 | **Sprint 4: GPS & Location Complete** | 🎉✅ |
 | 2026-01-18 | **Sprint 5: User Interface Complete** | 🎉✅ |
-| TBD | Sprint 6: Authentication | ⏳ |
-| TBD | Sprint 6: Authentication | ⏳ |
-| TBD | Sprint 7: Backend Integration | ⏳ |
-| TBD | Full MVP (Sprint 8) | ⏳ |
+| 2026-01-18 | **Sprint 6: User Authentication Complete** | 🎉✅ |
+| TBD | Sprint 7: Wallet & Economy | ⏳ |
+| TBD | Sprint 8: Backend Integration | ⏳ |
+| TBD | Full MVP Complete | ⏳ |
 
 ---
 
-*Last updated: January 18, 2026 - Sprint 5 Complete! Full UI: HUD, Menus, Wallet, Settings! 🎨🏴‍☠️*
+*Last updated: January 18, 2026 - Sprint 6 Complete! User Authentication: Login, Register, Session Management! 🔐🏴‍☠️*

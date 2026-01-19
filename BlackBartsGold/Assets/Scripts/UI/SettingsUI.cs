@@ -445,13 +445,29 @@ namespace BlackBartsGold.UI
             ShowConfirmation(
                 "Logout",
                 "Are ye sure ye want to leave the ship, matey?",
-                () =>
+                async () =>
                 {
-                    Log("Logging out");
-                    if (PlayerData.Exists)
+                    Log("Logging out via AuthService");
+                    
+                    // Use AuthService for proper logout
+                    if (AuthService.Exists)
                     {
-                        PlayerData.Instance.ClearData();
+                        await AuthService.Instance.Logout();
                     }
+                    else
+                    {
+                        // Fallback: clear data manually
+                        if (PlayerData.Exists)
+                        {
+                            PlayerData.Instance.ClearData();
+                        }
+                        
+                        if (GameManager.Instance != null)
+                        {
+                            GameManager.Instance.SetAuthenticated(false);
+                        }
+                    }
+                    
                     SceneLoader.LoadScene(SceneNames.Login);
                 }
             );
