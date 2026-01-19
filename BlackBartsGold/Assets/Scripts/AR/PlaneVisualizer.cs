@@ -10,6 +10,7 @@
 
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
 using System.Collections.Generic;
 
 namespace BlackBartsGold.AR
@@ -141,8 +142,9 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Called when planes are added, updated, or removed
+        /// AR Foundation 6.0+ uses ARTrackablesChangedEventArgs
         /// </summary>
-        private void OnPlanesChanged(ARPlanesChangedEventArgs args)
+        private void OnPlanesChanged(ARTrackablesChangedEventArgs<ARPlane> args)
         {
             // Handle added planes
             foreach (var plane in args.added)
