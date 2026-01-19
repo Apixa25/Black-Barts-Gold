@@ -376,6 +376,31 @@ namespace BlackBartsGold.Core
     
     #endregion
     
+    #region Coin Visuals
+    
+    /// <summary>
+    /// Visual state of a coin in AR
+    /// </summary>
+    public enum CoinVisualState
+    {
+        /// <summary>Normal idle state</summary>
+        Normal,
+        
+        /// <summary>Player hovering but not in range</summary>
+        Hovering,
+        
+        /// <summary>In collection range</summary>
+        InRange,
+        
+        /// <summary>Locked (above find limit)</summary>
+        Locked,
+        
+        /// <summary>Being collected (animation)</summary>
+        Collecting
+    }
+    
+    #endregion
+    
     #region UI & Notifications
     
     /// <summary>

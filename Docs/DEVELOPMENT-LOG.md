@@ -11,8 +11,8 @@
 | **Project Path** | `C:\Users\Admin\Black-Barts-Gold` |
 | **Repository** | https://github.com/Apixa25/Black-Barts-Gold.git |
 | **Engine** | Unity 6 (6000.3.4f1 LTS) |
-| **Current Sprint** | Sprint 2 Complete ✅ → Ready for Sprint 3 |
-| **Current Status** | AR Foundation Setup Complete! Session, Raycast, Crosshairs |
+| **Current Sprint** | Sprint 3 Complete ✅ → Ready for Sprint 4 |
+| **Current Status** | AR Coin System Complete! Spawn, Collect, Animate |
 | **Test Device** | OnePlus 9 Pro (Android, ARM64, ARCore) |
 | **Last Updated** | January 18, 2026 |
 
@@ -113,7 +113,8 @@ C:\Users\Admin\Black-Barts-Gold\
 | **Sprint 1** | `Scripts/Core/Models/` | 6 scripts | ~1,900 |
 | **Sprint 2** | `Scripts/AR/` | 3 scripts | ~1,150 |
 | **Sprint 2** | `Scripts/UI/` | 2 scripts | ~670 |
-| **Total** | | **16 scripts** | **~5,300 lines** |
+| **Sprint 3** | `Scripts/AR/` | 6 scripts | ~2,800 |
+| **Total** | | **22 scripts** | **~8,100 lines** |
 
 ### Complete File Inventory
 
@@ -124,7 +125,7 @@ Assets/Scripts/
 │   ├── SceneLoader.cs             (230 lines) - Sync/async scene loading
 │   ├── PlayerData.cs              (408 lines) - Runtime player data singleton
 │   ├── SaveSystem.cs              (337 lines) - JSON persistence with backup
-│   ├── Enums.cs                   (280 lines) - All game enumerations
+│   ├── Enums.cs                   (300 lines) - All game enumerations (+CoinVisualState)
 │   └── Models/
 │       ├── Coin.cs                (298 lines) - Treasure coin data model
 │       ├── User.cs                (293 lines) - Player profile & settings
@@ -133,10 +134,16 @@ Assets/Scripts/
 │       ├── Transaction.cs         (284 lines) - Transaction records
 │       └── LocationData.cs        (318 lines) - GPS & Haversine math
 │
-├── AR/                            # Sprint 2
+├── AR/                            # Sprint 2 + Sprint 3
 │   ├── ARSessionManager.cs        (340 lines) - AR lifecycle management
 │   ├── ARRaycastController.cs     (430 lines) - Crosshairs targeting
-│   └── PlaneVisualizer.cs         (380 lines) - Debug plane rendering
+│   ├── PlaneVisualizer.cs         (380 lines) - Debug plane rendering
+│   ├── CoinController.cs          (620 lines) - Individual coin behavior ⭐ NEW
+│   ├── CoinVisuals.cs             (420 lines) - Coin visual effects ⭐ NEW
+│   ├── CoinManager.cs             (550 lines) - Coin spawning/tracking ⭐ NEW
+│   ├── CoinSpawner.cs             (450 lines) - GPS to AR conversion ⭐ NEW
+│   ├── CoinCollectionEffect.cs    (420 lines) - Collection feedback ⭐ NEW
+│   └── TestCoinSpawner.cs         (340 lines) - Development testing ⭐ NEW
 │
 └── UI/                            # Sprint 2
     ├── CrosshairsController.cs    (380 lines) - Visual targeting feedback
@@ -156,6 +163,9 @@ Assets/Scripts/
 | **AR Session** | ✅ | `ARSessionManager` (state machine) |
 | **Targeting** | ✅ | `ARRaycastController` (hover/select events) |
 | **Visual Feedback** | ✅ | `CrosshairsController` (color states) |
+| **Coin System** | ✅ | `CoinController`, `CoinManager`, `CoinSpawner` |
+| **Coin Visuals** | ✅ | `CoinVisuals`, `CoinCollectionEffect` |
+| **GPS→AR Convert** | ✅ | `CoinSpawner` (Haversine to AR position) |
 
 ---
 
@@ -407,31 +417,102 @@ C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
 
 ---
 
-## 🚀 Next Steps: Sprint 3
+## 🚀 Next Steps: Sprint 4
 
-### Sprint 3: AR Coin System
+### Sprint 4: GPS & Location
 Based on `BUILD-GUIDE.md`, next session we will:
 
-1. **Coin Prefab & Materials** (Prompt 3.1)
-   - Create 3D coin prefab with gold/silver/bronze materials
-   - Spinning animation, sparkle particles
-   - Value label (billboard text)
+1. **GPS Location Service** (Prompt 4.1)
+   - Real GPS tracking integration
+   - Location accuracy filtering
+   - Battery-efficient location updates
 
-2. **Coin Controller Script** (Prompt 3.2)
-   - CoinController.cs for coin behavior
-   - Initialize from Coin data model
-   - Idle, locked, and collect animations
-   - Interaction handling
+2. **Map View** (Prompt 4.2)
+   - 2D map showing coin locations
+   - Player position indicator
+   - Coin markers with distance
 
-3. **Coin Spawner & Manager** (Prompt 3.3)
-   - CoinManager.cs - Manages all active coins
-   - CoinSpawner.cs - GPS to AR position conversion
-   - Spawn/despawn based on distance
+3. **Compass & Direction** (Prompt 4.3)
+   - Direction to nearest coin
+   - Compass HUD element
+   - Distance countdown
 
-4. **Test Coins in AR** (Prompt 3.4)
-   - TestCoinSpawner.cs for development
-   - Spawn test coins at fixed AR positions
-   - Verify targeting and collection works
+4. **Geofencing** (Prompt 4.4)
+   - Detect when player enters coin zone
+   - Background location alerts
+   - Proximity triggers
+
+---
+
+### 🎉 January 18, 2026 - Sprint 3 Complete: AR Coin System!
+
+#### Sprint 3: AR Coin System - COMPLETE ✅
+
+**Prompt 3.1 - Coin Visuals & Controller:**
+- [x] `CoinController.cs` - Individual coin behavior and state management
+  - Initialize from Coin data model
+  - Spin, bob, and hover animations
+  - Collection animation with fly-to-camera effect
+  - Locked/unlocked state handling
+  - Events: OnCollected, OnLockedTap, OnHoverStart/End
+  
+- [x] `CoinVisuals.cs` - Visual effects management
+  - Tier-based materials (Bronze, Silver, Gold, Platinum, Diamond)
+  - Glow effects with pulsing
+  - Particle systems (idle sparkles, hover, in-range aura)
+  - State transitions with smooth animations
+
+**Prompt 3.2 - Coin Manager:**
+- [x] `CoinManager.cs` - Singleton managing all active coins
+  - Coin spawning and object pooling
+  - Track all active coins
+  - Selection/hover state management
+  - Events: OnCoinSpawned, OnCoinCollected, OnSelectionChanged
+  - Integration with ARRaycastController for targeting
+  - Auto-create default coin objects if no prefab
+
+**Prompt 3.3 - GPS to AR Conversion:**
+- [x] `CoinSpawner.cs` - GPS coordinate to AR position converter
+  - Haversine formula for accurate distance/bearing
+  - Convert GPS lat/lng to Unity world position
+  - Update positions as player moves
+  - Configurable render distance and update interval
+
+**Prompt 3.4 - Testing & Effects:**
+- [x] `TestCoinSpawner.cs` - Development testing tools
+  - Auto-spawn test coins on start
+  - Spawn coins in line, circle, or at offset
+  - Quick spawn methods for all tiers
+  - Mixed locked/unlocked testing
+
+- [x] `CoinCollectionEffect.cs` - Collection celebration effects
+  - Particle bursts by tier
+  - Audio clips by value (small/medium/large/jackpot)
+  - Screen flash feedback
+  - Haptic feedback (Android)
+  - Coin trail animation to wallet UI
+
+**Files Created (6 total):**
+```
+Assets/Scripts/AR/
+├── CoinController.cs      # Individual coin behavior
+├── CoinVisuals.cs         # Visual effects & materials
+├── CoinManager.cs         # Coin spawning & tracking
+├── CoinSpawner.cs         # GPS to AR position conversion
+├── CoinCollectionEffect.cs # Collection celebration
+└── TestCoinSpawner.cs     # Development testing
+```
+
+**Key Features:**
+- ✅ Full coin lifecycle (spawn → hover → collect → celebrate)
+- ✅ Tier-based visual differentiation
+- ✅ Locked coin handling (above find limit)
+- ✅ GPS to AR world position conversion
+- ✅ Distance-based in-range detection
+- ✅ Object pooling for performance
+- ✅ Haptic and audio feedback
+- ✅ Event-driven architecture
+- ✅ Test spawners for rapid development
 
 ---
 
@@ -546,10 +627,13 @@ New stack provides:
 | 2026-01-17 | **FIRST AR OBJECT VISIBLE!** | 🎉✅ |
 | 2026-01-18 | **Sprint 1: Core Systems Complete** | 🎉✅ |
 | 2026-01-18 | **Sprint 2: AR Foundation Setup Complete** | 🎉✅ |
-| TBD | Sprint 3: AR Coin System | ⏳ |
+| 2026-01-18 | **Sprint 3: AR Coin System Complete** | 🎉✅ |
 | TBD | Sprint 4: GPS & Location | ⏳ |
+| TBD | Sprint 5: Economy & Wallet | ⏳ |
+| TBD | Sprint 6: Authentication | ⏳ |
+| TBD | Sprint 7: Backend Integration | ⏳ |
 | TBD | Full MVP (Sprint 8) | ⏳ |
 
 ---
 
-*Last updated: January 18, 2026 - Sprint 2 Complete! AR Session & Targeting Ready! 🏴‍☠️*
+*Last updated: January 18, 2026 - Sprint 3 Complete! AR Coin System with GPS Conversion! 💰🏴‍☠️*
