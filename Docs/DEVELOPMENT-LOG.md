@@ -11,8 +11,8 @@
 | **Project Path** | `C:\Users\Admin\Black-Barts-Gold` |
 | **Repository** | https://github.com/Apixa25/Black-Barts-Gold.git |
 | **Engine** | Unity 6 (6000.3.4f1 LTS) |
-| **Current Sprint** | Sprint 1 Complete ✅ → Ready for Sprint 2 |
-| **Current Status** | Core Systems Built! GameManager, Data Models, Save System |
+| **Current Sprint** | Sprint 2 Complete ✅ → Ready for Sprint 3 |
+| **Current Status** | AR Foundation Setup Complete! Session, Raycast, Crosshairs |
 | **Test Device** | OnePlus 9 Pro (Android, ARM64, ARCore) |
 | **Last Updated** | January 18, 2026 |
 
@@ -76,13 +76,20 @@ C:\Users\Admin\Black-Barts-Gold\
 ├── BlackBartsGold/          # Unity Project
 │   ├── Assets/
 │   │   ├── Scripts/
-│   │   │   └── Core/        # Core game systems ✅ NEW!
-│   │   │       ├── Models/  # Data models (Coin, User, Wallet, etc.)
-│   │   │       ├── GameManager.cs
-│   │   │       ├── SceneLoader.cs
-│   │   │       ├── PlayerData.cs
-│   │   │       ├── SaveSystem.cs
-│   │   │       └── Enums.cs
+│   │   │   ├── Core/        # Core game systems ✅
+│   │   │   │   ├── Models/  # Data models (Coin, User, Wallet, etc.)
+│   │   │   │   ├── GameManager.cs
+│   │   │   │   ├── SceneLoader.cs
+│   │   │   │   ├── PlayerData.cs
+│   │   │   │   ├── SaveSystem.cs
+│   │   │   │   └── Enums.cs
+│   │   │   ├── AR/          # AR systems ✅ NEW!
+│   │   │   │   ├── ARSessionManager.cs
+│   │   │   │   ├── ARRaycastController.cs
+│   │   │   │   └── PlaneVisualizer.cs
+│   │   │   └── UI/          # UI controllers ✅ NEW!
+│   │   │       ├── CrosshairsController.cs
+│   │   │       └── ARTrackingUI.cs
 │   │   ├── Scenes/
 │   │   │   └── ARTest.unity # Working AR test scene ✅
 │   │   └── [Materials, etc.]
@@ -231,6 +238,67 @@ Assets/Scripts/Core/
 
 ---
 
+### 🎉 January 18, 2026 - Sprint 2 Complete: AR Foundation Setup!
+
+#### Sprint 2: AR Foundation Setup - COMPLETE ✅
+
+**Prompt 2.1 - AR Session Setup:**
+- [x] `ARSessionManager.cs` - Singleton managing AR session lifecycle
+  - Tracks ARSessionState (None, Initializing, Tracking, etc.)
+  - Events: OnStateChanged, OnTrackingEstablished, OnTrackingLost, OnError
+  - Pause/Resume/Reset session methods
+  - User-friendly messages ("Looking for surfaces...", "Ready!")
+
+**Prompt 2.2 - AR Plane Detection:**
+- [x] `PlaneVisualizer.cs` - Debug visualization for AR planes
+  - Different colors for horizontal (green) vs vertical (blue) planes
+  - Boundary line rendering
+  - Center markers
+  - Toggle visibility on/off
+  - Get largest plane, plane at position utilities
+
+**Prompt 2.3 - AR Raycast System:**
+- [x] `ARRaycastController.cs` - Crosshairs targeting system
+  - Raycasts from screen center each frame
+  - Detects coins (Physics raycast) and planes (AR raycast)
+  - Events: OnCoinHovered, OnCoinUnhovered, OnCoinSelected
+  - Tap detection for coin selection
+
+**UI Components:**
+- [x] `CrosshairsController.cs` - Visual crosshairs feedback
+  - States: Normal (white), Hovering (gold), InRange (green), Locked (red)
+  - Pulse animation when targeting
+  - Lock overlay for locked coins
+  - Smooth color/scale transitions
+
+- [x] `ARTrackingUI.cs` - Tracking status display
+  - Shows messages during AR initialization
+  - Loading spinner, warning/error icons
+  - Auto-hides when tracking established
+  - Pirate-themed messages! 🏴‍☠️
+
+**Files Created (5 total):**
+```
+Assets/Scripts/AR/
+├── ARSessionManager.cs    # AR session lifecycle management
+├── ARRaycastController.cs # Crosshairs targeting/raycasting
+└── PlaneVisualizer.cs     # Debug plane visualization
+
+Assets/Scripts/UI/
+├── CrosshairsController.cs # Crosshairs visual feedback
+└── ARTrackingUI.cs         # Tracking state display
+```
+
+**Key Features:**
+- ✅ Full AR session state machine
+- ✅ Event-driven architecture for loose coupling
+- ✅ Coin targeting with hover/select events
+- ✅ Visual feedback for all targeting states
+- ✅ Plane detection debugging tools
+- ✅ User-friendly tracking messages
+
+---
+
 ## 🔧 Issues Encountered & Solutions
 
 ### Issue 1: ARCore API Level Requirement
@@ -283,32 +351,31 @@ C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
 
 ---
 
-## 🚀 Next Steps: Sprint 2
+## 🚀 Next Steps: Sprint 3
 
-### Sprint 2: AR Foundation Setup
+### Sprint 3: AR Coin System
 Based on `BUILD-GUIDE.md`, next session we will:
 
-1. **AR Session Setup** (Prompt 2.1)
-   - Create ARSessionManager.cs
-   - Track AR session states (None, Limited, Tracking)
-   - Handle tracking state changes
+1. **Coin Prefab & Materials** (Prompt 3.1)
+   - Create 3D coin prefab with gold/silver/bronze materials
+   - Spinning animation, sparkle particles
+   - Value label (billboard text)
 
-2. **AR Plane Detection** (Prompt 2.2)
-   - PlaneVisualizer.cs for debugging
-   - Toggle visualization on/off
-   - Verify AR tracking is working
+2. **Coin Controller Script** (Prompt 3.2)
+   - CoinController.cs for coin behavior
+   - Initialize from Coin data model
+   - Idle, locked, and collect animations
+   - Interaction handling
 
-3. **AR Raycast System** (Prompt 2.3)
-   - ARRaycastController.cs
-   - Detect where player is looking
-   - Crosshairs targeting system
+3. **Coin Spawner & Manager** (Prompt 3.3)
+   - CoinManager.cs - Manages all active coins
+   - CoinSpawner.cs - GPS to AR position conversion
+   - Spawn/despawn based on distance
 
-4. **Create Game Scenes** (To be done in Unity Editor)
-   - MainMenu.unity
-   - ARHunt.unity
-   - Map.unity
-   - Wallet.unity
-   - Settings.unity
+4. **Test Coins in AR** (Prompt 3.4)
+   - TestCoinSpawner.cs for development
+   - Spawn test coins at fixed AR positions
+   - Verify targeting and collection works
 
 ---
 
@@ -422,11 +489,11 @@ New stack provides:
 | 2026-01-17 | First AR build on device | ✅ |
 | 2026-01-17 | **FIRST AR OBJECT VISIBLE!** | 🎉✅ |
 | 2026-01-18 | **Sprint 1: Core Systems Complete** | 🎉✅ |
-| TBD | Sprint 2: AR Foundation Setup | ⏳ |
+| 2026-01-18 | **Sprint 2: AR Foundation Setup Complete** | 🎉✅ |
 | TBD | Sprint 3: AR Coin System | ⏳ |
 | TBD | Sprint 4: GPS & Location | ⏳ |
 | TBD | Full MVP (Sprint 8) | ⏳ |
 
 ---
 
-*Last updated: January 18, 2026 - Sprint 1 Complete! 🏴‍☠️*
+*Last updated: January 18, 2026 - Sprint 2 Complete! AR Session & Targeting Ready! 🏴‍☠️*
