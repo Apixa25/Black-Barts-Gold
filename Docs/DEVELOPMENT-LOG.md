@@ -11,8 +11,8 @@
 | **Project Path** | `C:\Users\Admin\Black-Barts-Gold` |
 | **Repository** | https://github.com/Apixa25/Black-Barts-Gold.git |
 | **Engine** | Unity 6 (6000.3.4f1 LTS) |
-| **Current Sprint** | Sprint 6 Complete ✅ → Ready for Sprint 7 |
-| **Current Status** | User Authentication Complete! Login, Register, Session Management |
+| **Current Sprint** | Sprint 7 Complete ✅ → Ready for Sprint 8 |
+| **Current Status** | Wallet & Economy Complete! Gas System, Find Limits, Collection Flow |
 | **Test Device** | OnePlus 9 Pro (Android, ARM64, ARCore) |
 | **Last Updated** | January 18, 2026 |
 
@@ -119,7 +119,9 @@ C:\Users\Admin\Black-Barts-Gold\
 | **Sprint 5** | `Scripts/UI/` | 8 scripts | ~3,600 |
 | **Sprint 6** | `Scripts/Core/` | 2 scripts | ~1,200 |
 | **Sprint 6** | `Scripts/UI/` | 3 scripts | ~1,400 |
-| **Total** | | **41 scripts** | **~17,020 lines** |
+| **Sprint 7** | `Scripts/Economy/` | 4 scripts | ~2,600 |
+| **Sprint 7** | `Scripts/UI/` | 4 scripts | ~1,600 |
+| **Total** | | **49 scripts** | **~21,220 lines** |
 
 ### Complete File Inventory
 
@@ -131,8 +133,8 @@ Assets/Scripts/
 │   ├── PlayerData.cs              (408 lines) - Runtime player data singleton
 │   ├── SaveSystem.cs              (337 lines) - JSON persistence with backup
 │   ├── Enums.cs                   (300 lines) - All game enumerations
-│   ├── AuthService.cs             (680 lines) - Authentication singleton ⭐ S6 NEW
-│   ├── SessionManager.cs          (520 lines) - Session management ⭐ S6 NEW
+│   ├── AuthService.cs             (680 lines) - Authentication singleton
+│   ├── SessionManager.cs          (520 lines) - Session management
 │   └── Models/
 │       ├── Coin.cs                (298 lines) - Treasure coin data model
 │       ├── User.cs                (293 lines) - Player profile & settings
@@ -152,13 +154,19 @@ Assets/Scripts/
 │   ├── CoinCollectionEffect.cs    (420 lines) - Collection feedback
 │   └── TestCoinSpawner.cs         (340 lines) - Development testing
 │
+├── Economy/                       # Sprint 7 ⭐ NEW
+│   ├── WalletService.cs           (620 lines) - Wallet operations ⭐ S7 NEW
+│   ├── GasService.cs              (580 lines) - Gas consumption system ⭐ S7 NEW
+│   ├── CollectionService.cs       (650 lines) - Coin collection flow ⭐ S7 NEW
+│   └── FindLimitService.cs        (520 lines) - Find limit enforcement ⭐ S7 NEW
+│
 ├── Location/                      # Sprint 4
 │   ├── GPSManager.cs              (480 lines) - GPS tracking service
 │   ├── GeoUtils.cs                (380 lines) - Geospatial utilities
 │   ├── HapticService.cs           (420 lines) - Vibration feedback
 │   └── ProximityManager.cs        (520 lines) - Distance tracking
 │
-└── UI/                            # Sprint 2 + Sprint 4 + Sprint 5 + Sprint 6
+└── UI/                            # Sprint 2-7
     ├── CrosshairsController.cs    (380 lines) - Visual targeting feedback
     ├── ARTrackingUI.cs            (290 lines) - Tracking status UI
     ├── CompassUI.cs               (450 lines) - Direction compass
@@ -169,11 +177,15 @@ Assets/Scripts/
     ├── MainMenuUI.cs              (420 lines) - Home screen
     ├── WalletUI.cs                (520 lines) - Wallet screen
     ├── TransactionItemUI.cs       (220 lines) - Transaction list item
-    ├── SettingsUI.cs              (490 lines) - Settings screen (+AuthService logout)
+    ├── SettingsUI.cs              (490 lines) - Settings screen
     ├── MapUI.cs                   (550 lines) - 2D map screen
-    ├── LoginUI.cs                 (450 lines) - Login screen ⭐ S6 NEW
-    ├── RegisterUI.cs              (580 lines) - Registration screen ⭐ S6 NEW
-    └── OnboardingUI.cs            (380 lines) - Onboarding screen ⭐ S6 NEW
+    ├── LoginUI.cs                 (450 lines) - Login screen
+    ├── RegisterUI.cs              (580 lines) - Registration screen
+    ├── OnboardingUI.cs            (380 lines) - Onboarding screen
+    ├── NoGasOverlay.cs            (420 lines) - No gas full screen ⭐ S7 NEW
+    ├── LowGasWarning.cs           (380 lines) - Low gas banner ⭐ S7 NEW
+    ├── CollectionPopup.cs         (450 lines) - Collection success popup ⭐ S7 NEW
+    └── FindLimitPopup.cs          (480 lines) - Locked coin popup ⭐ S7 NEW
 ```
 
 ### Key Systems Implemented
@@ -205,11 +217,19 @@ Assets/Scripts/
 | **Wallet** | ✅ | `WalletUI`, `TransactionItemUI` |
 | **Settings** | ✅ | `SettingsUI` (audio, haptics, account) |
 | **Map Screen** | ✅ | `MapUI` (2D coin map) |
-| **Authentication** | ✅ | `AuthService` (login, register, logout) ⭐ NEW |
-| **Session Management** | ✅ | `SessionManager` (auto-login, validation) ⭐ NEW |
-| **Login Screen** | ✅ | `LoginUI` (email/password, Google) ⭐ NEW |
-| **Registration** | ✅ | `RegisterUI` (form validation) ⭐ NEW |
-| **Onboarding** | ✅ | `OnboardingUI` (first-launch welcome) ⭐ NEW |
+| **Authentication** | ✅ | `AuthService` (login, register, logout) |
+| **Session Management** | ✅ | `SessionManager` (auto-login, validation) |
+| **Login Screen** | ✅ | `LoginUI` (email/password, Google) |
+| **Registration** | ✅ | `RegisterUI` (form validation) |
+| **Onboarding** | ✅ | `OnboardingUI` (first-launch welcome) |
+| **Wallet Service** | ✅ | `WalletService` (balance, park/unpark) ⭐ NEW |
+| **Gas System** | ✅ | `GasService` (daily consumption, warnings) ⭐ NEW |
+| **Collection Flow** | ✅ | `CollectionService` (validation, value calc) ⭐ NEW |
+| **Find Limits** | ✅ | `FindLimitService` (limit enforcement, tiers) ⭐ NEW |
+| **No Gas Overlay** | ✅ | `NoGasOverlay` (blocking screen) ⭐ NEW |
+| **Low Gas Warning** | ✅ | `LowGasWarning` (dismissible banner) ⭐ NEW |
+| **Collection Popup** | ✅ | `CollectionPopup` (success feedback) ⭐ NEW |
+| **Locked Coin Popup** | ✅ | `FindLimitPopup` (over-limit message) ⭐ NEW |
 
 ---
 
@@ -461,24 +481,155 @@ C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
 
 ---
 
-## 🚀 Next Steps: Sprint 7
+## 🚀 Next Steps: Sprint 8
 
-### Sprint 7: Wallet & Economy
+### Sprint 8: Backend Integration
 Based on `BUILD-GUIDE.md`, next session we will:
 
-1. **Wallet Service** (Prompt 7.1)
-   - Balance management
-   - Park/Unpark functionality
-   - Transaction recording
+1. **API Client** (Prompt 8.1)
+   - HTTP client for backend calls
+   - Auth headers, error handling
+   - Retry logic
 
-2. **Gas System** (Prompt 7.2)
-   - Daily gas consumption
-   - Low gas warnings
-   - No gas overlay
+2. **Data Sync** (Prompt 8.2)
+   - Sync wallet with server
+   - Sync user profile
+   - Offline support
 
-3. **Purchase Flow** (Prompt 7.3)
-   - Buy gas UI
-   - Mock purchase integration
+3. **Real-time Updates** (Prompt 8.3)
+   - WebSocket connection
+   - Live coin updates
+   - Notifications
+
+---
+
+### 🎉 January 18, 2026 - Sprint 7 Complete: Wallet & Economy!
+
+#### Sprint 7: Wallet & Economy - COMPLETE ✅
+
+**Prompt 7.1 - Wallet Service:**
+- [x] `WalletService.cs` - Singleton wallet operations manager
+  - GetBalance() async/sync
+  - GetTransactions() paginated history
+  - ParkCoins() with validation (only found coins)
+  - UnparkCoins() with fee deduction
+  - AddPendingCoins() after collection
+  - ConfirmPendingCoins() after 24h
+  - PurchaseGas() stub for MVP
+  - Events: OnBalanceChanged, OnGasChanged, OnCoinsParked, OnCoinsUnparked
+
+**Prompt 7.2 - Gas System:**
+- [x] `GasService.cs` - Gas consumption manager
+  - GetGasStatus() - remaining, days left, percentage, level
+  - CheckAndConsumeGas() - daily consumption on app start
+  - GetGasMeterColor() - color by level (green/yellow/red)
+  - DismissWarning() - once per session
+  - Events: OnGasConsumed, OnGasEmpty, OnGasLow, OnGasRefilled
+  - Constants: DAILY_RATE ($0.33), FULL_TANK ($10), LOW_THRESHOLD (15%)
+
+- [x] `NoGasOverlay.cs` - Full screen blocking overlay
+  - Ship bobbing animation
+  - "Ye've Run Aground, Matey!" message
+  - Buy Gas button → Wallet screen
+  - Unpark button (if has parked balance)
+  - Main Menu button
+  - Auto-show on gas empty
+
+- [x] `LowGasWarning.cs` - Warning banner
+  - Slide-in animation
+  - Flashing red/orange warning
+  - "⚠️ LOW FUEL - X days remaining"
+  - Dismiss button (once per session)
+  - Add Gas button → Wallet screen
+
+**Prompt 7.3 - Collection Service:**
+- [x] `CollectionService.cs` - Coin collection flow
+  - CanCollect() - pre-collection validation
+  - CollectCoin() - full collection process
+  - DetermineValue() - fixed or pool (slot machine)
+  - Pool coin algorithm with weighted random multiplier
+  - Events: OnCollectionStarted, OnCollectionSuccess, OnCollectionFailed, OnCoinOverLimit
+
+- [x] `CollectionPopup.cs` - Success celebration
+  - "+$X.XX" with tier color
+  - Pirate congratulation message
+  - Scale bounce animation
+  - Tier-based glow effects
+  - Auto-dismiss after 2.5s
+
+**Prompt 7.4 - Find Limit Service:**
+- [x] `FindLimitService.cs` - Limit enforcement
+  - GetCurrentLimit() from PlayerData
+  - IsOverLimit() check for coins
+  - UpdateLimitAfterHide() - raise limit
+  - GetTierInfo() - tier name, color, threshold
+  - Events: OnLimitIncreased, OnTierChanged
+  - 6 Tiers: Cabin Boy → King of Pirates
+
+- [x] `FindLimitPopup.cs` - Locked coin modal
+  - "🔒 Treasure Locked!" title
+  - Coin value vs player limit display
+  - Unlock hint: "Hide $X to unlock!"
+  - Hide a Coin button (stub)
+  - Shake animation for emphasis
+
+**Files Created (8 total):**
+```
+Assets/Scripts/Economy/           # NEW FOLDER
+├── WalletService.cs              # Wallet operations ⭐ NEW
+├── GasService.cs                 # Gas consumption ⭐ NEW
+├── CollectionService.cs          # Collection flow ⭐ NEW
+└── FindLimitService.cs           # Find limit system ⭐ NEW
+
+Assets/Scripts/UI/
+├── NoGasOverlay.cs               # No gas overlay ⭐ NEW
+├── LowGasWarning.cs              # Low gas warning ⭐ NEW
+├── CollectionPopup.cs            # Collection success ⭐ NEW
+└── FindLimitPopup.cs             # Locked coin popup ⭐ NEW
+```
+
+**Key Features:**
+- ✅ Complete wallet service with park/unpark
+- ✅ Daily gas consumption system
+- ✅ Low gas warning (dismissible)
+- ✅ No gas blocking overlay
+- ✅ Full coin collection flow
+- ✅ Pool coin slot machine algorithm
+- ✅ Find limit enforcement
+- ✅ 6-tier progression system
+- ✅ Celebration popups for collection
+- ✅ Locked coin explanation popup
+- ✅ Pirate-themed messaging 🏴‍☠️
+
+**Economy System Flow:**
+```
+Player Collects Coin
+        │
+        ▼
+Collection Check ───OverLimit──▶ FindLimitPopup
+        │                        "Hide $X to unlock!"
+        │
+        ▼
+Distance Check ───TooFar──▶ "Get closer!"
+        │
+        │
+        ▼
+Gas Check ───NoGas──▶ NoGasOverlay
+        │               "Ye've Run Aground!"
+        │
+        ▼
+Collect Success!
+        │
+        ▼
+Calculate Value (Fixed or Pool Slot Machine)
+        │
+        ▼
+Add to Pending (24h confirmation)
+        │
+        ▼
+Show CollectionPopup
+"+$X.XX - Nice find, matey!"
+```
 
 ---
 
@@ -959,10 +1110,10 @@ New stack provides:
 | 2026-01-18 | **Sprint 4: GPS & Location Complete** | 🎉✅ |
 | 2026-01-18 | **Sprint 5: User Interface Complete** | 🎉✅ |
 | 2026-01-18 | **Sprint 6: User Authentication Complete** | 🎉✅ |
-| TBD | Sprint 7: Wallet & Economy | ⏳ |
+| 2026-01-18 | **Sprint 7: Wallet & Economy Complete** | 🎉✅ |
 | TBD | Sprint 8: Backend Integration | ⏳ |
-| TBD | Full MVP Complete | ⏳ |
+| TBD | Full MVP Complete! | ⏳ |
 
 ---
 
-*Last updated: January 18, 2026 - Sprint 6 Complete! User Authentication: Login, Register, Session Management! 🔐🏴‍☠️*
+*Last updated: January 18, 2026 - Sprint 7 Complete! Wallet & Economy: Gas System, Find Limits, Collection Flow! 💰🏴‍☠️*
