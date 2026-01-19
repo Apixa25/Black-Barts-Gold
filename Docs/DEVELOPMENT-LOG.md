@@ -11,8 +11,8 @@
 | **Project Path** | `C:\Users\Admin\Black-Barts-Gold` |
 | **Repository** | https://github.com/Apixa25/Black-Barts-Gold.git |
 | **Engine** | Unity 6 (6000.3.4f1 LTS) |
-| **Current Sprint** | Sprint 4 Complete ✅ → Ready for Sprint 5 |
-| **Current Status** | GPS & Location Complete! Tracking, Compass, Haptics |
+| **Current Sprint** | Sprint 5 Complete ✅ → Ready for Sprint 6 |
+| **Current Status** | User Interface Complete! HUD, Menus, Wallet, Settings |
 | **Test Device** | OnePlus 9 Pro (Android, ARM64, ARCore) |
 | **Last Updated** | January 18, 2026 |
 
@@ -116,7 +116,8 @@ C:\Users\Admin\Black-Barts-Gold\
 | **Sprint 3** | `Scripts/AR/` | 6 scripts | ~2,800 |
 | **Sprint 4** | `Scripts/Location/` | 4 scripts | ~1,800 |
 | **Sprint 4** | `Scripts/UI/` | 2 scripts | ~900 |
-| **Total** | | **28 scripts** | **~10,800 lines** |
+| **Sprint 5** | `Scripts/UI/` | 8 scripts | ~3,600 |
+| **Total** | | **36 scripts** | **~14,400 lines** |
 
 ### Complete File Inventory
 
@@ -153,11 +154,19 @@ Assets/Scripts/
 │   ├── HapticService.cs           (420 lines) - Vibration feedback ⭐ NEW
 │   └── ProximityManager.cs        (520 lines) - Distance tracking ⭐ NEW
 │
-└── UI/                            # Sprint 2 + Sprint 4
+└── UI/                            # Sprint 2 + Sprint 4 + Sprint 5
     ├── CrosshairsController.cs    (380 lines) - Visual targeting feedback
     ├── ARTrackingUI.cs            (290 lines) - Tracking status UI
-    ├── CompassUI.cs               (450 lines) - Direction compass ⭐ NEW
-    └── RadarUI.cs                 (450 lines) - Mini radar map ⭐ NEW
+    ├── CompassUI.cs               (450 lines) - Direction compass
+    ├── RadarUI.cs                 (450 lines) - Mini radar map
+    ├── ARHUD.cs                   (580 lines) - Main AR HUD controller ⭐ NEW
+    ├── GasMeterUI.cs              (380 lines) - Gas tank display ⭐ NEW
+    ├── FindLimitUI.cs             (350 lines) - Find limit display ⭐ NEW
+    ├── MainMenuUI.cs              (420 lines) - Home screen ⭐ NEW
+    ├── WalletUI.cs                (520 lines) - Wallet screen ⭐ NEW
+    ├── TransactionItemUI.cs       (220 lines) - Transaction list item ⭐ NEW
+    ├── SettingsUI.cs              (480 lines) - Settings screen ⭐ NEW
+    └── MapUI.cs                   (550 lines) - 2D map screen ⭐ NEW
 ```
 
 ### Key Systems Implemented
@@ -182,6 +191,13 @@ Assets/Scripts/
 | **Haptics** | ✅ | `HapticService` (vibration patterns) |
 | **Compass UI** | ✅ | `CompassUI` (direction arrow, distance) |
 | **Radar UI** | ✅ | `RadarUI` (mini-map with coin dots) |
+| **AR HUD** | ✅ | `ARHUD` (main HUD controller) |
+| **Gas Meter** | ✅ | `GasMeterUI` (fuel gauge display) |
+| **Find Limit** | ✅ | `FindLimitUI` (tier-based display) |
+| **Main Menu** | ✅ | `MainMenuUI` (home screen) |
+| **Wallet** | ✅ | `WalletUI`, `TransactionItemUI` |
+| **Settings** | ✅ | `SettingsUI` (audio, haptics, account) |
+| **Map Screen** | ✅ | `MapUI` (2D coin map) |
 
 ---
 
@@ -433,30 +449,120 @@ C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
 
 ---
 
-## 🚀 Next Steps: Sprint 5
+## 🚀 Next Steps: Sprint 6
 
-### Sprint 5: User Interface
+### Sprint 6: User Authentication
 Based on `BUILD-GUIDE.md`, next session we will:
 
-1. **AR HUD Overlay** (Prompt 5.1)
-   - Full heads-up display over AR camera
-   - Gas meter, find limit display
-   - Integrate compass and radar
+1. **Auth Service** (Prompt 6.1)
+   - Login/register functionality
+   - Session management
+   - Token storage
 
-2. **Main Menu** (Prompt 5.2)
-   - Home screen with navigation
-   - Start hunt button
-   - Profile summary
+2. **Auth Screens** (Prompt 6.2)
+   - Login screen UI
+   - Registration screen UI
+   - Onboarding flow
 
-3. **Wallet Screen** (Prompt 5.3)
-   - Balance display
-   - Transaction history
-   - Park/unpark controls
+3. **Google Sign-In** (Prompt 6.3)
+   - OAuth integration
+   - Social login
 
-4. **Settings Screen** (Prompt 5.4)
-   - Audio, haptics toggles
-   - Account management
-   - Help/support
+4. **Session Persistence** (Prompt 6.4)
+   - Auto-login on app start
+   - Token refresh
+
+---
+
+### 🎉 January 18, 2026 - Sprint 5 Complete: User Interface!
+
+#### Sprint 5: User Interface - COMPLETE ✅
+
+**Prompt 5.1 - AR HUD Overlay:**
+- [x] `ARHUD.cs` - Main HUD controller singleton
+  - Coordinates all HUD elements (compass, radar, gas, find limit)
+  - Coin info panel for selected coins
+  - Collection popup with pirate messages
+  - Locked coin popup
+  - Temporary message display
+  - Show/hide/fade controls
+
+- [x] `GasMeterUI.cs` - Vertical gas gauge
+  - Fill level based on days remaining
+  - Color-coded: Green (>50%), Yellow (15-50%), Red (<15%)
+  - Flashing animation when low
+  - Animated fill changes
+
+- [x] `FindLimitUI.cs` - Find limit display
+  - Shows "Find: $X.XX" with tier color
+  - Tier name display (Cabin Boy → King of Pirates)
+  - Upgrade animation on limit increase
+  - Color-coded by tier
+
+**Prompt 5.2 - Main Menu:**
+- [x] `MainMenuUI.cs` - Home screen controller
+  - Player balance display
+  - Gas status with days remaining
+  - Quick stats (coins found, find limit, tier)
+  - Navigation buttons: Start Hunting, Map, Wallet, Settings
+  - Gas check before hunting (no gas = disabled)
+  - Pirate-themed styling
+
+**Prompt 5.3 - Wallet Screen:**
+- [x] `WalletUI.cs` - Wallet screen controller
+  - Total balance display
+  - Balance breakdown: Gas Tank, Parked, Pending
+  - Park/Unpark modals
+  - Transaction history list
+  - Add Gas button (stub for purchases)
+
+- [x] `TransactionItemUI.cs` - Transaction list item
+  - Icon by transaction type
+  - Description and amount
+  - Relative time formatting
+  - Status badge for pending
+
+**Prompt 5.4 - Settings & Map:**
+- [x] `SettingsUI.cs` - Settings screen controller
+  - Audio settings (sound effects, music, volume)
+  - Haptic settings (enable/disable)
+  - Display settings (compass, radar, gas meter)
+  - Account section (profile, logout)
+  - Support links (help, feedback, privacy, terms)
+  - Confirmation modals for dangerous actions
+
+- [x] `MapUI.cs` - 2D map screen
+  - Radar-style view with player at center
+  - Coin markers with color-coding
+  - Selected coin panel with details
+  - Navigate to coin button
+  - Zoom in/out controls
+  - Coin list sorted by distance
+
+**Files Created (8 total):**
+```
+Assets/Scripts/UI/
+├── ARHUD.cs              # Main HUD controller
+├── GasMeterUI.cs         # Gas tank gauge
+├── FindLimitUI.cs        # Find limit display
+├── MainMenuUI.cs         # Home screen
+├── WalletUI.cs           # Wallet screen
+├── TransactionItemUI.cs  # Transaction list item
+├── SettingsUI.cs         # Settings screen
+└── MapUI.cs              # 2D map screen
+```
+
+**Key Features:**
+- ✅ Complete AR HUD with all elements
+- ✅ Gas meter with color-coded status
+- ✅ Find limit with tier progression
+- ✅ Main menu with navigation
+- ✅ Wallet with balance breakdown
+- ✅ Transaction history display
+- ✅ Full settings management
+- ✅ 2D map with coin markers
+- ✅ PlayerPrefs for settings persistence
+- ✅ Pirate-themed messages and styling
 
 ---
 
@@ -727,11 +833,12 @@ New stack provides:
 | 2026-01-18 | **Sprint 2: AR Foundation Setup Complete** | 🎉✅ |
 | 2026-01-18 | **Sprint 3: AR Coin System Complete** | 🎉✅ |
 | 2026-01-18 | **Sprint 4: GPS & Location Complete** | 🎉✅ |
-| TBD | Sprint 5: User Interface | ⏳ |
+| 2026-01-18 | **Sprint 5: User Interface Complete** | 🎉✅ |
+| TBD | Sprint 6: Authentication | ⏳ |
 | TBD | Sprint 6: Authentication | ⏳ |
 | TBD | Sprint 7: Backend Integration | ⏳ |
 | TBD | Full MVP (Sprint 8) | ⏳ |
 
 ---
 
-*Last updated: January 18, 2026 - Sprint 4 Complete! GPS Tracking, Compass, Haptics! 🧭🏴‍☠️*
+*Last updated: January 18, 2026 - Sprint 5 Complete! Full UI: HUD, Menus, Wallet, Settings! 🎨🏴‍☠️*
