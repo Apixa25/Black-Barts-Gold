@@ -1,0 +1,279 @@
+# Unity 6 AR Mobile Development - Cursor Skill File
+# Project: Black Bart's Gold
+# Last Updated: January 2026
+# ============================================================================
+# This file contains learned best practices for Unity 6 (6000.x) AR development.
+# Cursor will use this knowledge to provide accurate, tested solutions.
+# ============================================================================
+
+## PROJECT CONTEXT
+- Game: Black Bart's Gold - AR treasure hunting game
+- Engine: Unity 6 (6000.x LTS)
+- AR Framework: AR Foundation 6.x
+- Target Platforms: Android (ARCore), iOS (ARKit)
+- Render Pipeline: Universal Render Pipeline (URP)
+
+## CRITICAL: UNITY 6 INPUT SYSTEM FOR MOBILE
+
+### The #1 Issue: Touch Input Not Working on Android
+Unity 6 has a KNOWN BUG where touch input fails on Android when using the new Input System.
+
+### REQUIRED SETTINGS (Project Settings > Player > Other Settings):
+```
+Active Input Handling: BOTH (not just "Input System Package")
+```
+Setting this to "Both" allows the legacy input system to handle UI raycasting while the new Input System handles gameplay. This is the official workaround.
+
+### EventSystem Configuration:
+1. MUST use `InputSystemUIInputModule` (NOT `StandaloneInputModule`)
+2. Only ONE EventSystem can be active at any time across all scenes
+3. If buttons don't work after scene change, the EventSystem is likely duplicated or broken
+
+### Singleton EventSystem Pattern (RECOMMENDED):
+```csharp
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+
+public class PersistentEventSystem : MonoBehaviour
+{
+    public static PersistentEventSystem Instance { get; private set; }
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+}
+```
+
+### Touch Debug Script (Use to verify touch is being received):
+```csharp
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+public class TouchDebug : MonoBehaviour
+{
+    void Update()
+    {
+        if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.isPressed)
+        {
+            Debug.Log("Touch at: " + Touchscreen.current.primaryTouch.position.ReadValue());
+        }
+    }
+}
+```
+
+## AR FOUNDATION 6.x BEST PRACTICES
+
+### Required Scene Hierarchy for AR:
+```
+Scene
+├── AR Session (ARSession component)
+├── XR Origin
+│   └── Camera Offset
+│       └── Main Camera
+│           ├── Camera
+│           ├── ARCameraManager
+│           ├── ARCameraBackground
+│           ├── TrackedPoseDriver (Input System)
+│           └── AudioListener
+├── AR Plane Manager (on XR Origin or separate)
+├── EventSystem
+│   └── InputSystemUIInputModule
+└── Canvas (Screen Space - Overlay for HUD)
+```
+
+### New Event Pattern (Unity 6):
+```csharp
+// OLD WAY (deprecated):
+// m_PlaneManager.planesChanged += OnPlanesChanged;
+
+// NEW WAY (Unity 6):
+m_ARPlaneManager.trackablesChanged += OnTrackablesChanged;
+
+void OnTrackablesChanged(ARTrackablesChangedEventArgs<ARPlane> args)
+{
+    foreach (var plane in args.added) { /* new plane */ }
+    foreach (var plane in args.updated) { /* updated plane */ }
+    foreach (var plane in args.removed) { /* removed plane */ }
+}
+```
+
+### Async Anchor Pattern (Unity 6):
+```csharp
+public async void PlaceAnchorAsync(Vector3 position)
+{
+    var result = await m_AnchorManager.TryAddAnchorAsync(
+        new Pose(position, Quaternion.identity)
+    );
+    if (result.status.IsSuccess())
+    {
+        Debug.Log("Anchor placed successfully");
+    }
+}
+```
+
+## UI BEST PRACTICES FOR MOBILE
+
+### Canvas Settings for AR Overlay:
+```
+Canvas:
+  - Render Mode: Screen Space - Overlay
+  - Sort Order: 100 (higher than AR camera)
+
+CanvasScaler:
+  - UI Scale Mode: Scale With Screen Size
+  - Reference Resolution: 1080 x 1920
+  - Match: 0.5 (balanced)
+```
+
+### Button Interactivity Checklist:
+1. ✅ Button has RectTransform with non-zero size
+2. ✅ Button has Image component (can be transparent)
+3. ✅ Button's Image has "Raycast Target" = true
+4. ✅ Background/decorative Images have "Raycast Target" = false
+5. ✅ Text elements have "Raycast Target" = false
+6. ✅ Canvas has GraphicRaycaster component
+7. ✅ EventSystem exists with InputSystemUIInputModule
+8. ✅ No overlapping transparent images blocking raycasts
+
+### Preventing Background from Blocking Input:
+```csharp
+// On decorative/background images:
+image.raycastTarget = false;
+
+// On text elements:
+textMeshPro.raycastTarget = false;
+
+// Set backgrounds to render first (behind everything):
+backgroundTransform.SetAsFirstSibling();
+```
+
+## SCENE MANAGEMENT
+
+### Recommended: Additive Scene Loading
+Keep a persistent "Core" scene with EventSystem always loaded:
+```csharp
+// Load game scene without destroying Core scene
+SceneManager.LoadScene("GameLevel", LoadSceneMode.Additive);
+
+// Unload when done
+SceneManager.UnloadSceneAsync("GameLevel");
+```
+
+### Alternative: Single Scene Loading with Cleanup
+```csharp
+void OnEnable()
+{
+    SceneManager.sceneLoaded += OnSceneLoaded;
+}
+
+void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+{
+    // Clean up duplicate EventSystems
+    var eventSystems = FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
+    for (int i = 1; i < eventSystems.Length; i++)
+    {
+        Destroy(eventSystems[i].gameObject);
+    }
+}
+```
+
+## POKEMON GO / NIANTIC ARCHITECTURE PATTERNS
+
+### Map-Centric Design:
+- Virtual objects tied to real GPS coordinates
+- Use World Pose System (WPS) for accuracy beyond basic GPS
+- Objects "belong" to physical locations, not just screen positions
+
+### Magic Realism Principles:
+1. **Occlusion**: Digital objects hide behind real-world objects
+2. **Semantic Segmentation**: Place water Pokémon near water, etc.
+3. **Shared State**: Multiple players see same objects at same locations
+4. **Environmental Coupling**: Real weather affects game mechanics
+
+### Niantic Lightship SDK (Alternative to AR Foundation):
+- Provides depth sensing, occlusion, semantic segmentation
+- World Pose System for precise geo-anchoring
+- Worth considering for production geo-AR games
+
+## PERFORMANCE OPTIMIZATION
+
+### AR-Specific:
+1. Disable AR managers when not in use (ARPlaneManager, ARFaceManager, etc.)
+2. Use XR Simulation in Editor for faster testing
+3. Enable Image Stabilization in ARCameraManager for smoother video
+4. Use object pooling for spawned AR objects
+
+### Mobile UI:
+1. Minimize overdraw (transparent overlapping elements)
+2. Use Sprite Atlases for UI images
+3. Avoid Layout Groups on frequently updated UI
+4. Use Canvas Groups for fading instead of individual alpha changes
+
+## DEBUGGING ON DEVICE
+
+### Android Logcat:
+Window > Analysis > Android Logcat
+- Shows Debug.Log messages from device
+- Filter by "Unity" or your custom tags
+
+### Common Debug Patterns:
+```csharp
+// Tag all logs for easy filtering
+Debug.Log("[MySystem] Message here");
+
+// Verify touch input
+Debug.Log($"[Touch] Position: {Touchscreen.current?.primaryTouch.position.ReadValue()}");
+
+// Verify EventSystem state
+Debug.Log($"[UI] Current selected: {EventSystem.current?.currentSelectedGameObject?.name}");
+```
+
+## FILE ORGANIZATION
+
+### Recommended Script Folders:
+```
+Assets/Scripts/
+├── Core/           # Singletons, managers, bootstrappers
+├── AR/             # AR-specific logic
+├── UI/             # UI controllers and setup scripts
+├── Gameplay/       # Game mechanics
+├── Data/           # ScriptableObjects, models
+└── Utils/          # Helper functions, extensions
+```
+
+## QUICK REFERENCE: COMMON FIXES
+
+| Problem | Solution |
+|---------|----------|
+| Buttons not clickable on mobile | Set Active Input Handling to "Both" in Project Settings |
+| Buttons stop working after scene change | Ensure only one EventSystem, use singleton pattern |
+| AR camera shows black | Check ARCameraBackground component, verify provider plugins |
+| Touch not detected at all | Add TouchDebug script to verify; check Input System package |
+| UI blocking AR view | Set Canvas to Screen Space - Overlay, sort order > 0 |
+| Multiple AudioListener warnings | Only one AudioListener per scene (on AR Camera) |
+
+## TESTING CHECKLIST
+
+Before each build:
+1. [ ] Active Input Handling = Both
+2. [ ] Only one EventSystem per scene
+3. [ ] EventSystem uses InputSystemUIInputModule
+4. [ ] AR Camera has all required components
+5. [ ] Canvas has GraphicRaycaster
+6. [ ] Background images have raycastTarget = false
+7. [ ] All scenes added to Build Settings
+
+## RESOURCES
+
+- Unity 6 Manual: https://docs.unity3d.com/6000.0/Documentation/Manual/
+- AR Foundation 6.x: https://docs.unity3d.com/Packages/com.unity.xr.arfoundation@6.0/manual/
+- Input System UI: https://docs.unity3d.com/Packages/com.unity.inputsystem@1.6/manual/UISupport.html
+- Niantic Lightship: https://lightship.dev/docs/

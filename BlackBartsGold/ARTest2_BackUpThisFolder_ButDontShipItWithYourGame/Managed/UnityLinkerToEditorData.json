@@ -19,7 +19,13 @@
           {
             "name": "NavMeshSettings",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 1,
             "icon": null
@@ -148,7 +154,13 @@
           {
             "name": "Cubemap",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 0,
             "icon": null
@@ -168,7 +180,13 @@
           {
             "name": "EditorExtension",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 1,
             "icon": null
@@ -182,7 +200,13 @@
           {
             "name": "GameObject",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 0,
             "icon": null
@@ -208,7 +232,13 @@
           {
             "name": "LevelGameManager",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 1,
             "icon": null
@@ -236,7 +266,13 @@
           {
             "name": "LightmapSettings",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 0,
             "icon": null
@@ -256,7 +292,13 @@
           {
             "name": "Material",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 0,
             "icon": null
@@ -288,7 +330,13 @@
           {
             "name": "MonoBehaviour",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 0,
             "icon": null
@@ -302,7 +350,13 @@
           {
             "name": "MonoScript",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 1,
             "icon": null
@@ -310,7 +364,13 @@
           {
             "name": "NamedObject",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 1,
             "icon": null
@@ -341,7 +401,14 @@
           },
           {
             "name": "RectTransform",
-            "scenes": [],
+            "scenes": [
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
+            ],
             "dependencyType": 0,
             "icon": null
           },
@@ -354,7 +421,13 @@
           {
             "name": "RenderSettings",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 0,
             "icon": null
@@ -386,7 +459,13 @@
           {
             "name": "Shader",
             "scenes": [
-              "Assets/Scenes/ARTest.unity"
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/ARTest.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
             ],
             "dependencyType": 0,
             "icon": null
@@ -465,10 +544,8 @@
           },
           {
             "name": "Transform",
-            "scenes": [
-              "Assets/Scenes/ARTest.unity"
-            ],
-            "dependencyType": 0,
+            "scenes": [],
+            "dependencyType": 1,
             "icon": null
           },
           {
@@ -894,6 +971,14 @@
             "icon": null
           },
           {
+            "name": "CapsuleCollider",
+            "scenes": [
+              "Assets/Scenes/ARTest.unity"
+            ],
+            "dependencyType": 0,
+            "icon": null
+          },
+          {
             "name": "CharacterController",
             "scenes": [],
             "dependencyType": 0,
@@ -1293,7 +1378,10 @@
         "dependencies": [
           {
             "name": "Font",
-            "scenes": [],
+            "scenes": [
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity"
+            ],
             "dependencyType": 0,
             "icon": null
           },
@@ -1334,7 +1422,14 @@
         "dependencies": [
           {
             "name": "Canvas",
-            "scenes": [],
+            "scenes": [
+              "Assets/Scenes/ARHunt.unity/ARHunt.unity",
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Settings.unity/Settings.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
+            ],
             "dependencyType": 0,
             "icon": null
           },
@@ -1346,7 +1441,12 @@
           },
           {
             "name": "CanvasRenderer",
-            "scenes": [],
+            "scenes": [
+              "Assets/Scenes/Login.unity/Login.unity",
+              "Assets/Scenes/MainMenu.unity/MainMenu.unity",
+              "Assets/Scenes/Register.unity/Register.unity",
+              "Assets/Scenes/Wallet.unity/Wallet.unity"
+            ],
             "dependencyType": 0,
             "icon": null
           },
