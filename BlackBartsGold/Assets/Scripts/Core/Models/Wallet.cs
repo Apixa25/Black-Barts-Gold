@@ -65,6 +65,20 @@ namespace BlackBartsGold.Core.Models
         /// </summary>
         public float foundBalance;
         
+        /// <summary>
+        /// Alias for foundBalance (for UI compatibility)
+        /// </summary>
+        public float foundInGasTank 
+        { 
+            get => foundBalance; 
+            set => foundBalance = value; 
+        }
+        
+        /// <summary>
+        /// When pending balance will be confirmed (ISO 8601 string)
+        /// </summary>
+        public string pendingConfirmationTime;
+        
         #endregion
         
         #region Gas Tracking

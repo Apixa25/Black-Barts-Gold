@@ -142,9 +142,9 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Called when planes are added, updated, or removed
-        /// AR Foundation 6.0+ uses ARTrackablesChangedEventArgs
+        /// AR Foundation 6.0+ uses ARPlanesChangedEventArgs
         /// </summary>
-        private void OnPlanesChanged(ARTrackablesChangedEventArgs<ARPlane> args)
+        private void OnPlanesChanged(ARPlanesChangedEventArgs args)
         {
             // Handle added planes
             foreach (var plane in args.added)

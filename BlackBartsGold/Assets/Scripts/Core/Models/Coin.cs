@@ -48,6 +48,11 @@ namespace BlackBartsGold.Core.Models
         public float contribution;
         
         /// <summary>
+        /// Pool contribution for pool coins
+        /// </summary>
+        public float poolContribution;
+        
+        /// <summary>
         /// Visual tier based on value (Gold, Silver, Bronze, etc.)
         /// </summary>
         public CoinTier currentTier;
@@ -85,6 +90,15 @@ namespace BlackBartsGold.Core.Models
         /// User ID of the player who hid this coin
         /// </summary>
         public string hiderId;
+        
+        /// <summary>
+        /// Alias for hiderId (for API compatibility)
+        /// </summary>
+        public string hiddenBy 
+        { 
+            get => hiderId; 
+            set => hiderId = value; 
+        }
         
         /// <summary>
         /// Display name of hider (for social features)
@@ -148,6 +162,25 @@ namespace BlackBartsGold.Core.Models
         /// Current status of this coin
         /// </summary>
         public CoinStatus status;
+        
+        /// <summary>
+        /// When this coin was collected (ISO 8601 string)
+        /// </summary>
+        public string collectedAt;
+        
+        /// <summary>
+        /// User ID of the player who collected this coin
+        /// </summary>
+        public string collectedBy;
+        
+        /// <summary>
+        /// Alias for coinType (for compatibility)
+        /// </summary>
+        public CoinType type 
+        { 
+            get => coinType; 
+            set => coinType = value; 
+        }
         
         /// <summary>
         /// Is this coin locked for the current player?
@@ -226,6 +259,23 @@ namespace BlackBartsGold.Core.Models
                 return "?";
             }
             return $"${value:F2}";
+        }
+        
+        /// <summary>
+        /// Get effective value of coin (used for limit checks)
+        /// For pool coins before collection, returns max possible value
+        /// </summary>
+        public float GetEffectiveValue()
+        {
+            return value;
+        }
+        
+        /// <summary>
+        /// Get the tier of this coin
+        /// </summary>
+        public CoinTier GetTier()
+        {
+            return currentTier;
         }
         
         /// <summary>
@@ -308,10 +358,18 @@ namespace BlackBartsGold.Core.Models
         /// </summary>
         public static Coin CreateTestCoin(float value, float distance = 5f)
         {
+            return CreateTestCoin(CoinType.Fixed, value, distance);
+        }
+        
+        /// <summary>
+        /// Create a test coin with specific type for development
+        /// </summary>
+        public static Coin CreateTestCoin(CoinType type, float value, float distance = 5f)
+        {
             return new Coin
             {
                 id = Guid.NewGuid().ToString(),
-                coinType = CoinType.Fixed,
+                coinType = type,
                 value = value,
                 contribution = value * 1.1f,
                 currentTier = CalculateTier(value),

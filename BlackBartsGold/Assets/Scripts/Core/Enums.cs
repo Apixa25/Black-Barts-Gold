@@ -72,6 +72,9 @@ namespace BlackBartsGold.Core
         /// <summary>Coin is visible to players</summary>
         Visible,
         
+        /// <summary>Coin is active and available for collection</summary>
+        Active,
+        
         /// <summary>Coin has been collected, pending confirmation</summary>
         Collected,
         

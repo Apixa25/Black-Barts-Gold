@@ -334,6 +334,33 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
+        /// Get stored auth token (static accessor for API calls)
+        /// </summary>
+        public static string GetAuthToken()
+        {
+            return PlayerPrefs.GetString("auth_token", "");
+        }
+        
+        /// <summary>
+        /// Clear session data (static method for logout)
+        /// </summary>
+        public static void ClearSession()
+        {
+            PlayerPrefs.DeleteKey("auth_token");
+            PlayerPrefs.DeleteKey("user_id");
+            PlayerPrefs.DeleteKey("last_login");
+            PlayerPrefs.Save();
+            
+            if (Exists)
+            {
+                Instance.IsSessionValidated = false;
+                Instance.LastCheckResult = SessionCheckResult.NoSession;
+            }
+            
+            Debug.Log("[SessionManager] 🗑️ Session cleared (static)");
+        }
+        
+        /// <summary>
         /// Check if this is the first app launch
         /// </summary>
         public bool IsFirstLaunch()

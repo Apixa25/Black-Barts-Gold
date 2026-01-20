@@ -26,6 +26,15 @@ namespace BlackBartsGold.Core.Models
         public int totalFound;
         
         /// <summary>
+        /// Alias for totalFound (for UI compatibility)
+        /// </summary>
+        public int totalCoinsFound 
+        { 
+            get => totalFound; 
+            set => totalFound = value; 
+        }
+        
+        /// <summary>
         /// Total value of all coins found (BBG)
         /// </summary>
         public float totalValueFound;
@@ -63,6 +72,15 @@ namespace BlackBartsGold.Core.Models
         /// Total number of coins hidden
         /// </summary>
         public int totalHidden;
+        
+        /// <summary>
+        /// Alias for totalHidden (for UI compatibility)
+        /// </summary>
+        public int totalCoinsHidden 
+        { 
+            get => totalHidden; 
+            set => totalHidden = value; 
+        }
         
         /// <summary>
         /// Total value of all coins hidden (BBG)
