@@ -63,6 +63,8 @@ namespace BlackBartsGold.Core
         
         #region Unity Lifecycle
         
+        private Canvas _ourCanvas;
+        
         private void Awake()
         {
             // Singleton pattern
@@ -78,6 +80,9 @@ namespace BlackBartsGold.Core
             
             Debug.Log("[UIManager] Initialized - Market Standard UI Pattern");
             
+            // Subscribe to scene loaded to clean up scene-based UI
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            
             // Build UI if not already set up
             if (loginPanel == null)
             {
@@ -85,10 +90,146 @@ namespace BlackBartsGold.Core
             }
         }
         
+        private void OnDestroy()
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+        
         private void Start()
         {
             // Show login by default
             ShowLogin();
+        }
+        
+        /// <summary>
+        /// Clean up any scene-based UI after scene loads.
+        /// We only want OUR Canvas to be active.
+        /// </summary>
+        private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
+        {
+            Debug.Log($"[UIManager] Scene loaded: {scene.name} - cleaning up scene UI");
+            
+            // Find all Canvas objects in the scene
+            var allCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            
+            foreach (var canvas in allCanvases)
+            {
+                // Skip our own canvas
+                if (canvas == _ourCanvas)
+                {
+                    continue;
+                }
+                
+                // Skip if it's a child of our UIManager (our canvas)
+                if (canvas.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+                
+                // This is a scene-based Canvas - destroy it!
+                Debug.Log($"[UIManager] Destroying scene-based Canvas: {canvas.gameObject.name}");
+                Destroy(canvas.gameObject);
+            }
+            
+            // Show appropriate UI based on which scene loaded
+            if (scene.name == "ARHunt")
+            {
+                // Show AR HUD
+                Debug.Log("[UIManager] ARHunt scene - showing AR HUD");
+                if (arHudPanel != null) arHudPanel.SetActive(true);
+                
+                // Spawn test coins after a short delay (let AR initialize)
+                StartCoroutine(SpawnTestCoinsDelayed());
+            }
+            else if (isInARMode == false)
+            {
+                // Not in AR mode and scene loaded - make sure main menu is visible
+                // (This handles returning from AR)
+            }
+        }
+        
+        /// <summary>
+        /// Spawn test coins after AR scene loads
+        /// </summary>
+        private IEnumerator SpawnTestCoinsDelayed()
+        {
+            // Wait for AR to initialize
+            yield return new WaitForSeconds(1.5f);
+            
+            Debug.Log("[UIManager] Spawning test coins...");
+            SpawnTestCoins();
+        }
+        
+        /// <summary>
+        /// Spawn test coins in front of camera (3-6 feet away)
+        /// </summary>
+        private void SpawnTestCoins()
+        {
+            Camera cam = Camera.main;
+            if (cam == null)
+            {
+                Debug.LogWarning("[UIManager] No camera found for coin spawning");
+                return;
+            }
+            
+            // Spawn 3 coins at different distances (in meters)
+            // 3 feet ≈ 1m, 4.5 feet ≈ 1.4m, 6 feet ≈ 1.8m
+            SpawnCoin(cam, 1.0f, -15f, 1.00f);   // Left, close
+            SpawnCoin(cam, 1.4f, 0f, 5.00f);     // Center, medium
+            SpawnCoin(cam, 1.8f, 15f, 10.00f);   // Right, far
+            
+            Debug.Log("[UIManager] Test coins spawned!");
+        }
+        
+        /// <summary>
+        /// Spawn a single gold coin
+        /// </summary>
+        private void SpawnCoin(Camera cam, float distance, float angleOffset, float value)
+        {
+            // Calculate position relative to camera
+            Vector3 forward = cam.transform.forward;
+            Vector3 right = cam.transform.right;
+            
+            // Apply horizontal angle offset
+            Vector3 direction = Quaternion.AngleAxis(angleOffset, Vector3.up) * forward;
+            Vector3 position = cam.transform.position + direction * distance;
+            
+            // Place at waist height (below camera)
+            position.y = cam.transform.position.y - 0.5f;
+            
+            // Create coin object
+            GameObject coinObj = new GameObject($"TestCoin_${value}");
+            coinObj.transform.position = position;
+            
+            // Create visual (gold cylinder)
+            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            visual.name = "CoinVisual";
+            visual.transform.SetParent(coinObj.transform);
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localScale = new Vector3(0.3f, 0.02f, 0.3f); // Flat coin shape
+            
+            // Gold material
+            Renderer renderer = visual.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                Material goldMat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                if (goldMat != null)
+                {
+                    goldMat.color = GoldColor;
+                    goldMat.SetFloat("_Smoothness", 0.9f);
+                    goldMat.SetFloat("_Metallic", 1f);
+                    renderer.material = goldMat;
+                }
+            }
+            
+            // Remove collider
+            var col = visual.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            
+            // Add spin animation
+            coinObj.AddComponent<CoinSpin>();
+            
+            Debug.Log($"[UIManager] Spawned ${value} coin at {position}");
         }
         
         #endregion
@@ -158,9 +299,8 @@ namespace BlackBartsGold.Core
             Debug.Log("[UIManager] Starting AR Hunt");
             isInARMode = true;
             HideAllPanels();
-            if (arHudPanel != null) arHudPanel.SetActive(true);
             
-            // Load AR scene additively (keeps UIManager alive)
+            // Load AR scene - HUD will be shown after scene loads
             SceneManager.LoadScene("ARHunt", LoadSceneMode.Single);
         }
         
@@ -206,14 +346,15 @@ namespace BlackBartsGold.Core
             Debug.Log("[UIManager] Building UI panels...");
             
             // Create main canvas
-            var canvas = CreateCanvas();
+            _ourCanvas = CreateCanvas();
             
             // Create each panel
-            loginPanel = CreateLoginPanel(canvas.transform);
-            registerPanel = CreateRegisterPanel(canvas.transform);
-            mainMenuPanel = CreateMainMenuPanel(canvas.transform);
-            walletPanel = CreateWalletPanel(canvas.transform);
-            settingsPanel = CreateSettingsPanel(canvas.transform);
+            loginPanel = CreateLoginPanel(_ourCanvas.transform);
+            registerPanel = CreateRegisterPanel(_ourCanvas.transform);
+            mainMenuPanel = CreateMainMenuPanel(_ourCanvas.transform);
+            walletPanel = CreateWalletPanel(_ourCanvas.transform);
+            settingsPanel = CreateSettingsPanel(_ourCanvas.transform);
+            arHudPanel = CreateARHudPanel(_ourCanvas.transform);
             
             // Hide all initially
             HideAllPanels();
@@ -357,6 +498,100 @@ namespace BlackBartsGold.Core
             return panel;
         }
         
+        private GameObject CreateARHudPanel(Transform parent)
+        {
+            // AR HUD is transparent - just overlay elements, no background!
+            var panel = new GameObject("ARHudPanel");
+            panel.transform.SetParent(parent, false);
+            
+            var rect = panel.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            
+            // Back Button (top-left corner)
+            var backButton = CreateButton(panel.transform, "BackButton", "< Back", 
+                Vector2.zero, new Vector2(150, 60), SemiTransparent,
+                () => ExitARHunt());
+            
+            // Position back button in top-left
+            var backRect = backButton.GetComponent<RectTransform>();
+            backRect.anchorMin = new Vector2(0, 1);
+            backRect.anchorMax = new Vector2(0, 1);
+            backRect.pivot = new Vector2(0, 1);
+            backRect.anchoredPosition = new Vector2(20, -40);
+            
+            // Make button text white for visibility on camera
+            var backText = backButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (backText != null) backText.color = Color.white;
+            
+            // Crosshairs - using simple + that all fonts support
+            CreateCrosshairs(panel.transform);
+            
+            // Coin Counter (top-right) - using text that renders
+            var coinCounter = CreateText(panel.transform, "CoinCounter", "Coins: 0", 
+                Vector2.zero, 28, GoldColor, FontStyles.Bold);
+            var coinRect = coinCounter.GetComponent<RectTransform>();
+            coinRect.anchorMin = new Vector2(1, 1);
+            coinRect.anchorMax = new Vector2(1, 1);
+            coinRect.pivot = new Vector2(1, 1);
+            coinRect.anchoredPosition = new Vector2(-20, -50);
+            coinRect.sizeDelta = new Vector2(200, 50);
+            
+            // Instructions (bottom of screen)
+            var instructions = CreateText(panel.transform, "Instructions", 
+                "Point camera at ground to find treasure!", 
+                new Vector2(0, -400), 24, Color.white, FontStyles.Normal);
+            
+            return panel;
+        }
+        
+        /// <summary>
+        /// Create proper crosshairs using UI lines instead of text
+        /// </summary>
+        private void CreateCrosshairs(Transform parent)
+        {
+            var crosshairContainer = new GameObject("Crosshairs");
+            crosshairContainer.transform.SetParent(parent, false);
+            
+            var containerRect = crosshairContainer.AddComponent<RectTransform>();
+            containerRect.anchorMin = new Vector2(0.5f, 0.5f);
+            containerRect.anchorMax = new Vector2(0.5f, 0.5f);
+            containerRect.pivot = new Vector2(0.5f, 0.5f);
+            containerRect.anchoredPosition = Vector2.zero;
+            containerRect.sizeDelta = new Vector2(100, 100);
+            
+            // Horizontal line
+            CreateCrosshairLine(crosshairContainer.transform, "HorizontalLine", 
+                new Vector2(60, 4), Vector2.zero);
+            
+            // Vertical line
+            CreateCrosshairLine(crosshairContainer.transform, "VerticalLine", 
+                new Vector2(4, 60), Vector2.zero);
+            
+            // Center dot
+            CreateCrosshairLine(crosshairContainer.transform, "CenterDot", 
+                new Vector2(10, 10), Vector2.zero);
+        }
+        
+        private void CreateCrosshairLine(Transform parent, string name, Vector2 size, Vector2 position)
+        {
+            var line = new GameObject(name);
+            line.transform.SetParent(parent, false);
+            
+            var rect = line.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            
+            var image = line.AddComponent<Image>();
+            image.color = GoldColor;
+            image.raycastTarget = false;
+        }
+        
         #endregion
         
         #region UI Helper Methods
@@ -446,5 +681,33 @@ namespace BlackBartsGold.Core
         }
         
         #endregion
+    }
+    
+    /// <summary>
+    /// Simple spin animation for coins
+    /// </summary>
+    public class CoinSpin : MonoBehaviour
+    {
+        private float rotationSpeed = 90f;
+        private float bobSpeed = 2f;
+        private float bobAmount = 0.03f;
+        private Vector3 startPos;
+        
+        private void Start()
+        {
+            startPos = transform.position;
+        }
+        
+        private void Update()
+        {
+            // Spin around Y axis
+            transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
+            
+            // Gentle bob up and down
+            float newY = startPos.y + Mathf.Sin(Time.time * bobSpeed) * bobAmount;
+            Vector3 pos = transform.position;
+            pos.y = newY;
+            transform.position = pos;
+        }
     }
 }
