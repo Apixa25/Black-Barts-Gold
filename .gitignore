@@ -120,3 +120,20 @@ Assets/TextMesh Pro/
 /[Aa]ssets/AddressableAssetsData/*/*.bin*
 /[Aa]ssets/StreamingAssets/aa/*
 /[Aa]ssets/StreamingAssets/aa.meta
+
+# ========================= #
+# IL2CPP Build Output       #
+# ========================= #
+# Unity creates these folders during Android/iOS builds with IL2CPP
+# They contain generated C++ code and can be regenerated from source
+*_BackUpThisFolder_ButDontShipItWithYourGame/
+
+# ========================= #
+# Unity Temp Build Files    #
+# ========================= #
+.utmp/
+
+# ========================= #
+# Visual Studio Extensions  #
+# ========================= #
+*.slnx
