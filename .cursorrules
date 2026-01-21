@@ -13,6 +13,31 @@
 - Target Platforms: Android (ARCore), iOS (ARKit)
 - Render Pipeline: Universal Render Pipeline (URP)
 
+## ARCHITECTURE: MARKET STANDARD PATTERN (Pokemon Go Style)
+
+### Core Principle: Panel-Based Navigation
+Instead of loading different scenes for each screen, professional mobile games use:
+1. ONE persistent UIManager that survives scene changes
+2. ONE persistent EventSystem (never destroyed, never duplicated)
+3. Multiple UI PANELS that get shown/hidden (not scenes)
+4. Scene changes ONLY for major mode switches (e.g., entering AR mode)
+
+### Our Implementation:
+- `AppBootstrap.cs` - Creates persistent systems before any scene loads
+- `UIManager.cs` - Handles all panel navigation (ShowLogin, ShowRegister, ShowMainMenu, etc.)
+- Single EventSystem - Created once by AppBootstrap, never duplicated
+
+### Why This Works:
+- No EventSystem confusion across scenes
+- No race conditions during scene loads
+- Instant panel transitions (no loading)
+- Memory efficient (panels just hide, don't reload)
+- Same pattern used by: Pokemon Go, Clash of Clans, Candy Crush
+
+### When to Load Scenes:
+- ONLY for AR Camera mode (ARHunt scene)
+- Everything else uses panel show/hide
+
 ## CRITICAL: UNITY 6 INPUT SYSTEM FOR MOBILE
 
 ### The #1 Issue: Touch Input Not Working on Android
