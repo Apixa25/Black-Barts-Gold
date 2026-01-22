@@ -1,36 +1,143 @@
+import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Coins, Eye, CheckCircle, DollarSign, Sparkles } from "lucide-react"
+import { CoinsPageClient } from "./coins-client"
 
-export default function CoinsPage() {
+interface CoinsPageProps {
+  searchParams: Promise<{ search?: string; status?: string; tier?: string }>
+}
+
+export default async function CoinsPage({ searchParams }: CoinsPageProps) {
+  const params = await searchParams
+  const supabase = await createClient()
+
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser()
+  const userId = user?.id || ""
+
+  // Build query with optional filters
+  let query = supabase.from("coins").select("*")
+
+  // Apply search filter (location name)
+  if (params.search) {
+    query = query.ilike("location_name", `%${params.search}%`)
+  }
+
+  // Apply status filter
+  if (params.status && params.status !== "all") {
+    query = query.eq("status", params.status)
+  }
+
+  // Apply tier filter
+  if (params.tier && params.tier !== "all") {
+    query = query.eq("tier", params.tier)
+  }
+
+  // Execute query
+  const { data: coins, error } = await query.order("created_at", { ascending: false })
+
+  // Get all coins for stats (unfiltered)
+  const { data: allCoins } = await supabase.from("coins").select("status, value, tier, is_mythical")
+
+  // Calculate stats
+  const totalCoins = allCoins?.length || 0
+  const visibleCoins = allCoins?.filter(c => c.status === 'visible').length || 0
+  const collectedCoins = allCoins?.filter(c => c.status === 'collected').length || 0
+  const totalValue = allCoins?.reduce((sum, c) => sum + (c.value || 0), 0) || 0
+  const mythicalCoins = allCoins?.filter(c => c.is_mythical).length || 0
+
+  const hasFilters = params.search || params.status || params.tier
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-saddle-dark">Coin Management</h2>
-        <p className="text-leather-light">
-          View, create, and manage treasure coins
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-saddle-dark">Coin Management</h2>
+          <p className="text-leather-light">
+            Create, track, and manage treasure coins
+          </p>
+        </div>
       </div>
 
-      <Card className="border-saddle-light/30">
-        <CardHeader>
-          <CardTitle className="text-saddle-dark">Coming Soon</CardTitle>
-          <CardDescription>
-            Coin management will be implemented in Phase 3
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-leather text-sm">
-            This page will include:
-          </p>
-          <ul className="text-sm text-leather-light list-disc list-inside space-y-1 mt-2">
-            <li>Coin list with filters (status, tier, age, value)</li>
-            <li>Map visualization of coin locations</li>
-            <li>Create/edit/delete coins</li>
-            <li>Bulk operations (retrieve stale coins, relocate)</li>
-            <li>Mythical coin management</li>
-            <li>Sponsor coin tracking</li>
-          </ul>
-        </CardContent>
-      </Card>
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-5">
+        <Card className="border-saddle-light/30">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-leather-light">
+              Total Coins
+            </CardTitle>
+            <Coins className="h-4 w-4 text-gold" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-saddle-dark">{totalCoins}</div>
+            <p className="text-xs text-leather-light">In the system</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-saddle-light/30">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-leather-light">
+              Visible
+            </CardTitle>
+            <Eye className="h-4 w-4 text-brass" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-saddle-dark">{visibleCoins}</div>
+            <p className="text-xs text-leather-light">Available to find</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-saddle-light/30">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-leather-light">
+              Collected
+            </CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-saddle-dark">{collectedCoins}</div>
+            <p className="text-xs text-leather-light">Found by hunters</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-saddle-light/30">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-leather-light">
+              Total Value
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-gold" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-saddle-dark">
+              ${totalValue.toFixed(2)}
+            </div>
+            <p className="text-xs text-leather-light">In circulation</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-saddle-light/30">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-leather-light">
+              Mythical
+            </CardTitle>
+            <Sparkles className="h-4 w-4 text-gold" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-saddle-dark">{mythicalCoins}</div>
+            <p className="text-xs text-leather-light">Legendary coins</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Client Component handles search and table */}
+      <CoinsPageClient 
+        coins={coins || []} 
+        userId={userId}
+        error={error?.message}
+        hasFilters={!!hasFilters}
+        totalCoins={totalCoins}
+        searchParams={params}
+      />
     </div>
   )
 }
