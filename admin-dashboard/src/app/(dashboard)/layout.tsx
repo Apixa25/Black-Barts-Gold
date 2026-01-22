@@ -64,7 +64,7 @@ export default async function DashboardLayout({
       <DashboardSidebar user={userProfile} />
       <div className="lg:pl-64">
         <DashboardHeader user={userProfile} />
-        <main className="p-6">
+        <main className="p-6 pb-24">
           {children}
         </main>
       </div>
