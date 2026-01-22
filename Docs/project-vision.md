@@ -289,7 +289,8 @@ Assets/Scripts/AR/CoinController.cs
 |----------|---------|
 | **brand-guide.md** | 🤠 **READ FIRST** - Character & brand identity guide |
 | **project-vision.md** | This file - overview & decisions |
-| **BUILD-GUIDE.md** | Sprint-by-sprint prompts |
+| **BUILD-GUIDE.md** | Unity mobile app - sprint-by-sprint prompts |
+| **ADMIN-DASHBOARD-BUILD-GUIDE.md** | 🖥️ Web admin dashboard - build guide |
 | **DEVELOPMENT-LOG.md** | Progress tracking |
 | **PROMPT-GUIDE.md** | AI assistant templates |
 | **project-scope.md** | Business model & phases |

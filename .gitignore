@@ -137,3 +137,16 @@ Assets/TextMesh Pro/
 # Visual Studio Extensions  #
 # ========================= #
 *.slnx
+
+# ========================= #
+# Admin Dashboard (Next.js) #
+# ========================= #
+admin-dashboard/.env
+admin-dashboard/.env.local
+admin-dashboard/.env.*.local
+admin-dashboard/node_modules/
+admin-dashboard/.next/
+admin-dashboard/out/
+admin-dashboard/.vercel
+admin-dashboard/*.tsbuildinfo
+admin-dashboard/next-env.d.ts
