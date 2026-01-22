@@ -952,13 +952,16 @@ Create Assets/Scripts/UI/MainMenuController.cs:
 - Check gas before allowing hunting
 
 Wild West Theme Styling (see brand-guide.md for details):
-- Primary: Gold (#FFD700) - treasure, success
-- Secondary: Deep Sea Blue (#1A365D) - mystery, depth
-- Accent: Western Red (#8B0000) - warnings, locked items
-- Tertiary: Parchment (#F5E6D3), Dark Brown (#3D2914)
+- Primary: Treasure Gold (#FFD700) - coins, buttons, success
+- Secondary: Saddle Brown (#8B4513) - headers, navigation
+- Tertiary: Dark Leather (#3D2914) - text, deep backgrounds
+- Supporting: Parchment (#F5E6D3), Warm Tan (#D2B48C)
+- Accents: Fire Orange (#E25822) - BB's time powers, excitement
+- Danger: Warning Red (#8B0000) - locked items, errors
+- Steampunk: Brass (#B87333) - gears, metallic accents
 - Font: Bold Western/slab serif for headers (or use TextMeshPro default for now)
-- Buttons: Gold borders, brass/leather accents
-- Background: Weathered wood, parchment, or old map texture
+- Buttons: Gold with brown borders, brass/leather accents
+- Background: Weathered wood, parchment, warm tan gradients
 - NOTE: Black Bart was a stagecoach robber, NOT a pirate!
 
 If gas is 0, disable "Start Hunting" and show "Buy More Gas" instead.

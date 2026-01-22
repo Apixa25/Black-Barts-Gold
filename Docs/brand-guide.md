@@ -145,6 +145,38 @@ We transform the historical mystery of his 1888 disappearance into a time-travel
 
 ---
 
+## 🖼️ Official Brand Assets
+
+Brand graphics are stored in `Assets/Brand/`:
+
+```
+Assets/Brand/
+├── Logos/           # X marks the spot logo
+├── Mascot/          # BB character images
+└── README.md        # Asset usage guide
+```
+
+### Logo: "X Marks the Spot"
+The X logo is our primary mark. "X marks the spot" is universal treasure-hunting imagery - NOT pirate-specific. It works perfectly for Wild West gold prospecting and adventure themes.
+
+### Mascot Styles
+
+**Realistic BB**:
+- Distinguished gentleman with cowboy hat
+- Gray hair, mustache, piercing blue eyes
+- Steampunk collar with holographic/Tesla effects
+- Chrono-Compass on chain
+- **Use for**: Marketing, website, promotional
+
+**Animated/3D BB**:
+- Stylized cartoon character
+- Bowler hat with clock goggles
+- Duster coat, compass medallion
+- Fire/energy effects (time powers)
+- **Use for**: In-app UI, game HUD, tutorials
+
+---
+
 ## 🎨 Visual Design Language
 
 ### The Aesthetic: Wild West + Steampunk
@@ -155,18 +187,42 @@ We transform the historical mystery of his 1888 disappearance into a time-travel
 3. **Steampunk** (via Tesla's time-travel device)
 4. **Gentleman Bandit** sophistication
 
-### Color Palette
+### Color Palette (Western Treasure Theme)
+
+**Primary Palette - Gold & Brown:**
 
 | Color | Hex | Usage | Context |
 |-------|-----|-------|---------|
-| **Gold** | #FFD700 | Primary | Coins, buttons, highlights, BB's treasure |
-| **Deep Sea Blue** | #1A365D | Secondary | Backgrounds, headers, mystery/time |
-| **Pirate Red** | #8B0000 | Accent | Warnings, locked items, danger |
-| **Parchment** | #F5E6D3 | Text backgrounds | Old documents, poetry, maps |
-| **Dark Brown** | #3D2914 | Text color | Leather, wood, Western feel |
-| **Silver** | #C0C0C0 | Tier indicator | Silver coins |
-| **Bronze** | #CD7F32 | Tier indicator | Bronze coins |
-| **Copper/Brass** | #B87333 | Steampunk accents | Gears, Chrono-Compass |
+| **Treasure Gold** | #FFD700 | Primary | Coins, buttons, highlights, success states |
+| **Saddle Brown** | #8B4513 | Secondary | Headers, navigation, accents |
+| **Dark Leather** | #3D2914 | Tertiary | Text, deep backgrounds, contrast |
+| **Parchment** | #F5E6D3 | Backgrounds | Cards, text areas, old documents |
+| **Warm Tan** | #D2B48C | Supporting | Lighter backgrounds, hover states |
+
+**Accent Colors:**
+
+| Color | Hex | Usage | Context |
+|-------|-----|-------|---------|
+| **Fire Orange** | #E25822 | Time Powers | BB's flames, energy effects, excitement |
+| **Amber Glow** | #FFBF00 | Highlights | Glowing effects, coin sparkles |
+| **Warning Red** | #8B0000 | Danger | Locked items, errors, alerts |
+| **Brass** | #B87333 | Steampunk | Gears, Chrono-Compass, metallic accents |
+
+**Coin Tiers:**
+
+| Color | Hex | Usage |
+|-------|-----|-------|
+| **Gold Coin** | #FFD700 | High-value coins |
+| **Silver Coin** | #C0C0C0 | Pool/mystery coins |
+| **Bronze Coin** | #CD7F32 | Lower-value coins |
+
+**Background Options:**
+
+| Color | Hex | Usage |
+|-------|-----|-------|
+| **Dark Charcoal** | #2D2D2D | Dark mode backgrounds |
+| **Warm Gray** | #4A4A4A | Secondary dark surfaces |
+| **Cream** | #FFF8E7 | Light mode backgrounds |
 
 ### Visual Elements
 

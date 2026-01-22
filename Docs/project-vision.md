@@ -113,17 +113,22 @@ Coins above your limit appear LOCKED (red, can't collect)
 
 ## 🎨 Visual Design
 
-### Color Palette
+### Color Palette (Western Treasure Theme)
 
 | Color | Hex | Usage |
 |-------|-----|-------|
-| **Gold** | #FFD700 | Primary - coins, buttons, highlights |
-| **Deep Sea Blue** | #1A365D | Secondary - backgrounds, headers |
-| **Pirate Red** | #8B0000 | Accent - warnings, locked items |
+| **Treasure Gold** | #FFD700 | Primary - coins, buttons, highlights |
+| **Saddle Brown** | #8B4513 | Secondary - headers, navigation |
+| **Dark Leather** | #3D2914 | Tertiary - text, deep backgrounds |
 | **Parchment** | #F5E6D3 | Text backgrounds, cards |
-| **Dark Brown** | #3D2914 | Text color |
+| **Warm Tan** | #D2B48C | Supporting - lighter backgrounds |
+| **Fire Orange** | #E25822 | Accent - BB's time powers, excitement |
+| **Warning Red** | #8B0000 | Danger - locked items, errors |
+| **Brass** | #B87333 | Steampunk - gears, Chrono-Compass |
 | **Silver** | #C0C0C0 | Silver tier coins |
 | **Bronze** | #CD7F32 | Bronze tier coins |
+
+> See `brand-guide.md` for complete color specifications.
 
 ### AR HUD Layout
 
