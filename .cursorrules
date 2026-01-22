@@ -13,6 +13,13 @@
 - Target Platforms: Android (ARCore), iOS (ARKit)
 - Render Pipeline: Universal Render Pipeline (URP)
 
+## 🤠 IMPORTANT: CHARACTER & BRAND IDENTITY
+**Black Bart was a WILD WEST stagecoach robber, NOT a pirate!**
+- Read `Docs/brand-guide.md` for character details and visual style
+- Use Western terminology, NOT pirate terminology ("partner" not "matey")
+- Aesthetic: Wild West + Steampunk (via time-travel story element)
+- Color palette: Gold (#FFD700), Deep Sea Blue (#1A365D), Western Red (#8B0000)
+
 ## ARCHITECTURE: MARKET STANDARD PATTERN (Pokemon Go Style)
 
 ### Core Principle: Panel-Based Navigation

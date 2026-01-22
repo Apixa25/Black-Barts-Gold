@@ -1,4 +1,4 @@
-# 🏴‍☠️ Black Bart's Gold - Unity Build Guide
+# 🤠 Black Bart's Gold - Unity Build Guide
 
 This document provides a **step-by-step prompt guide** for building the entire Black Bart's Gold application using **Unity + AR Foundation**. Follow these prompts sequentially to build out each feature.
 
@@ -935,7 +935,7 @@ Header Section:
 - Gas status: "⛽ XX days remaining"
 
 Main Actions (Large buttons):
-- "🏴‍☠️ Start Hunting" → Load ARHunt scene
+- "🤠 Start Hunting" → Load ARHunt scene
 - "🗺️ Treasure Map" → Load Map scene
 - "💰 Wallet" → Load Wallet scene
 - "⚙️ Settings" → Load Settings scene
@@ -951,13 +951,15 @@ Create Assets/Scripts/UI/MainMenuController.cs:
 - Handle button clicks
 - Check gas before allowing hunting
 
-Pirate Theme Styling:
-- Primary: Gold (#FFD700)
-- Secondary: Deep Sea Blue (#1A365D)
-- Accent: Pirate Red (#8B0000)
-- Font: Something bold and nautical (or use TextMeshPro default for now)
-- Buttons: Gold borders, raised effect
-- Background: Ocean/treasure map texture
+Wild West Theme Styling (see brand-guide.md for details):
+- Primary: Gold (#FFD700) - treasure, success
+- Secondary: Deep Sea Blue (#1A365D) - mystery, depth
+- Accent: Western Red (#8B0000) - warnings, locked items
+- Tertiary: Parchment (#F5E6D3), Dark Brown (#3D2914)
+- Font: Bold Western/slab serif for headers (or use TextMeshPro default for now)
+- Buttons: Gold borders, brass/leather accents
+- Background: Weathered wood, parchment, or old map texture
+- NOTE: Black Bart was a stagecoach robber, NOT a pirate!
 
 If gas is 0, disable "Start Hunting" and show "Buy More Gas" instead.
 ```
@@ -1361,8 +1363,8 @@ Methods:
 
 Create Assets/Scripts/UI/NoGasOverlay.cs:
 - Full screen overlay shown when gas = 0
-- "Ye've Run Aground, Matey!"
-- Ship illustration (or text for now)
+- "Looks Like You've Hit a Dry Well, Partner!"
+- Stagecoach/desert illustration (or text for now)
 - "Buy More Gas" button
 - "Unpark Coins" button (if has parked balance)
 
@@ -1467,17 +1469,17 @@ Methods:
 - UpdateLimitAfterHide(float hiddenValue)
 - GetTierInfo() → tier name, color, next unlock
 
-Tiers (pirate themed):
-- $1.00: "Cabin Boy"
-- $5.00: "Deck Hand"  
+Tiers (Western themed - see brand-guide.md):
+- $1.00: "Greenhorn"
+- $5.00: "Prospector"  
 - $10.00: "Treasure Hunter"
-- $25.00: "Captain"
-- $50.00: "Pirate Legend"
-- $100.00+: "King of Pirates"
+- $25.00: "Trail Boss"
+- $50.00: "Frontier Legend"
+- $100.00+: "Gold Rush King"
 
 Create Assets/Scripts/UI/FindLimitPopup.cs:
 - Modal shown when tapping locked coin
-- Shows: "This treasure be above yer limit, matey!"
+- Shows: "This treasure's above yer limit, partner!"
 - Current limit: "$X.XX"
 - Coin value: "$Y.YY"
 - "Hide $Z.ZZ to unlock!"
@@ -1715,8 +1717,11 @@ Fix critical issues.
 
 ## 📚 Reference Documents
 
+> **🤠 IMPORTANT**: Read **brand-guide.md** before starting any UI/UX work. Black Bart was a Wild West stagecoach robber, NOT a pirate!
+
 | Document | Use For |
 |----------|---------|
+| [brand-guide.md](./brand-guide.md) | 🤠 **READ FIRST** - Character identity, visual style, voice |
 | [project-vision.md](./project-vision.md) | Overall concept, tech decisions |
 | [project-scope.md](./project-scope.md) | Features, phases, business model |
 | [prize-finder-details.md](./prize-finder-details.md) | AR UI layout, HUD design |
@@ -1731,7 +1736,7 @@ Fix critical issues.
 
 ---
 
-## 🏴‍☠️ Unity-Specific Tips
+## 🤠 Unity-Specific Tips
 
 ### Testing AR
 - AR doesn't work in Unity Editor - must test on device
@@ -1759,4 +1764,4 @@ Fix critical issues.
 
 ---
 
-**Ready to build? Start with Prompt 0.1!** 🏴‍☠️
+**Ready to build? Start with Prompt 0.1!** 🤠

@@ -1,4 +1,4 @@
-# 🏴‍☠️ Black Bart's Gold - Project Vision
+# 🤠 Black Bart's Gold - Project Vision
 
 ## Executive Summary
 
@@ -265,7 +265,7 @@ When working on this project:
 2. **Use BUILD-GUIDE.md**: Follow sprint prompts for structured development
 3. **Be additive**: Don't delete working code
 4. **Explain clearly**: Long explanations with file paths
-5. **Use emojis**: Keep energy high! 🏴‍☠️
+5. **Use emojis**: Keep energy high! 🤠
 6. **Test on device**: AR doesn't work in Unity Editor
 
 ### File Path Convention
@@ -278,8 +278,11 @@ Assets/Scripts/AR/CoinController.cs
 
 ## 📚 Documentation Index
 
+> **🤠 IMPORTANT**: Always read **brand-guide.md** at the start of each session to ensure consistent character portrayal. Black Bart was a Wild West stagecoach robber, NOT a pirate!
+
 | Document | Purpose |
 |----------|---------|
+| **brand-guide.md** | 🤠 **READ FIRST** - Character & brand identity guide |
 | **project-vision.md** | This file - overview & decisions |
 | **BUILD-GUIDE.md** | Sprint-by-sprint prompts |
 | **DEVELOPMENT-LOG.md** | Progress tracking |
@@ -297,18 +300,20 @@ Assets/Scripts/AR/CoinController.cs
 
 ---
 
-## 🏴‍☠️ The Pirate Philosophy
+## 🤠 The Outlaw Philosophy
 
-> "Dead men tell no tales, but their gold still glitters!"
+> "I've labored long and hard for bread, for honor, and for riches..." — Black Bart
 
 This game is about:
 - **Adventure**: Get outside, explore
 - **Discovery**: Find hidden treasure
-- **Fairness**: Give to receive
-- **Fun**: Pirate theme, celebrations
+- **Fairness**: Give to receive (hide to unlock higher limits)
+- **Fun**: Wild West theme, celebrations
 - **Value**: Real rewards
 
-Build it like a pirate: Bold, adventurous, and with an eye for treasure! 💰
+Build it like BB: Bold, adventurous, and with an eye for gold! 💰
+
+*Note: Black Bart was a gentleman stagecoach robber, NOT a pirate. See `brand-guide.md` for details.*
 
 ---
 
