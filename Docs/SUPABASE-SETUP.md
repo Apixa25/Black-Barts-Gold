@@ -134,6 +134,114 @@ CREATE TRIGGER profiles_updated_at
 
 ---
 
+## 🪙 Phase 3: Coins Schema
+
+After setting up profiles, run this SQL to add the coins table:
+
+### Go to: SQL Editor
+https://supabase.com/dashboard/project/gvkfiommpbugvxwuloea/sql/new
+
+### Run this SQL:
+
+```sql
+-- =============================================
+-- Coins Table - Phase 3
+-- =============================================
+CREATE TABLE public.coins (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  
+  -- Coin Type & Value
+  coin_type TEXT DEFAULT 'fixed' CHECK (coin_type IN ('fixed', 'pool')),
+  value DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+  tier TEXT DEFAULT 'gold' CHECK (tier IN ('gold', 'silver', 'bronze')),
+  is_mythical BOOLEAN DEFAULT false,
+  
+  -- Location
+  latitude DECIMAL(10, 7) NOT NULL,
+  longitude DECIMAL(10, 7) NOT NULL,
+  location_name TEXT, -- Optional friendly name like "Central Park"
+  
+  -- Status
+  status TEXT DEFAULT 'hidden' CHECK (status IN ('hidden', 'visible', 'collected', 'expired', 'recycled')),
+  
+  -- Ownership & Collection
+  hider_id UUID REFERENCES public.profiles(id),
+  hidden_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  collected_by UUID REFERENCES public.profiles(id),
+  collected_at TIMESTAMP WITH TIME ZONE,
+  
+  -- Sponsor Integration
+  sponsor_id UUID, -- Will reference sponsors table later
+  logo_url TEXT,
+  
+  -- Multi-find tracking
+  multi_find BOOLEAN DEFAULT false,
+  finds_remaining INTEGER DEFAULT 1,
+  
+  -- Metadata
+  description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.coins ENABLE ROW LEVEL SECURITY;
+
+-- =============================================
+-- RLS Policies for coins
+-- =============================================
+
+-- Anyone authenticated can view coins
+CREATE POLICY "Authenticated users can view coins" ON public.coins
+  FOR SELECT TO authenticated USING (true);
+
+-- Super admins can do everything with coins
+CREATE POLICY "Admins can manage all coins" ON public.coins
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND role = 'super_admin'
+    )
+  );
+
+-- Sponsor admins can manage their own coins
+CREATE POLICY "Sponsor admins can manage own coins" ON public.coins
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND role = 'sponsor_admin'
+    )
+    AND hider_id = auth.uid()
+  );
+
+-- Users can hide coins (insert)
+CREATE POLICY "Users can hide coins" ON public.coins
+  FOR INSERT TO authenticated
+  WITH CHECK (hider_id = auth.uid());
+
+-- Users can update their own uncollected coins
+CREATE POLICY "Users can update own uncollected coins" ON public.coins
+  FOR UPDATE USING (
+    hider_id = auth.uid() AND status IN ('hidden', 'visible')
+  );
+
+-- Trigger for coins updated_at
+CREATE TRIGGER coins_updated_at
+  BEFORE UPDATE ON public.coins
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+-- =============================================
+-- Create indexes for performance
+-- =============================================
+CREATE INDEX idx_coins_status ON public.coins(status);
+CREATE INDEX idx_coins_hider ON public.coins(hider_id);
+CREATE INDEX idx_coins_collected_by ON public.coins(collected_by);
+CREATE INDEX idx_coins_location ON public.coins(latitude, longitude);
+CREATE INDEX idx_coins_tier ON public.coins(tier);
+```
+
+---
+
 ## 👤 Create Your First Admin User
 
 After running the schema:

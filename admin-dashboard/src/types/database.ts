@@ -14,26 +14,36 @@ export interface UserProfile {
 
 // Coin types
 export type CoinType = 'fixed' | 'pool'
-export type CoinStatus = 'hidden' | 'visible' | 'collected' | 'expired'
+export type CoinStatus = 'hidden' | 'visible' | 'collected' | 'expired' | 'recycled'
 export type CoinTier = 'gold' | 'silver' | 'bronze'
 
 export interface Coin {
   id: string
   coin_type: CoinType
   value: number
+  tier: CoinTier
+  is_mythical: boolean
   latitude: number
   longitude: number
-  hider_id: string
+  location_name: string | null
+  status: CoinStatus
+  hider_id: string | null
   hidden_at: string
   collected_by: string | null
   collected_at: string | null
-  status: CoinStatus
-  tier: CoinTier
-  is_mythical: boolean
   sponsor_id: string | null
   logo_url: string | null
+  multi_find: boolean
+  finds_remaining: number
+  description: string | null
   created_at: string
   updated_at: string
+}
+
+// Coin with relations (joined data)
+export interface CoinWithRelations extends Coin {
+  hider?: UserProfile | null
+  collector?: UserProfile | null
 }
 
 // Transaction types
