@@ -25,6 +25,8 @@ interface CoinDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   userId: string
+  /** Pre-filled coordinates from map click */
+  initialCoordinates?: { lat: number; lng: number } | null
 }
 
 const tierOptions: { value: CoinTier; label: string; emoji: string }[] = [
@@ -38,7 +40,7 @@ const typeOptions: { value: CoinType; label: string; icon: typeof Target; descri
   { value: "pool", label: "Pool/Mystery", icon: Dices, description: "Value determined at collection" },
 ]
 
-export function CoinDialog({ coin, open, onOpenChange, userId }: CoinDialogProps) {
+export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinates }: CoinDialogProps) {
   const router = useRouter()
   const supabase = createClient()
   const [isSaving, setIsSaving] = useState(false)
@@ -61,6 +63,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId }: CoinDialogProps
   // Reset form when dialog opens/closes or coin changes
   useEffect(() => {
     if (open && coin) {
+      // Editing existing coin
       setForm({
         coin_type: coin.coin_type,
         value: coin.value.toString(),
@@ -74,13 +77,13 @@ export function CoinDialog({ coin, open, onOpenChange, userId }: CoinDialogProps
         finds_remaining: coin.finds_remaining.toString(),
       })
     } else if (open && !coin) {
-      // Reset to defaults for new coin
+      // Creating new coin - use initialCoordinates if provided
       setForm({
         coin_type: "fixed",
         value: "",
         tier: "gold",
-        latitude: "",
-        longitude: "",
+        latitude: initialCoordinates?.lat?.toString() || "",
+        longitude: initialCoordinates?.lng?.toString() || "",
         location_name: "",
         description: "",
         is_mythical: false,
@@ -88,7 +91,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId }: CoinDialogProps
         finds_remaining: "1",
       })
     }
-  }, [open, coin])
+  }, [open, coin, initialCoordinates])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -239,6 +242,11 @@ export function CoinDialog({ coin, open, onOpenChange, userId }: CoinDialogProps
             <Label className="flex items-center gap-1">
               <MapPin className="h-4 w-4" />
               Location
+              {initialCoordinates && !coin && (
+                <span className="ml-2 text-xs text-green-600 font-normal">
+                  ✓ Set from map
+                </span>
+              )}
             </Label>
             <div className="grid grid-cols-2 gap-2">
               <Input
@@ -247,7 +255,9 @@ export function CoinDialog({ coin, open, onOpenChange, userId }: CoinDialogProps
                 value={form.latitude}
                 onChange={(e) => setForm({ ...form, latitude: e.target.value })}
                 placeholder="Latitude (e.g., 40.7128)"
-                className="border-saddle-light/30"
+                className={`border-saddle-light/30 ${
+                  initialCoordinates && !coin ? "bg-green-50 border-green-300" : ""
+                }`}
                 required
               />
               <Input
@@ -256,7 +266,9 @@ export function CoinDialog({ coin, open, onOpenChange, userId }: CoinDialogProps
                 value={form.longitude}
                 onChange={(e) => setForm({ ...form, longitude: e.target.value })}
                 placeholder="Longitude (e.g., -74.0060)"
-                className="border-saddle-light/30"
+                className={`border-saddle-light/30 ${
+                  initialCoordinates && !coin ? "bg-green-50 border-green-300" : ""
+                }`}
                 required
               />
             </div>

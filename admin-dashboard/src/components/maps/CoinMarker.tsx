@@ -22,14 +22,16 @@ import {
 } from "./map-config"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Edit, Trash2, Eye, MapPin } from "lucide-react"
+import { Edit, Trash2, Eye, MapPin, Move } from "lucide-react"
 
 interface CoinMarkerProps {
   coin: Coin
   onClick?: (coin: Coin) => void
   onEdit?: (coin: Coin) => void
   onDelete?: (coin: Coin) => void
+  onDragEnd?: (coin: Coin, newLat: number, newLng: number) => void
   isSelected?: boolean
+  draggable?: boolean
 }
 
 export function CoinMarker({ 
@@ -37,9 +39,12 @@ export function CoinMarker({
   onClick, 
   onEdit, 
   onDelete,
-  isSelected = false 
+  onDragEnd,
+  isSelected = false,
+  draggable = false,
 }: CoinMarkerProps) {
   const [showPopup, setShowPopup] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   const handleMarkerClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -59,6 +64,19 @@ export function CoinMarker({
     setShowPopup(false)
   }, [coin, onDelete])
 
+  // Handle drag events
+  const handleDragStart = useCallback(() => {
+    setIsDragging(true)
+    setShowPopup(false)
+  }, [])
+
+  const handleDragEnd = useCallback((event: { lngLat: { lng: number; lat: number } }) => {
+    setIsDragging(false)
+    if (onDragEnd) {
+      onDragEnd(coin, event.lngLat.lat, event.lngLat.lng)
+    }
+  }, [coin, onDragEnd])
+
   // Get colors based on status and tier
   const statusColor = COIN_STATUS_COLORS[coin.status]
   const tierColor = COIN_TIER_COLORS[coin.tier]
@@ -74,14 +92,19 @@ export function CoinMarker({
         latitude={coin.latitude}
         anchor="center"
         onClick={handleMarkerClick}
+        draggable={draggable}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
       >
         <div
           className={`
-            cursor-pointer transition-all duration-200
+            transition-all duration-200
             hover:scale-110 hover:z-10
             ${isSelected ? "scale-125 z-20" : ""}
+            ${isDragging ? "scale-150 z-30 opacity-75" : ""}
+            ${draggable ? "cursor-move" : "cursor-pointer"}
           `}
-          title={`${coin.coin_type === "pool" ? "?" : `$${coin.value}`} - ${coin.status}`}
+          title={`${coin.coin_type === "pool" ? "?" : `$${coin.value}`} - ${coin.status}${draggable ? " (drag to move)" : ""}`}
         >
           {/* Coin marker SVG */}
           <svg
@@ -207,6 +230,14 @@ export function CoinMarker({
                 </p>
               )}
             </div>
+
+            {/* Drag hint */}
+            {draggable && (
+              <div className="flex items-center gap-1 text-xs text-leather-light bg-parchment rounded px-2 py-1">
+                <Move className="h-3 w-3" />
+                <span>Drag marker to reposition</span>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 pt-2 border-t border-saddle-light/20">

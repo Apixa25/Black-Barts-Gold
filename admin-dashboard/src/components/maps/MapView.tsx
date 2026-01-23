@@ -40,10 +40,15 @@ interface MapViewProps {
   onCoinClick?: (coin: Coin) => void
   onCoinEdit?: (coin: Coin) => void
   onCoinDelete?: (coin: Coin) => void
+  onCoinDrag?: (coin: Coin, newLat: number, newLng: number) => void
   onMapClick?: (lat: number, lng: number) => void
   selectedCoinId?: string
   initialCenter?: { latitude: number; longitude: number; zoom: number }
   className?: string
+  /** Enable click-to-place mode */
+  placementMode?: boolean
+  /** Enable drag-to-reposition coins */
+  enableDrag?: boolean
 }
 
 export function MapView({
@@ -52,10 +57,13 @@ export function MapView({
   onCoinClick,
   onCoinEdit,
   onCoinDelete,
+  onCoinDrag,
   onMapClick,
   selectedCoinId,
   initialCenter,
   className = "",
+  placementMode = false,
+  enableDrag = false,
 }: MapViewProps) {
   const mapRef = useRef<MapRef>(null)
   
@@ -196,7 +204,12 @@ export function MapView({
   }
 
   return (
-    <div className={`relative rounded-lg overflow-hidden border border-saddle-light/30 ${className}`} style={{ height }}>
+    <div 
+      className={`relative rounded-lg overflow-hidden border border-saddle-light/30 ${className} ${
+        placementMode ? "ring-2 ring-gold" : ""
+      }`} 
+      style={{ height }}
+    >
       <Map
         ref={mapRef}
         {...viewState}
@@ -207,6 +220,7 @@ export function MapView({
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         reuseMaps
+        cursor={placementMode ? "crosshair" : "grab"}
       >
         {/* Navigation control (compass) */}
         <NavigationControl position="bottom-left" showCompass showZoom={false} />
@@ -222,10 +236,36 @@ export function MapView({
             onClick={onCoinClick}
             onEdit={onCoinEdit}
             onDelete={onCoinDelete}
+            onDragEnd={onCoinDrag}
             isSelected={coin.id === selectedCoinId}
+            draggable={enableDrag && !placementMode}
           />
         ))}
       </Map>
+
+      {/* Placement mode crosshair overlay */}
+      {placementMode && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="relative">
+            {/* Crosshair */}
+            <div className="absolute -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2">
+              <div className="w-8 h-0.5 bg-gold shadow-sm" />
+              <div className="w-0.5 h-8 bg-gold shadow-sm absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
+            {/* Pulsing coin preview */}
+            <div className="w-6 h-6 bg-gold/50 rounded-full animate-ping absolute -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2" />
+            <div className="w-4 h-4 bg-gold rounded-full border-2 border-saddle absolute -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2" />
+          </div>
+        </div>
+      )}
+
+      {/* Placement mode instruction banner */}
+      {placementMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gold text-leather px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-bounce">
+          <span>🎯</span>
+          Click to place coin here
+        </div>
+      )}
 
       {/* Map controls overlay */}
       <MapControls
