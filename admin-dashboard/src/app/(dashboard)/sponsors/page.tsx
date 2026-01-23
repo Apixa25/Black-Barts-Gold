@@ -33,11 +33,12 @@ export default async function SponsorsPage({ searchParams }: SponsorsPageProps) 
     .select("status, total_spent, coins_purchased")
 
   // Calculate stats
+  type SponsorRow = { status?: string; total_spent?: number; coins_purchased?: number }
   const totalSponsors = allSponsors?.length || 0
-  const activeSponsors = allSponsors?.filter(s => s.status === 'active').length || 0
-  const pendingSponsors = allSponsors?.filter(s => s.status === 'pending').length || 0
-  const totalRevenue = allSponsors?.reduce((sum, s) => sum + (s.total_spent || 0), 0) || 0
-  const totalCoinsPurchased = allSponsors?.reduce((sum, s) => sum + (s.coins_purchased || 0), 0) || 0
+  const activeSponsors = allSponsors?.filter((s: SponsorRow) => s.status === 'active').length || 0
+  const pendingSponsors = allSponsors?.filter((s: SponsorRow) => s.status === 'pending').length || 0
+  const totalRevenue = allSponsors?.reduce((sum: number, s: SponsorRow) => sum + (s.total_spent || 0), 0) || 0
+  const totalCoinsPurchased = allSponsors?.reduce((sum: number, s: SponsorRow) => sum + (s.coins_purchased || 0), 0) || 0
 
   const hasFilters = params.search || params.status
 

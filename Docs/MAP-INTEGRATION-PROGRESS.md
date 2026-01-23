@@ -10,7 +10,7 @@
 |------|-------|
 | **Admin Dashboard Path** | `admin-dashboard/` |
 | **Map Provider** | Mapbox (react-map-gl/mapbox) |
-| **Current Phase** | **M6: Timed Releases** (Next) |
+| **Current Phase** | **M6: Timed Releases** (In Progress) |
 | **Last Updated** | January 22, 2026 |
 | **Mapbox Token** | Stored in `admin-dashboard/.env.local` |
 
@@ -27,7 +27,7 @@ The Map Integration is broken into 8 phases (M1-M8). Here's the full roadmap:
 | **M3** | Zone Management | ✅ COMPLETE | Zone creation, visualization, management |
 | **M4** | Player Tracking | ✅ COMPLETE | Real-time player location monitoring |
 | **M5** | Auto-Distribution | ✅ COMPLETE | Automated coin spawning near players |
-| **M6** | Timed Releases | ⏳ Pending | Scheduled coin drops |
+| **M6** | Timed Releases | 🔄 IN PROGRESS | Scheduled coin drops |
 | **M7** | Sponsor Features | ⏳ Pending | Sponsor zones, analytics, bulk placement |
 | **M8** | Anti-Cheat | ⏳ Pending | GPS spoofing detection, validation |
 
@@ -264,13 +264,48 @@ Auto-Distribution Flow:
 
 ---
 
-## ⏳ Phase M6: Timed Releases (Planned)
+## 🔄 Phase M6: Timed Releases (IN PROGRESS)
 
-### Planned Features
+### What's Being Built
 - Schedule coin drops at specific times
 - Batch releases (e.g., "100 coins over 10 minutes")
 - Hunt event scheduling
 - Release queue management
+- Pause / resume / cancel schedules
+
+### Current Status
+| Task | Status | Notes |
+|------|--------|-------|
+| Timed-release types | ✅ Done | `ReleaseSchedule`, `ReleaseQueueItem`, `TimedReleaseStats` |
+| timed-release-config | ✅ Done | Batch calc, format helpers, validation |
+| useTimedReleases hook | ✅ Done | Mock data, create/pause/resume/cancel |
+| TimedReleasesPanel | ✅ Done | Stats, queue, schedules table, create dialog |
+| SQL migration | ✅ Done | `005_timed_releases.sql` |
+| Zones tab | ✅ Done | "Timed Releases" tab + Calendar icon |
+| Browser testing | ⏳ Pending | Verify in UI |
+
+### Files Created for M6
+```
+admin-dashboard/src/types/database.ts   # ReleaseSchedule, ReleaseBatch, etc.
+admin-dashboard/src/components/maps/
+└── timed-release-config.ts            # Presets, batch calc, formatting
+
+admin-dashboard/src/hooks/
+└── use-timed-releases.ts              # Schedules, queue, stats, actions
+
+admin-dashboard/src/components/dashboard/
+└── timed-releases-panel.tsx           # Panel UI + create dialog
+
+admin-dashboard/supabase/migrations/
+└── 005_timed_releases.sql             # release_schedules, process_timed_releases
+```
+
+### Key Features Implemented
+- **Stats**: Active schedules, scheduled today, coins released, next release countdown
+- **Release queue**: Upcoming batches with countdown timers
+- **Schedules table**: Progress, status badges, Pause/Resume/Cancel actions
+- **Create dialog**: Name, zone, total coins, coins per release, interval, start time
+- **SQL**: `process_timed_releases()`, `create_release_schedule()`
 
 ---
 
@@ -344,26 +379,30 @@ admin-dashboard/src/
 │   │   ├── player-config.ts    # Player tracking config ⭐ M4
 │   │   ├── PlayerMarker.tsx    # Player markers ⭐ M4
 │   │   ├── PlayerLayer.tsx     # Player layer with clustering ⭐ M4
-│   │   └── distribution-config.ts # Auto-distribution config ⭐ M5 NEW
+│   │   ├── distribution-config.ts   # Auto-distribution config ⭐ M5
+│   │   └── timed-release-config.ts  # Timed release helpers ⭐ M6 NEW
 │   │
 │   └── dashboard/
-│       ├── coin-dialog.tsx     # Updated with coordinates
-│       ├── live-players-map.tsx # Live player map widget ⭐ M4
-│       └── auto-distribution-panel.tsx # Distribution control panel ⭐ M5 NEW
+│       ├── coin-dialog.tsx          # Updated with coordinates
+│       ├── live-players-map.tsx     # Live player map widget ⭐ M4
+│       ├── auto-distribution-panel.tsx  # Distribution panel ⭐ M5
+│       └── timed-releases-panel.tsx     # Timed releases panel ⭐ M6 NEW
 │
 │   └── ui/
-│       └── progress.tsx         # Progress bar component ⭐ M5 NEW
+│       └── progress.tsx              # Progress bar ⭐ M5
 │
 ├── hooks/
-│   ├── use-player-tracking.ts  # Supabase Realtime hook ⭐ M4
-│   └── use-auto-distribution.ts # Distribution management ⭐ M5 NEW
+│   ├── use-player-tracking.ts   # Supabase Realtime hook ⭐ M4
+│   ├── use-auto-distribution.ts # Distribution management ⭐ M5
+│   └── use-timed-releases.ts    # Timed releases ⭐ M6 NEW
 │
 └── types/
     └── database.ts             # Zone + Player + Distribution types
 
 admin-dashboard/supabase/migrations/
-├── 003_player_locations.sql    # Player tracking schema ⭐ M4
-└── 004_auto_distribution.sql   # Distribution system ⭐ M5 NEW
+├── 003_player_locations.sql    # Player tracking ⭐ M4
+├── 004_auto_distribution.sql   # Distribution system ⭐ M5
+└── 005_timed_releases.sql      # Timed releases ⭐ M6 NEW
 ```
 
 ---
@@ -392,7 +431,7 @@ Read: Docs/MAP-INTEGRATION-PROGRESS.md
 - We're on **Phase M6: Timed Releases**
 - M4 Player Tracking: COMPLETE
 - M5 Auto-Distribution: COMPLETE
-- M6 Timed Releases: Next phase
+- M6 Timed Releases: IN PROGRESS (code complete, testing)
 
 ### 3. Start the Dev Server
 ```powershell
@@ -403,34 +442,28 @@ npm run dev
 ### 4. Open Browser and Test
 - Navigate to `http://localhost:3000`
 - Login with test credentials
-- Dashboard should show **Live Players Map** with mock players
-- Go to **Zones** page, click **Auto-Distribution** tab
+- Dashboard: **Live Players Map** with mock players
+- Zones: **Auto-Distribution** tab, **Timed Releases** tab
 
-### 5. Key Components to Check (M5)
-- `distribution-config.ts` - Spawn settings, value calculations
-- `useAutoDistribution.ts` - Mock data and spawn logic
-- `AutoDistributionPanel.tsx` - Control panel UI
-- `zones-client.tsx` - Now has Distribution tab
+### 5. Key Components to Check (M5–M6)
+- **M5**: `distribution-config.ts`, `useAutoDistribution`, `AutoDistributionPanel`
+- **M6**: `timed-release-config.ts`, `useTimedReleases`, `TimedReleasesPanel`
+- `zones-client.tsx` - Distribution + Timed Releases tabs
 
-### 6. Test M5 Auto-Distribution
-- Verify Distribution tab shows on Zones page
-- Check system status indicator (Running/Paused)
-- View zone distribution status table
-- Test manual spawn dialog
-- Verify spawn queue displays
+### 6. Test M5 & M6
+- **M5**: Distribution tab, status, zone table, spawn dialog, queue
+- **M6**: Timed Releases tab, stats, release queue, schedules table, New Schedule dialog
 
 ### 7. To Enable Real Data
-1. Run SQL migrations:
-   - `supabase/migrations/003_player_locations.sql`
-   - `supabase/migrations/004_auto_distribution.sql`
-2. Enable Realtime for `player_locations` table
-3. Set `useMockData = false` in hooks
+1. Run SQL migrations: `003_player_locations`, `004_auto_distribution`, `005_timed_releases`
+2. Enable Realtime for `player_locations`
+3. Set `useMockData = false` in hooks; wire timed releases to Supabase
 
-### 8. When M5 Complete, Move to M6
-Timed Releases will require:
-- Schedule coin drops at specific times
-- Batch releases (e.g., "100 coins over 10 minutes")
-- Hunt event scheduling
+### 8. When M6 Complete, Move to M7
+Sponsor Features will require:
+- Sponsor zone creation and management
+- Bulk coin placement tools
+- Analytics dashboard for sponsors
 
 ---
 
@@ -462,4 +495,4 @@ Timed Releases will require:
 
 ---
 
-*Last updated: January 22, 2026 - Phase M5 COMPLETE! Auto-distribution panel working with stats, queue, and zone controls* ⚡
+*Last updated: January 23, 2026 - Phase M6 IN PROGRESS! Timed Releases panel with schedules, queue, create dialog* 📅

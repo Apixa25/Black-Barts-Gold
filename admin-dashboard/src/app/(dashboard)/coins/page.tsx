@@ -40,11 +40,12 @@ export default async function CoinsPage({ searchParams }: CoinsPageProps) {
   const { data: allCoins } = await supabase.from("coins").select("status, value, tier, is_mythical")
 
   // Calculate stats
+  type CoinRow = { status?: string; value?: number; is_mythical?: boolean }
   const totalCoins = allCoins?.length || 0
-  const visibleCoins = allCoins?.filter(c => c.status === 'visible').length || 0
-  const collectedCoins = allCoins?.filter(c => c.status === 'collected').length || 0
-  const totalValue = allCoins?.reduce((sum, c) => sum + (c.value || 0), 0) || 0
-  const mythicalCoins = allCoins?.filter(c => c.is_mythical).length || 0
+  const visibleCoins = allCoins?.filter((c: CoinRow) => c.status === 'visible').length || 0
+  const collectedCoins = allCoins?.filter((c: CoinRow) => c.status === 'collected').length || 0
+  const totalValue = allCoins?.reduce((sum: number, c: CoinRow) => sum + (c.value || 0), 0) || 0
+  const mythicalCoins = allCoins?.filter((c: CoinRow) => c.is_mythical).length || 0
 
   const hasFilters = params.search || params.status || params.tier
 

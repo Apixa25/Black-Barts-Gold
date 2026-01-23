@@ -221,7 +221,9 @@ export function usePlayerTracking(
       let transformed = (data || []).map(transformToActivePlayer)
       
       if (statusFilter) {
-        transformed = transformed.filter(p => statusFilter.includes(p.activity_status))
+        transformed = transformed.filter((p: ActivePlayer) =>
+          statusFilter.includes(p.activity_status)
+        )
       }
       
       setPlayers(transformed)
@@ -252,15 +254,15 @@ export function usePlayerTracking(
           table: 'player_locations',
           ...(zoneId ? { filter: `current_zone_id=eq.${zoneId}` } : {}),
         },
-        (payload) => {
+        (payload: { eventType: string; new?: PlayerLocation; old?: PlayerLocation }) => {
           console.log('Player location change:', payload)
-          
+
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newLocation = payload.new as PlayerLocation
-            const activePlayer = transformToActivePlayer(newLocation as any)
-            
+            const activePlayer = transformToActivePlayer(newLocation)
+
             setPlayers(prev => {
-              const index = prev.findIndex(p => p.user_id === activePlayer.user_id)
+              const index = prev.findIndex((p: ActivePlayer) => p.user_id === activePlayer.user_id)
               if (index >= 0) {
                 // Update existing
                 const updated = [...prev]
@@ -273,11 +275,11 @@ export function usePlayerTracking(
             })
           } else if (payload.eventType === 'DELETE') {
             const oldLocation = payload.old as PlayerLocation
-            setPlayers(prev => prev.filter(p => p.user_id !== oldLocation.user_id))
+            setPlayers(prev => prev.filter((p: ActivePlayer) => p.user_id !== oldLocation.user_id))
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         console.log('Realtime subscription status:', status)
         if (status === 'SUBSCRIBED') {
           setConnectionStatus('connected')

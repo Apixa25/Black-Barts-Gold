@@ -46,11 +46,10 @@ export function CoinMarker({
   const [showPopup, setShowPopup] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
-  const handleMarkerClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    setShowPopup(!showPopup)
+  const handleMarkerClick = useCallback(() => {
+    setShowPopup((s) => !s)
     onClick?.(coin)
-  }, [coin, onClick, showPopup])
+  }, [coin, onClick])
 
   const handleEdit = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()

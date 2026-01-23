@@ -779,3 +779,85 @@ export interface ZoneSpawnPreview {
   total_value: number
   estimated_time_to_collection_hours: number
 }
+
+// ============================================================================
+// TIMED RELEASES - Phase M6: Timed Releases
+// ============================================================================
+
+/**
+ * Release schedule status
+ */
+export type ReleaseScheduleStatus = 'scheduled' | 'active' | 'paused' | 'completed' | 'cancelled'
+
+/**
+ * Single release batch (e.g., "5 coins at 2:00 PM")
+ */
+export interface ReleaseBatch {
+  id: string
+  schedule_id: string
+  zone_id: string
+  zone_name: string
+  release_at: string           // ISO timestamp
+  coins_count: number
+  coins_released: number       // How many actually spawned
+  status: 'pending' | 'released' | 'partial' | 'failed'
+  error_message?: string
+}
+
+/**
+ * Timed release schedule (hunt event or zone batch)
+ */
+export interface ReleaseSchedule {
+  id: string
+  zone_id: string
+  zone_name: string
+  name: string
+  description: string | null
+  
+  // Configuration
+  total_coins: number
+  coins_per_release: number
+  release_interval_seconds: number
+  start_time: string
+  end_time: string | null
+  
+  // Status
+  status: ReleaseScheduleStatus
+  coins_released_so_far: number
+  batches_completed: number
+  batches_total: number
+  
+  // Timestamps
+  next_release_at: string | null
+  last_release_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Release queue item - upcoming batch
+ */
+export interface ReleaseQueueItem {
+  id: string
+  schedule_id: string
+  schedule_name: string
+  zone_id: string
+  zone_name: string
+  release_at: string
+  coins_count: number
+  status: 'pending' | 'releasing'
+  time_until_seconds: number
+}
+
+/**
+ * Timed release statistics
+ */
+export interface TimedReleaseStats {
+  active_schedules: number
+  scheduled_today: number
+  completed_today: number
+  total_coins_released_today: number
+  total_value_released_today: number
+  next_release_in_seconds: number | null
+  next_release_zone: string | null
+}

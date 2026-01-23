@@ -161,7 +161,9 @@ export function CoinsTable({ coins, onEdit }: CoinsTableProps) {
                     ${coin.value.toFixed(2)}
                   </Badge>
                   {coin.is_mythical && (
-                    <Sparkles className="h-4 w-4 text-gold" title="Mythical Coin" />
+                    <span title="Mythical Coin">
+                      <Sparkles className="h-4 w-4 text-gold" />
+                    </span>
                   )}
                 </div>
               </TableCell>

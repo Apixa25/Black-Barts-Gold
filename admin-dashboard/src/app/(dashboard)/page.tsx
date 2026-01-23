@@ -37,7 +37,7 @@ export default async function DashboardPage() {
     .eq("transaction_type", "deposit")
     .eq("status", "confirmed")
 
-  const totalDeposits = depositData?.reduce((sum, tx) => sum + tx.amount, 0) ?? 0
+  const totalDeposits = depositData?.reduce((sum: number, tx: { amount: number }) => sum + tx.amount, 0) ?? 0
 
   // Get gas revenue
   const { data: gasData } = await supabase
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
     .eq("transaction_type", "gas_consumed")
     .eq("status", "confirmed")
 
-  const totalGasRevenue = gasData?.reduce((sum, tx) => sum + tx.amount, 0) ?? 0
+  const totalGasRevenue = gasData?.reduce((sum: number, tx: { amount: number }) => sum + tx.amount, 0) ?? 0
 
   const stats = [
     {
@@ -106,9 +106,7 @@ export default async function DashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-saddle-dark">{stat.value}</div>
                 <p className={`text-xs ${
-                  stat.changeType === "positive" ? "text-green-600" :
-                  stat.changeType === "negative" ? "text-fire" :
-                  "text-leather-light"
+                  stat.changeType === "positive" ? "text-green-600" : "text-leather-light"
                 }`}>
                   {stat.change}
                 </p>

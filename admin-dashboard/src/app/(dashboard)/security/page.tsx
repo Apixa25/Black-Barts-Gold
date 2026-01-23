@@ -76,11 +76,12 @@ export default async function SecurityPage({ searchParams }: SecurityPageProps) 
     .select("*", { count: 'exact', head: true })
 
   // Calculate stats
-  const loginsToday = todayLogs?.filter(l => l.activity_type === 'login').length || 0
-  const failedLoginsToday = todayLogs?.filter(l => l.activity_type === 'login_failed').length || 0
-  const suspiciousToday = todayLogs?.filter(l => l.activity_type === 'suspicious_activity').length || 0
-  const warningsToday = todayLogs?.filter(l => l.severity === 'warning' || l.severity === 'error' || l.severity === 'critical').length || 0
-  const adminActionsToday = todayLogs?.filter(l => l.activity_type === 'admin_action').length || 0
+  type LogRow = { activity_type?: string; severity?: string }
+  const loginsToday = todayLogs?.filter((l: LogRow) => l.activity_type === 'login').length || 0
+  const failedLoginsToday = todayLogs?.filter((l: LogRow) => l.activity_type === 'login_failed').length || 0
+  const suspiciousToday = todayLogs?.filter((l: LogRow) => l.activity_type === 'suspicious_activity').length || 0
+  const warningsToday = todayLogs?.filter((l: LogRow) => l.severity === 'warning' || l.severity === 'error' || l.severity === 'critical').length || 0
+  const adminActionsToday = todayLogs?.filter((l: LogRow) => l.activity_type === 'admin_action').length || 0
 
   // Get user stats
   const { count: totalUsers } = await supabase

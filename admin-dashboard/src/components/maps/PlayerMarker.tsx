@@ -64,11 +64,8 @@ export function PlayerMarker({
   const movementColors = MOVEMENT_TYPE_COLORS[player.movement_type]
   
   // Handle marker click
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (onClick) {
-      onClick(player)
-    }
+  const handleClick = useCallback(() => {
+    onClick?.(player)
     setShowPopup(true)
   }, [onClick, player])
   

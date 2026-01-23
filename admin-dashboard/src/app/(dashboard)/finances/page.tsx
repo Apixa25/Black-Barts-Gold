@@ -65,34 +65,35 @@ export default async function FinancesPage({ searchParams }: FinancesPageProps) 
     .select("transaction_type, amount, status, created_at")
 
   // Calculate financial stats
-  const confirmedTx = allTransactions?.filter(t => t.status === 'confirmed') || []
-  
+  type TxRow = { status?: string; transaction_type?: string; amount?: number; created_at?: string }
+  const confirmedTx = allTransactions?.filter((t: TxRow) => t.status === 'confirmed') || []
+
   const totalDeposits = confirmedTx
-    .filter(t => t.transaction_type === 'deposit')
-    .reduce((sum, t) => sum + (t.amount || 0), 0)
+    .filter((t: TxRow) => t.transaction_type === 'deposit')
+    .reduce((sum: number, t: TxRow) => sum + (t.amount || 0), 0)
 
   const totalPayouts = confirmedTx
-    .filter(t => t.transaction_type === 'payout')
-    .reduce((sum, t) => sum + (t.amount || 0), 0)
+    .filter((t: TxRow) => t.transaction_type === 'payout')
+    .reduce((sum: number, t: TxRow) => sum + (t.amount || 0), 0)
 
   const totalGasRevenue = confirmedTx
-    .filter(t => t.transaction_type === 'gas_consumed')
-    .reduce((sum, t) => sum + (t.amount || 0), 0)
+    .filter((t: TxRow) => t.transaction_type === 'gas_consumed')
+    .reduce((sum: number, t: TxRow) => sum + (t.amount || 0), 0)
 
   const netRevenue = totalDeposits + totalGasRevenue - totalPayouts
 
   // Calculate today's stats
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const todayTx = allTransactions?.filter(t => new Date(t.created_at) >= today) || []
+  const todayTx = allTransactions?.filter((t: TxRow) => new Date(t.created_at!) >= today) || []
   const depositsToday = todayTx
-    .filter(t => t.transaction_type === 'deposit' && t.status === 'confirmed')
-    .reduce((sum, t) => sum + (t.amount || 0), 0)
+    .filter((t: TxRow) => t.transaction_type === 'deposit' && t.status === 'confirmed')
+    .reduce((sum: number, t: TxRow) => sum + (t.amount || 0), 0)
 
   // Calculate this week's stats
   const weekAgo = new Date()
   weekAgo.setDate(weekAgo.getDate() - 7)
-  const weekTx = allTransactions?.filter(t => new Date(t.created_at) >= weekAgo) || []
+  const weekTx = allTransactions?.filter((t: TxRow) => new Date(t.created_at!) >= weekAgo) || []
 
   const hasFilters = params.type || params.status || params.range
   const totalTransactions = allTransactions?.length || 0
@@ -106,25 +107,25 @@ export default async function FinancesPage({ searchParams }: FinancesPageProps) 
     const nextDate = new Date(date)
     nextDate.setDate(nextDate.getDate() + 1)
 
-    const dayTx = allTransactions?.filter(t => {
-      const txDate = new Date(t.created_at)
+    const dayTx = allTransactions?.filter((t: TxRow) => {
+      const txDate = new Date(t.created_at!)
       return txDate >= date && txDate < nextDate && t.status === 'confirmed'
     }) || []
 
     chartData.push({
       date: date.toLocaleDateString('en-US', { weekday: 'short' }),
-      deposits: dayTx.filter(t => t.transaction_type === 'deposit').reduce((s, t) => s + (t.amount || 0), 0),
-      gasRevenue: dayTx.filter(t => t.transaction_type === 'gas_consumed').reduce((s, t) => s + (t.amount || 0), 0),
-      payouts: dayTx.filter(t => t.transaction_type === 'payout').reduce((s, t) => s + (t.amount || 0), 0),
+      deposits: dayTx.filter((t: TxRow) => t.transaction_type === 'deposit').reduce((s: number, t: TxRow) => s + (t.amount || 0), 0),
+      gasRevenue: dayTx.filter((t: TxRow) => t.transaction_type === 'gas_consumed').reduce((s: number, t: TxRow) => s + (t.amount || 0), 0),
+      payouts: dayTx.filter((t: TxRow) => t.transaction_type === 'payout').reduce((s: number, t: TxRow) => s + (t.amount || 0), 0),
     })
   }
 
   // Prepare breakdown data
   const breakdownData = [
-    { type: 'Deposits', count: confirmedTx.filter(t => t.transaction_type === 'deposit').length, amount: totalDeposits },
-    { type: 'Found', count: confirmedTx.filter(t => t.transaction_type === 'found').length, amount: confirmedTx.filter(t => t.transaction_type === 'found').reduce((s, t) => s + (t.amount || 0), 0) },
-    { type: 'Gas', count: confirmedTx.filter(t => t.transaction_type === 'gas_consumed').length, amount: totalGasRevenue },
-    { type: 'Payouts', count: confirmedTx.filter(t => t.transaction_type === 'payout').length, amount: totalPayouts },
+    { type: 'Deposits', count: confirmedTx.filter((t: TxRow) => t.transaction_type === 'deposit').length, amount: totalDeposits },
+    { type: 'Found', count: confirmedTx.filter((t: TxRow) => t.transaction_type === 'found').length, amount: confirmedTx.filter((t: TxRow) => t.transaction_type === 'found').reduce((s: number, t: TxRow) => s + (t.amount || 0), 0) },
+    { type: 'Gas', count: confirmedTx.filter((t: TxRow) => t.transaction_type === 'gas_consumed').length, amount: totalGasRevenue },
+    { type: 'Payouts', count: confirmedTx.filter((t: TxRow) => t.transaction_type === 'payout').length, amount: totalPayouts },
   ]
 
   return (
@@ -239,7 +240,7 @@ export default async function FinancesPage({ searchParams }: FinancesPageProps) 
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {allTransactions?.filter(t => t.status === 'pending').length || 0}
+              {allTransactions?.filter((t: TxRow) => t.status === 'pending').length || 0}
             </div>
             <p className="text-xs text-leather-light">
               Awaiting confirmation
@@ -257,7 +258,7 @@ export default async function FinancesPage({ searchParams }: FinancesPageProps) 
           <CardContent>
             <div className="text-2xl font-bold text-saddle-dark">
               ${totalTransactions > 0 
-                ? (confirmedTx.reduce((s, t) => s + (t.amount || 0), 0) / confirmedTx.length).toFixed(2)
+                ? (confirmedTx.reduce((s: number, t: TxRow) => s + (t.amount || 0), 0) / confirmedTx.length).toFixed(2)
                 : '0.00'
               }
             </div>

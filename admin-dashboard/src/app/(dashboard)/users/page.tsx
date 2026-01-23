@@ -33,9 +33,10 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
   const { data: allUsers } = await supabase.from("profiles").select("role")
 
   // Count by role
-  const superAdmins = allUsers?.filter(u => u.role === 'super_admin').length || 0
-  const sponsorAdmins = allUsers?.filter(u => u.role === 'sponsor_admin').length || 0
-  const regularUsers = allUsers?.filter(u => u.role === 'user').length || 0
+  type UserRow = { role?: string }
+  const superAdmins = allUsers?.filter((u: UserRow) => u.role === 'super_admin').length || 0
+  const sponsorAdmins = allUsers?.filter((u: UserRow) => u.role === 'sponsor_admin').length || 0
+  const regularUsers = allUsers?.filter((u: UserRow) => u.role === 'user').length || 0
   const totalUsers = allUsers?.length || 0
 
   return (
