@@ -247,13 +247,13 @@ export function usePlayerTracking(
     const channel = supabase
       .channel('player-tracking')
       .on(
-        'postgres_changes',
+        'postgres_changes' as any,
         {
           event: '*',
           schema: 'public',
           table: 'player_locations',
           ...(zoneId ? { filter: `current_zone_id=eq.${zoneId}` } : {}),
-        },
+        } as any,
         (payload: { eventType: string; new?: PlayerLocation; old?: PlayerLocation }) => {
           console.log('Player location change:', payload)
 

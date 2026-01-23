@@ -10,7 +10,7 @@
 |------|-------|
 | **Admin Dashboard Path** | `admin-dashboard/` |
 | **Map Provider** | Mapbox (react-map-gl/mapbox) |
-| **Current Phase** | **M6: Timed Releases** (In Progress) |
+| **Current Phase** | **M7: Sponsor Features** (Next) |
 | **Last Updated** | January 22, 2026 |
 | **Mapbox Token** | Stored in `admin-dashboard/.env.local` |
 
@@ -27,7 +27,7 @@ The Map Integration is broken into 8 phases (M1-M8). Here's the full roadmap:
 | **M3** | Zone Management | ✅ COMPLETE | Zone creation, visualization, management |
 | **M4** | Player Tracking | ✅ COMPLETE | Real-time player location monitoring |
 | **M5** | Auto-Distribution | ✅ COMPLETE | Automated coin spawning near players |
-| **M6** | Timed Releases | 🔄 IN PROGRESS | Scheduled coin drops |
+| **M6** | Timed Releases | ✅ COMPLETE | Scheduled coin drops |
 | **M7** | Sponsor Features | ⏳ Pending | Sponsor zones, analytics, bulk placement |
 | **M8** | Anti-Cheat | ⏳ Pending | GPS spoofing detection, validation |
 
@@ -264,7 +264,7 @@ Auto-Distribution Flow:
 
 ---
 
-## 🔄 Phase M6: Timed Releases (IN PROGRESS)
+## ✅ Phase M6: Timed Releases (COMPLETE)
 
 ### What's Being Built
 - Schedule coin drops at specific times
@@ -273,7 +273,7 @@ Auto-Distribution Flow:
 - Release queue management
 - Pause / resume / cancel schedules
 
-### Current Status
+### Final Status
 | Task | Status | Notes |
 |------|--------|-------|
 | Timed-release types | ✅ Done | `ReleaseSchedule`, `ReleaseQueueItem`, `TimedReleaseStats` |
@@ -282,7 +282,7 @@ Auto-Distribution Flow:
 | TimedReleasesPanel | ✅ Done | Stats, queue, schedules table, create dialog |
 | SQL migration | ✅ Done | `005_timed_releases.sql` |
 | Zones tab | ✅ Done | "Timed Releases" tab + Calendar icon |
-| Browser testing | ⏳ Pending | Verify in UI |
+| Browser testing | ✅ Done | Verified all features working |
 
 ### Files Created for M6
 ```
@@ -495,4 +495,4 @@ Sponsor Features will require:
 
 ---
 
-*Last updated: January 23, 2026 - Phase M6 IN PROGRESS! Timed Releases panel with schedules, queue, create dialog* 📅
+*Last updated: January 23, 2026 - Phase M6 COMPLETE! Timed Releases fully tested - all maps, tabs, and features working perfectly* 📅✨
