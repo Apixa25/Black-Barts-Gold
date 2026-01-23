@@ -10,8 +10,8 @@
 |------|-------|
 | **Admin Dashboard Path** | `admin-dashboard/` |
 | **Map Provider** | Mapbox (react-map-gl/mapbox) |
-| **Current Phase** | **M3: Zone Management** (In Progress) |
-| **Last Updated** | January 21, 2026 |
+| **Current Phase** | **M4: Player Tracking** (In Progress) |
+| **Last Updated** | January 22, 2026 |
 | **Mapbox Token** | Stored in `admin-dashboard/.env.local` |
 
 ---
@@ -24,8 +24,8 @@ The Map Integration is broken into 8 phases (M1-M8). Here's the full roadmap:
 |-------|------|--------|-------------|
 | **M1** | Map Foundation | ✅ COMPLETE | Basic Mapbox integration, map display |
 | **M2** | Coin Placement | ✅ COMPLETE | Click-to-place coins, drag markers |
-| **M3** | Zone Management | 🔄 IN PROGRESS | Zone creation, visualization, management |
-| **M4** | Player Tracking | ⏳ Pending | Real-time player location monitoring |
+| **M3** | Zone Management | ✅ COMPLETE | Zone creation, visualization, management |
+| **M4** | Player Tracking | 🔄 IN PROGRESS | Real-time player location monitoring |
 | **M5** | Auto-Distribution | ⏳ Pending | Automated coin spawning near players |
 | **M6** | Timed Releases | ⏳ Pending | Scheduled coin drops |
 | **M7** | Sponsor Features | ⏳ Pending | Sponsor zones, analytics, bulk placement |
@@ -73,16 +73,16 @@ admin-dashboard/src/components/maps/
 
 ---
 
-## 🔄 Phase M3: Zone Management - IN PROGRESS
+## ✅ Phase M3: Zone Management - COMPLETE
 
-### What's Being Built
+### What Was Built
 Zone management system for organizing coins geographically with features like:
 - **Zone Types**: Player, Sponsor, Hunt, Grid
 - **Zone Geometry**: Circle (center + radius) or Polygon (custom shape)
 - **Auto-Spawn**: Automatic coin generation within zones
 - **Timed Release**: Scheduled coin drops
 
-### Current Status
+### Final Status
 | Task | Status | Notes |
 |------|--------|-------|
 | Database types | ✅ Done | `ZoneType`, `Zone`, `ZoneGeometry`, etc. |
@@ -94,7 +94,7 @@ Zone management system for organizing coins geographically with features like:
 | Navigation | ✅ Done | "Zones" added to sidebar |
 | Auth fix | ✅ Done | Fixed redirect-to-login bug |
 | Map display fix | ✅ Done | Zones now render correctly |
-| **Browser testing** | 🔄 In Progress | Verify zones visible on map |
+| Browser testing | ✅ Done | Zones verified visible on map |
 
 ### Files Created for M3
 ```
@@ -112,34 +112,77 @@ admin-dashboard/src/types/
 └── database.ts           # Extended with zone types
 ```
 
-### Known Issues Fixed
+### Issues Fixed
 1. **Login redirect bug**: `/zones` page was querying wrong table (`user_profiles` vs `profiles`)
 2. **Empty map message**: Map showed "No Coins Yet" even when zones existed
 3. **Zones not visible**: Mapbox colors were using `rgba()` format instead of hex
 
-### What's Left for M3
-- [ ] Test zone creation flow in browser
-- [ ] Test zone editing/deletion
-- [ ] Test drawing tools (circle, polygon)
-- [ ] Verify zone-coin relationship
-- [ ] Connect to Supabase (currently using mock data)
-
 ---
 
-## ⏳ Phase M4: Player Tracking (Next)
+## 🔄 Phase M4: Player Tracking - IN PROGRESS
 
-### Planned Features
-- Real-time player location display on map
-- Supabase Realtime for live updates
-- Player clustering at scale
-- Location history trails
-- Speed/teleport detection groundwork
+### What's Being Built
+Real-time player location tracking system with:
+- **Live player markers** on map with status indicators
+- **Activity status**: Active (30s), Idle (5m), Stale (30m), Offline
+- **Movement detection**: Walking, Running, Driving, Suspicious
+- **Player clustering** for performance at scale
+- **Supabase Realtime** subscriptions for live updates
+
+### Current Status
+| Task | Status | Notes |
+|------|--------|-------|
+| Player types | ✅ Done | `PlayerLocation`, `ActivePlayer`, `PlayerTrackingStats` |
+| Player config | ✅ Done | `player-config.ts` with colors, thresholds |
+| Player marker | ✅ Done | `PlayerMarker.tsx` with status indicators |
+| Player layer | ✅ Done | `PlayerLayer.tsx` with clustering |
+| Tracking hook | ✅ Done | `usePlayerTracking.ts` for Realtime |
+| MapView update | ✅ Done | Added `players` prop support |
+| Dashboard map | ✅ Done | `LivePlayersMap` component |
+| SQL schema | ✅ Done | `player_locations` table with RLS |
+| **Browser testing** | 🔄 In Progress | Test with mock data |
+
+### Files Created for M4
+```
+admin-dashboard/src/components/maps/
+├── player-config.ts      # Colors, thresholds, utilities
+├── PlayerMarker.tsx      # Individual player markers
+└── PlayerLayer.tsx       # Player rendering layer
+
+admin-dashboard/src/hooks/
+└── use-player-tracking.ts  # Supabase Realtime hook
+
+admin-dashboard/src/components/dashboard/
+└── live-players-map.tsx    # Dashboard player map widget
+
+admin-dashboard/supabase/migrations/
+└── 003_player_locations.sql # Database schema
+```
+
+### Key Features Implemented
+- **PlayerMarker**: Avatar, status ring, pulse animation, heading indicator
+- **Activity detection**: Automatic status based on `last_updated` timestamp
+- **Movement types**: Speed-based classification with anti-cheat flagging
+- **Clustering**: Grid-based clustering at low zoom levels
+- **Mock data**: 8 test players for development without database
+
+### What's Left for M4
+- [ ] Test player tracking in browser
+- [ ] Run SQL migration in Supabase
+- [ ] Test Realtime subscription (when DB ready)
+- [ ] Add player trails (optional)
 
 ### Technical Approach
 ```
 Player Location Flow:
 Unity App → Supabase Realtime → Admin Dashboard Map
      └── Updates every 5-10 seconds
+     
+Activity Status Thresholds:
+- Active:  < 30 seconds
+- Idle:    < 5 minutes
+- Stale:   < 30 minutes  
+- Offline: > 30 minutes
 ```
 
 ---
@@ -214,6 +257,7 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1Ijoic3RldmVuc2lsbHMyIi...
 ```
 admin-dashboard/src/
 ├── app/(dashboard)/
+│   ├── page.tsx                # Dashboard with LivePlayersMap
 │   ├── coins/
 │   │   └── coins-client.tsx    # Coins page with map
 │   └── zones/
@@ -224,19 +268,29 @@ admin-dashboard/src/
 │   ├── maps/
 │   │   ├── index.ts            # All exports
 │   │   ├── map-config.ts       # Configuration
-│   │   ├── MapView.tsx         # Main map component
+│   │   ├── MapView.tsx         # Main map (coins, zones, players)
 │   │   ├── MapControls.tsx     # Map UI controls
 │   │   ├── CoinMarker.tsx      # Coin markers
 │   │   ├── zone-config.ts      # Zone configuration
 │   │   ├── ZoneLayer.tsx       # Zone rendering
 │   │   ├── ZonePreviewLayer.tsx # Drawing preview
-│   │   └── ZoneDialog.tsx      # Zone CRUD dialog
+│   │   ├── ZoneDialog.tsx      # Zone CRUD dialog
+│   │   ├── player-config.ts    # Player tracking config ⭐ M4 NEW
+│   │   ├── PlayerMarker.tsx    # Player markers ⭐ M4 NEW
+│   │   └── PlayerLayer.tsx     # Player layer with clustering ⭐ M4 NEW
 │   │
 │   └── dashboard/
-│       └── coin-dialog.tsx     # Updated with coordinates
+│       ├── coin-dialog.tsx     # Updated with coordinates
+│       └── live-players-map.tsx # Live player map widget ⭐ M4 NEW
+│
+├── hooks/
+│   └── use-player-tracking.ts  # Supabase Realtime hook ⭐ M4 NEW
 │
 └── types/
-    └── database.ts             # Zone types added
+    └── database.ts             # Zone + Player types
+
+admin-dashboard/supabase/migrations/
+└── 003_player_locations.sql    # Player tracking schema ⭐ M4 NEW
 ```
 
 ---
@@ -262,8 +316,8 @@ Read: Docs/MAP-INTEGRATION-PROGRESS.md
 ```
 
 ### 2. Check Current Phase Status
-- We're on **Phase M3: Zone Management**
-- Code is complete, testing in progress
+- We're on **Phase M4: Player Tracking**
+- Code is complete, browser testing in progress
 
 ### 3. Start the Dev Server
 ```powershell
@@ -274,25 +328,31 @@ npm run dev
 ### 4. Open Browser and Test
 - Navigate to `http://localhost:3000`
 - Login with test credentials
-- Go to **Zones** page
-- Verify zones are visible on map
+- Dashboard should show **Live Players Map** with mock players
+- Go to **Zones** page to verify zone functionality
 
-### 5. If Zones Not Visible
-Check these files for recent fixes:
-- `MapView.tsx` - Early return condition
-- `ZoneLayer.tsx` - GeoJSON generation
-- `zone-config.ts` - Color format (hex, not rgba)
+### 5. Key Components to Check
+- `MapView.tsx` - Now supports `players` prop
+- `PlayerMarker.tsx` - Individual player markers
+- `PlayerLayer.tsx` - Player rendering with clustering
+- `use-player-tracking.ts` - Mock data for development
 
-### 6. Continue with M3 Testing
-- Test zone creation (click "New Zone")
-- Test drawing tools (circle, polygon)
-- Test zone editing/deletion
+### 6. Continue with M4 Testing
+- Verify players appear on dashboard map
+- Test player popup on hover/click
+- Check activity status colors (green/yellow/gray)
+- Verify player clustering at low zoom
 
-### 7. When M3 Complete, Move to M4
-Player tracking will require:
-- Supabase Realtime setup
-- Player location table
-- Map component updates
+### 7. To Enable Real Data
+1. Run SQL migration: `supabase/migrations/003_player_locations.sql`
+2. Enable Realtime for `player_locations` table
+3. Set `useMockData = false` in `use-player-tracking.ts`
+
+### 8. When M4 Complete, Move to M5
+Auto-Distribution will require:
+- Grid-based spawn algorithm
+- Zone coin limits
+- Respawn timing logic
 
 ---
 
@@ -324,4 +384,4 @@ Player tracking will require:
 
 ---
 
-*Last updated: January 21, 2026 - Phase M3 in progress, testing zone visualization* 🗺️
+*Last updated: January 22, 2026 - Phase M4 in progress, player tracking implemented with mock data* 🗺️

@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Coins, DollarSign, TrendingUp, Building2, Shield, Settings } from "lucide-react"
+import { Users, Coins, DollarSign, TrendingUp, Building2, Shield, Settings, MapPin } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { LivePlayersMap } from "@/components/dashboard/live-players-map"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -117,6 +118,9 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {/* Live Players Map */}
+      <LivePlayersMap height={350} showFullScreenLink={true} />
+
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-saddle-light/30">
@@ -175,6 +179,12 @@ export default async function DashboardPage() {
               <Link href="/coins">
                 <Coins className="mr-2 h-4 w-4" />
                 Manage Coins
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start border-saddle-light/50">
+              <Link href="/zones">
+                <MapPin className="mr-2 h-4 w-4" />
+                Manage Zones
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full justify-start border-saddle-light/50">

@@ -14,6 +14,11 @@ export { MapControls } from "./MapControls"
 export { ZoneLayer, ZonePreviewLayer } from "./ZoneLayer"
 export { ZoneDialog } from "./ZoneDialog"
 
+// Player tracking components
+export { PlayerMarker, PlayerClusterMarker } from "./PlayerMarker"
+export { PlayerLayer, PlayerStatusSummary } from "./PlayerLayer"
+
 // Configuration and utilities
 export * from "./map-config"
 export * from "./zone-config"
+export * from "./player-config"

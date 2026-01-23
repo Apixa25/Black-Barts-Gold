@@ -17,9 +17,10 @@ import {
   type MapRef,
   type ViewStateChangeEvent
 } from "react-map-gl/mapbox"
-import type { Coin, CoinStatus, Zone, ZoneType } from "@/types/database"
+import type { Coin, CoinStatus, Zone, ZoneType, ActivePlayer } from "@/types/database"
 import { CoinMarker } from "./CoinMarker"
 import { ZoneLayer, ZonePreviewLayer } from "./ZoneLayer"
+import { PlayerLayer, PlayerStatusSummary } from "./PlayerLayer"
 import { MapControls } from "./MapControls"
 import { 
   MAPBOX_TOKEN, 
@@ -39,6 +40,8 @@ interface MapViewProps {
   coins: Coin[]
   /** Zones to display on the map */
   zones?: Zone[]
+  /** Active players to display on the map */
+  players?: ActivePlayer[]
   height?: string | number
   onCoinClick?: (coin: Coin) => void
   onCoinEdit?: (coin: Coin) => void
@@ -50,9 +53,15 @@ interface MapViewProps {
   onZoneEdit?: (zone: Zone) => void
   onZoneDelete?: (zone: Zone) => void
   onZoneToggleStatus?: (zone: Zone) => void
+  /** Player interaction handlers */
+  onPlayerClick?: (player: ActivePlayer) => void
+  onViewPlayerProfile?: (player: ActivePlayer) => void
+  onTrackPlayer?: (player: ActivePlayer) => void
   selectedCoinId?: string
   /** Selected zone for popup */
   selectedZoneId?: string
+  /** Selected player for popup */
+  selectedPlayerId?: string
   initialCenter?: { latitude: number; longitude: number; zoom: number }
   className?: string
   /** Enable click-to-place mode */
@@ -72,11 +81,18 @@ interface MapViewProps {
   previewZoneType?: ZoneType
   /** Show zone labels on map */
   showZoneLabels?: boolean
+  /** Show players on map */
+  showPlayers?: boolean
+  /** Enable player clustering */
+  enablePlayerClustering?: boolean
+  /** Show player status summary in legend */
+  showPlayerStatusSummary?: boolean
 }
 
 export function MapView({
   coins,
   zones = [],
+  players = [],
   height = 500,
   onCoinClick,
   onCoinEdit,
@@ -87,8 +103,12 @@ export function MapView({
   onZoneEdit,
   onZoneDelete,
   onZoneToggleStatus,
+  onPlayerClick,
+  onViewPlayerProfile,
+  onTrackPlayer,
   selectedCoinId,
   selectedZoneId,
+  selectedPlayerId,
   initialCenter,
   className = "",
   placementMode = false,
@@ -97,6 +117,9 @@ export function MapView({
   zonePreview = null,
   previewZoneType = "player",
   showZoneLabels = true,
+  showPlayers = true,
+  enablePlayerClustering = true,
+  showPlayerStatusSummary = true,
 }: MapViewProps) {
   const mapRef = useRef<MapRef>(null)
   
@@ -298,6 +321,19 @@ export function MapView({
             draggable={enableDrag && !placementMode && !zoneDrawMode}
           />
         ))}
+
+        {/* Player markers */}
+        {showPlayers && players.length > 0 && (
+          <PlayerLayer
+            players={players}
+            selectedPlayerId={selectedPlayerId}
+            onPlayerClick={onPlayerClick}
+            onViewProfile={onViewPlayerProfile}
+            onTrackPlayer={onTrackPlayer}
+            enableClustering={enablePlayerClustering}
+            showPopupsOnHover={!placementMode && !zoneDrawMode}
+          />
+        )}
       </Map>
 
       {/* Placement mode crosshair overlay */}
@@ -367,6 +403,12 @@ export function MapView({
             <span>Collected</span>
           </div>
         </div>
+        {/* Player status summary */}
+        {showPlayers && showPlayerStatusSummary && players.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-200">
+            <PlayerStatusSummary players={players} />
+          </div>
+        )}
       </div>
     </div>
   )

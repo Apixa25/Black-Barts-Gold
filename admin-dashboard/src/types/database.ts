@@ -375,3 +375,167 @@ export interface CreateZoneInput {
   border_color?: string
   opacity?: number
 }
+
+// ============================================================================
+// PLAYER TRACKING TYPES - Phase M4: Player Tracking
+// ============================================================================
+
+/**
+ * Player activity status based on last update time
+ * - active: Updated within last 30 seconds
+ * - idle: Updated within last 5 minutes
+ * - stale: Updated within last 30 minutes
+ * - offline: No update for 30+ minutes
+ */
+export type PlayerActivityStatus = 'active' | 'idle' | 'stale' | 'offline'
+
+/**
+ * Player movement type for anti-cheat detection
+ * - walking: Normal speed (0-6 km/h)
+ * - running: Fast movement (6-20 km/h)
+ * - driving: Vehicle speed (20-120 km/h)
+ * - suspicious: Impossible speed (>120 km/h or teleporting)
+ */
+export type PlayerMovementType = 'walking' | 'running' | 'driving' | 'suspicious'
+
+/**
+ * Player location data from the Unity app
+ * This is updated in real-time as players move
+ */
+export interface PlayerLocation {
+  id: string
+  user_id: string
+  
+  // Current position
+  latitude: number
+  longitude: number
+  altitude: number | null
+  
+  // Accuracy & quality
+  accuracy_meters: number        // GPS accuracy radius
+  heading: number | null         // Direction in degrees (0-360)
+  speed_mps: number | null       // Speed in meters per second
+  
+  // Device info
+  device_id: string | null       // Unique device identifier
+  device_model: string | null    // e.g., "OnePlus 9 Pro"
+  app_version: string | null     // Unity app version
+  
+  // Session info
+  session_id: string | null      // Current play session ID
+  is_ar_active: boolean          // Currently in AR mode
+  
+  // Anti-cheat metadata
+  is_mock_location: boolean      // Device reports mock location enabled
+  movement_type: PlayerMovementType
+  distance_traveled_session: number  // Total meters this session
+  
+  // Zone context
+  current_zone_id: string | null // Zone player is currently in
+  
+  // Timestamps
+  client_timestamp: string       // When device recorded position
+  server_timestamp: string       // When server received position
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Player location with user profile data (joined)
+ */
+export interface PlayerLocationWithUser extends PlayerLocation {
+  user?: UserProfile | null
+  current_zone?: Zone | null
+}
+
+/**
+ * Real-time player data for map display
+ * Simplified version with computed activity status
+ */
+export interface ActivePlayer {
+  id: string
+  user_id: string
+  user_name: string | null
+  avatar_url: string | null
+  
+  // Position
+  latitude: number
+  longitude: number
+  accuracy_meters: number
+  heading: number | null
+  
+  // Status
+  activity_status: PlayerActivityStatus
+  is_ar_active: boolean
+  movement_type: PlayerMovementType
+  
+  // Context
+  current_zone_id: string | null
+  current_zone_name: string | null
+  
+  // Session stats
+  coins_collected_session: number
+  time_active_minutes: number
+  
+  // Timestamps
+  last_updated: string
+}
+
+/**
+ * Player tracking statistics for dashboard
+ */
+export interface PlayerTrackingStats {
+  total_active_players: number       // Players updated in last 30 seconds
+  total_idle_players: number         // Players updated in last 5 minutes
+  total_players_today: number        // Unique players today
+  players_in_ar_mode: number         // Currently hunting in AR
+  players_by_zone: Record<string, number>  // Count per zone
+  suspicious_players: number         // Flagged for review
+  average_session_minutes: number    // Average play session length
+  total_distance_traveled_km: number // Combined distance today
+}
+
+/**
+ * Player location history point (for trails)
+ */
+export interface PlayerLocationHistory {
+  id: string
+  user_id: string
+  latitude: number
+  longitude: number
+  accuracy_meters: number
+  speed_mps: number | null
+  movement_type: PlayerMovementType
+  recorded_at: string
+}
+
+/**
+ * Player trail configuration
+ */
+export interface PlayerTrailConfig {
+  enabled: boolean
+  max_points: number           // Max points to show in trail
+  max_age_minutes: number      // Remove points older than this
+  show_speed_colors: boolean   // Color trail by speed
+  line_width: number
+  opacity: number
+}
+
+/**
+ * Cluster of players (for high-density areas)
+ */
+export interface PlayerCluster {
+  id: string
+  center: {
+    latitude: number
+    longitude: number
+  }
+  player_count: number
+  players: ActivePlayer[]
+  bounds: {
+    north: number
+    south: number
+    east: number
+    west: number
+  }
+}
