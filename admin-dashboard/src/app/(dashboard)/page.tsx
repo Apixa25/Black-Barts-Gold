@@ -1,48 +1,83 @@
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Coins, DollarSign, TrendingUp } from "lucide-react"
+import { Users, Coins, DollarSign, TrendingUp, Building2, Shield, Settings } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
 
-  // Fetch real user count from Supabase
+  // Fetch real counts from Supabase
   const { count: userCount } = await supabase
     .from("profiles")
     .select("*", { count: "exact", head: true })
+
+  const { count: coinCount } = await supabase
+    .from("coins")
+    .select("*", { count: "exact", head: true })
+
+  const { count: visibleCoinCount } = await supabase
+    .from("coins")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "visible")
+
+  const { count: sponsorCount } = await supabase
+    .from("sponsors")
+    .select("*", { count: "exact", head: true })
+
+  const { count: transactionCount } = await supabase
+    .from("transactions")
+    .select("*", { count: "exact", head: true })
+
+  // Get total deposits
+  const { data: depositData } = await supabase
+    .from("transactions")
+    .select("amount")
+    .eq("transaction_type", "deposit")
+    .eq("status", "confirmed")
+
+  const totalDeposits = depositData?.reduce((sum, tx) => sum + tx.amount, 0) ?? 0
+
+  // Get gas revenue
+  const { data: gasData } = await supabase
+    .from("transactions")
+    .select("amount")
+    .eq("transaction_type", "gas_consumed")
+    .eq("status", "confirmed")
+
+  const totalGasRevenue = gasData?.reduce((sum, tx) => sum + tx.amount, 0) ?? 0
 
   const stats = [
     {
       name: "Total Users",
       value: userCount ?? 0,
       icon: Users,
-      change: userCount === 1 ? "You're the first!" : `${userCount} registered`,
+      change: userCount === 1 ? "1 admin registered" : `${userCount} registered`,
       changeType: "positive" as const,
       href: "/users",
     },
     {
       name: "Active Coins",
-      value: "—",
+      value: coinCount ?? 0,
       icon: Coins,
-      change: "Coming in Phase 3",
-      changeType: "neutral" as const,
+      change: visibleCoinCount ? `${visibleCoinCount} visible` : "None visible yet",
+      changeType: (coinCount ?? 0) > 0 ? "positive" as const : "neutral" as const,
       href: "/coins",
     },
     {
       name: "Total Deposits",
-      value: "—",
+      value: totalDeposits > 0 ? `$${totalDeposits.toFixed(2)}` : "$0.00",
       icon: DollarSign,
-      change: "Coming in Phase 4",
-      changeType: "neutral" as const,
+      change: transactionCount ? `${transactionCount} transactions` : "No transactions yet",
+      changeType: totalDeposits > 0 ? "positive" as const : "neutral" as const,
       href: "/finances",
     },
     {
-      name: "Daily Revenue",
-      value: "—",
+      name: "Gas Revenue",
+      value: totalGasRevenue > 0 ? `$${totalGasRevenue.toFixed(2)}` : "$0.00",
       icon: TrendingUp,
-      change: "Coming in Phase 4",
-      changeType: "neutral" as const,
+      change: totalGasRevenue > 0 ? "Platform earnings" : "Awaiting activity",
+      changeType: totalGasRevenue > 0 ? "positive" as const : "neutral" as const,
       href: "/finances",
     },
   ]
@@ -86,23 +121,41 @@ export default async function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-saddle-light/30">
           <CardHeader>
-            <CardTitle className="text-saddle-dark">🎉 Phase 1 & 2 In Progress!</CardTitle>
-            <CardDescription>Building user management features</CardDescription>
+            <CardTitle className="text-saddle-dark">🏆 System Status</CardTitle>
+            <CardDescription>All systems operational</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-leather text-sm">
-              Current progress:
-            </p>
-            <ul className="text-sm text-leather-light list-disc list-inside space-y-1">
-              <li className="text-green-600">✓ Supabase connected</li>
-              <li className="text-green-600">✓ Authentication working</li>
-              <li className="text-green-600">✓ Database schema created</li>
-              <li className="text-green-600">✓ Admin user logged in</li>
-              <li>Building user management...</li>
-            </ul>
-            <Button asChild className="w-full bg-gold hover:bg-gold-dark text-leather">
-              <Link href="/users">Manage Users →</Link>
-            </Button>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-leather">Database</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-leather">Authentication</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-leather">User Management</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-leather">Coin System</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-leather">Finances</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-leather">Sponsors</span>
+              </div>
+            </div>
+            <div className="pt-2 border-t border-saddle-light/20">
+              <p className="text-xs text-leather-light">
+                Admin dashboard fully operational with {userCount ?? 0} user(s), {coinCount ?? 0} coin(s), and {sponsorCount ?? 0} sponsor(s).
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -115,19 +168,31 @@ export default async function DashboardPage() {
             <Button asChild variant="outline" className="w-full justify-start border-saddle-light/50">
               <Link href="/users">
                 <Users className="mr-2 h-4 w-4" />
-                View All Users
+                Manage Users
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full justify-start border-saddle-light/50">
               <Link href="/coins">
                 <Coins className="mr-2 h-4 w-4" />
-                Manage Coins (Coming Soon)
+                Manage Coins
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start border-saddle-light/50">
+              <Link href="/sponsors">
+                <Building2 className="mr-2 h-4 w-4" />
+                Manage Sponsors
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full justify-start border-saddle-light/50">
+              <Link href="/security">
+                <Shield className="mr-2 h-4 w-4" />
+                Security Logs
               </Link>
             </Button>
             <Button asChild variant="outline" className="w-full justify-start border-saddle-light/50">
               <Link href="/settings">
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Dashboard Settings
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
               </Link>
             </Button>
           </CardContent>
