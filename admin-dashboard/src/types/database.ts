@@ -582,6 +582,166 @@ export interface PlayerLocationWithUser extends PlayerLocation {
   current_zone?: Zone | null
 }
 
+// ============================================================================
+// ANTI-CHEAT TYPES - Phase M8: Anti-Cheat
+// ============================================================================
+
+/**
+ * Cheat detection reason types
+ */
+export type CheatReason = 
+  | 'gps_spoofing'           // GPS location spoofing detected
+  | 'impossible_speed'       // Traveled at impossible speed
+  | 'teleportation'          // Instant location change
+  | 'mock_location'          // Mock location enabled
+  | 'device_tampering'       // Rooted/jailbroken device
+  | 'emulator_detected'      // Running on emulator
+  | 'app_tampering'          // App modified/patched
+  | 'suspicious_pattern'     // Unusual behavior pattern
+  | 'multiple_devices'       // Same account on multiple devices simultaneously
+  | 'location_inconsistency' // Location doesn't match expected pattern
+
+/**
+ * Cheat flag severity levels
+ */
+export type CheatSeverity = 'low' | 'medium' | 'high' | 'critical'
+
+/**
+ * Cheat flag status
+ */
+export type CheatFlagStatus = 
+  | 'pending'      // Flagged, awaiting review
+  | 'investigating' // Under investigation
+  | 'confirmed'    // Confirmed as cheating
+  | 'false_positive' // False alarm, cleared
+  | 'resolved'     // Issue resolved
+
+/**
+ * Player action taken after cheat detection
+ */
+export type PlayerAction = 
+  | 'none'         // No action taken
+  | 'warned'       // Warning issued
+  | 'suspended'     // Temporary suspension
+  | 'banned'       // Permanent ban
+  | 'cleared'      // Cleared of suspicion
+
+/**
+ * Cheat detection flag
+ */
+export interface CheatFlag {
+  id: string
+  user_id: string
+  
+  // Detection details
+  reason: CheatReason
+  severity: CheatSeverity
+  status: CheatFlagStatus
+  action_taken: PlayerAction
+  
+  // Evidence
+  evidence: {
+    // Location data
+    previous_location?: {
+      latitude: number
+      longitude: number
+      timestamp: string
+    }
+    current_location?: {
+      latitude: number
+      longitude: number
+      timestamp: string
+    }
+    
+    // Speed/distance
+    distance_meters?: number
+    time_seconds?: number
+    calculated_speed_kmh?: number
+    reported_speed_kmh?: number
+    
+    // Device info
+    device_id?: string
+    device_model?: string
+    is_mock_location?: boolean
+    is_rooted?: boolean
+    is_emulator?: boolean
+    
+    // Additional context
+    session_id?: string
+    coin_collections_during_incident?: number
+    [key: string]: unknown
+  }
+  
+  // Metadata
+  detected_at: string
+  detected_by?: string  // System or admin user ID
+  reviewed_by?: string  // Admin who reviewed
+  reviewed_at?: string
+  notes?: string
+  
+  // Timestamps
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Cheat detection statistics
+ */
+export interface AntiCheatStats {
+  // Flag counts
+  total_flags: number
+  pending_flags: number
+  confirmed_cheaters: number
+  false_positives: number
+  
+  // By reason
+  flags_by_reason: Record<CheatReason, number>
+  
+  // By severity
+  flags_by_severity: Record<CheatSeverity, number>
+  
+  // Actions taken
+  players_warned: number
+  players_suspended: number
+  players_banned: number
+  
+  // Time-based
+  flags_today: number
+  flags_this_week: number
+  flags_this_month: number
+  
+  // Detection rate
+  detection_rate: number  // Percentage of suspicious activity detected
+}
+
+/**
+ * Player with cheat flags
+ */
+export interface FlaggedPlayer {
+  user_id: string
+  user_name: string
+  user_email: string
+  
+  // Flag summary
+  total_flags: number
+  active_flags: number
+  highest_severity: CheatSeverity
+  current_action: PlayerAction
+  
+  // Recent activity
+  last_flag_at: string | null
+  last_location_update: string | null
+  current_movement_type: PlayerMovementType
+  
+  // Device info
+  device_id: string | null
+  is_mock_location: boolean
+  is_rooted: boolean | null
+  
+  // Flags
+  flags: CheatFlag[]
+}
+
 /**
  * Real-time player data for map display
  * Simplified version with computed activity status

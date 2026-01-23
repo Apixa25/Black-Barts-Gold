@@ -25,3 +25,21 @@ export * from "./player-config"
 export * from "./distribution-config"
 export * from "./timed-release-config"
 export * from "./sponsor-config"
+// Export anti-cheat config selectively to avoid calculateDistance conflict
+export {
+  SPEED_DETECTION_THRESHOLDS,
+  DISTANCE_DETECTION_THRESHOLDS,
+  TIME_DETECTION_THRESHOLDS,
+  ACCURACY_THRESHOLDS,
+  determineSeverity,
+  getCheatReasonLabel,
+  getCheatReasonDescription,
+  getSeverityColor,
+  getSeverityBadgeColor,
+  calculateSpeed,
+  detectImpossibleSpeed,
+  detectTeleportation,
+  detectGPSSpoofing,
+  detectSuspiciousPattern,
+  validateLocationData,
+} from "./anti-cheat-config"
