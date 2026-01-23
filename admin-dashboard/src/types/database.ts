@@ -539,3 +539,243 @@ export interface PlayerCluster {
     west: number
   }
 }
+
+// ============================================================================
+// AUTO-DISTRIBUTION TYPES - Phase M5: Auto-Distribution
+// ============================================================================
+
+/**
+ * Distribution system status
+ * - running: System is actively spawning coins
+ * - paused: System is paused by admin
+ * - stopped: System is stopped (no auto-spawn)
+ * - error: System encountered an error
+ */
+export type DistributionSystemStatus = 'running' | 'paused' | 'stopped' | 'error'
+
+/**
+ * Spawn trigger type - what caused the spawn
+ * - auto: Automatic spawn to maintain minimum
+ * - scheduled: Scheduled release
+ * - manual: Admin triggered spawn
+ * - recycle: Recycled stale coin
+ */
+export type SpawnTriggerType = 'auto' | 'scheduled' | 'manual' | 'recycle'
+
+/**
+ * Value distribution strategy
+ * - uniform: Equal probability across range
+ * - weighted_low: More low-value coins
+ * - weighted_high: More high-value coins
+ * - tiered: Follows tier_weights configuration
+ * - random: Completely random within range
+ */
+export type ValueDistributionStrategy = 'uniform' | 'weighted_low' | 'weighted_high' | 'tiered' | 'random'
+
+/**
+ * Grid cell for distribution planning
+ * Used to visualize coin density across zones
+ */
+export interface DistributionGridCell {
+  id: string
+  bounds: {
+    north: number
+    south: number
+    east: number
+    west: number
+  }
+  center: {
+    latitude: number
+    longitude: number
+  }
+  coin_count: number
+  target_count: number
+  needs_spawn: boolean
+  zone_id: string | null
+}
+
+/**
+ * Spawn queue item - coin waiting to be spawned
+ */
+export interface SpawnQueueItem {
+  id: string
+  zone_id: string
+  zone_name: string
+  trigger_type: SpawnTriggerType
+  scheduled_time: string
+  coin_config: {
+    coin_type: CoinType
+    tier: CoinTier
+    min_value: number
+    max_value: number
+    is_mythical: boolean
+  }
+  target_location?: {
+    latitude: number
+    longitude: number
+  }
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  error_message?: string
+  created_at: string
+}
+
+/**
+ * Spawn result after attempting to create a coin
+ */
+export interface SpawnResult {
+  success: boolean
+  coin_id?: string
+  coin?: Coin
+  error_message?: string
+  spawn_location: {
+    latitude: number
+    longitude: number
+  }
+  trigger_type: SpawnTriggerType
+  zone_id: string
+  spawned_at: string
+}
+
+/**
+ * Zone distribution status - real-time status for a zone
+ */
+export interface ZoneDistributionStatus {
+  zone_id: string
+  zone_name: string
+  zone_type: ZoneType
+  
+  // Configuration
+  auto_spawn_enabled: boolean
+  min_coins: number
+  max_coins: number
+  
+  // Current state
+  current_coin_count: number
+  active_coins: number        // Visible/hidden status
+  collected_today: number
+  
+  // Status
+  needs_spawn: boolean
+  coins_to_spawn: number      // How many coins needed to reach minimum
+  next_spawn_time?: string    // When next automatic spawn will occur
+  
+  // Performance
+  average_collection_time_hours: number
+  spawn_rate_per_hour: number
+  collection_rate_per_hour: number
+}
+
+/**
+ * Global distribution statistics
+ */
+export interface DistributionStats {
+  // System status
+  system_status: DistributionSystemStatus
+  last_spawn_time: string | null
+  next_scheduled_spawn: string | null
+  
+  // Counts
+  total_zones_with_auto_spawn: number
+  zones_needing_spawn: number
+  queue_length: number
+  
+  // Today's activity
+  coins_spawned_today: number
+  coins_collected_today: number
+  coins_recycled_today: number
+  
+  // Value tracking
+  total_value_spawned_today: number
+  total_value_collected_today: number
+  average_coin_value: number
+  
+  // Performance
+  average_spawn_time_ms: number
+  spawn_success_rate: number
+  errors_today: number
+}
+
+/**
+ * Distribution configuration for the entire system
+ */
+export interface DistributionConfig {
+  // Global settings
+  enabled: boolean
+  check_interval_seconds: number      // How often to check for spawn needs
+  max_spawns_per_cycle: number        // Limit spawns per check cycle
+  
+  // Default zone settings
+  default_min_coins: number
+  default_max_coins: number
+  default_value_range: {
+    min: number
+    max: number
+  }
+  default_tier_weights: {
+    gold: number
+    silver: number
+    bronze: number
+  }
+  
+  // Value distribution
+  value_strategy: ValueDistributionStrategy
+  mythical_spawn_chance: number       // 0-1 probability
+  
+  // Recycling
+  recycle_enabled: boolean
+  recycle_after_hours: number         // Recycle unfound coins after X hours
+  recycle_to_new_location: boolean    // Move recycled coins to new spot
+  
+  // Rate limiting
+  max_spawns_per_hour: number
+  cooldown_after_collection_seconds: number
+}
+
+/**
+ * Spawn history entry for auditing
+ */
+export interface SpawnHistoryEntry {
+  id: string
+  coin_id: string
+  zone_id: string
+  zone_name: string
+  trigger_type: SpawnTriggerType
+  coin_value: number
+  coin_tier: CoinTier
+  spawn_location: {
+    latitude: number
+    longitude: number
+  }
+  spawned_at: string
+  collected_at?: string
+  collected_by_user_id?: string
+  recycled_at?: string
+  time_to_collection_hours?: number
+}
+
+/**
+ * Distribution action for admin commands
+ */
+export type DistributionAction = 
+  | { type: 'start' }
+  | { type: 'pause' }
+  | { type: 'stop' }
+  | { type: 'spawn_now'; zone_id: string; count: number }
+  | { type: 'recycle_stale'; zone_id?: string }
+  | { type: 'clear_queue' }
+  | { type: 'update_config'; config: Partial<DistributionConfig> }
+
+/**
+ * Zone spawn preview - for visualizing where coins would spawn
+ */
+export interface ZoneSpawnPreview {
+  zone_id: string
+  spawn_points: Array<{
+    latitude: number
+    longitude: number
+    suggested_value: number
+    suggested_tier: CoinTier
+  }>
+  total_value: number
+  estimated_time_to_collection_hours: number
+}

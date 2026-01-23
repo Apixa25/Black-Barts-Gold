@@ -10,7 +10,7 @@
 |------|-------|
 | **Admin Dashboard Path** | `admin-dashboard/` |
 | **Map Provider** | Mapbox (react-map-gl/mapbox) |
-| **Current Phase** | **M5: Auto-Distribution** (Next) |
+| **Current Phase** | **M6: Timed Releases** (Next) |
 | **Last Updated** | January 22, 2026 |
 | **Mapbox Token** | Stored in `admin-dashboard/.env.local` |
 
@@ -26,7 +26,7 @@ The Map Integration is broken into 8 phases (M1-M8). Here's the full roadmap:
 | **M2** | Coin Placement | ✅ COMPLETE | Click-to-place coins, drag markers |
 | **M3** | Zone Management | ✅ COMPLETE | Zone creation, visualization, management |
 | **M4** | Player Tracking | ✅ COMPLETE | Real-time player location monitoring |
-| **M5** | Auto-Distribution | ⏳ Pending | Automated coin spawning near players |
+| **M5** | Auto-Distribution | ✅ COMPLETE | Automated coin spawning near players |
 | **M6** | Timed Releases | ⏳ Pending | Scheduled coin drops |
 | **M7** | Sponsor Features | ⏳ Pending | Sponsor zones, analytics, bulk placement |
 | **M8** | Anti-Cheat | ⏳ Pending | GPS spoofing detection, validation |
@@ -187,14 +187,80 @@ Activity Status Thresholds:
 
 ---
 
-## ⏳ Phase M5: Auto-Distribution (Planned)
+## ✅ Phase M5: Auto-Distribution (COMPLETE)
 
-### Planned Features
+### What's Being Built
 - Grid-based automatic coin spawning
 - Minimum 3 active coins per player zone
-- Dynamic value assignment
-- Recycling unfound coins
-- Spawn rate configuration
+- Dynamic value assignment based on tier weights
+- Recycling unfound coins after configurable time
+- Spawn rate configuration and queue system
+- Distribution statistics dashboard
+
+### Final Status
+| Task | Status | Notes |
+|------|--------|-------|
+| Distribution types | ✅ Done | `DistributionStats`, `SpawnQueueItem`, etc. |
+| Distribution config | ✅ Done | `distribution-config.ts` with utilities |
+| Auto-distribution hook | ✅ Done | `useAutoDistribution.ts` with mock data |
+| Distribution panel UI | ✅ Done | `AutoDistributionPanel` component |
+| Zone dialog auto-spawn | ✅ Done | Already existed in Coins tab |
+| SQL functions | ✅ Done | `004_auto_distribution.sql` |
+| Zones page integration | ✅ Done | New "Auto-Distribution" tab |
+| Progress UI component | ✅ Done | Created `progress.tsx` |
+| Browser testing | ✅ Done | Verified on Zones page |
+
+### Files Created for M5
+```
+admin-dashboard/src/types/
+└── database.ts              # Added ~15 new distribution types
+
+admin-dashboard/src/components/maps/
+└── distribution-config.ts   # Spawn settings, utilities, defaults
+
+admin-dashboard/src/hooks/
+└── use-auto-distribution.ts # Hook for managing auto-spawning
+
+admin-dashboard/src/components/dashboard/
+└── auto-distribution-panel.tsx # Main control panel UI
+
+admin-dashboard/supabase/migrations/
+└── 004_auto_distribution.sql # Queue, history, config tables
+```
+
+### Key Features Implemented
+- **AutoDistributionPanel**: System status, stats grid, zone table, spawn queue
+- **Value calculation**: Tier-based with configurable weights (60/30/10)
+- **Spawn location**: Random point in circle/polygon geometry
+- **Queue system**: Pending items with trigger types (auto/manual/scheduled)
+- **Recycle system**: Mark stale coins for respawning
+- **Zone config**: Min/max coins, value ranges, respawn delays
+
+### Database Schema (004_auto_distribution.sql)
+```sql
+-- Tables added:
+- spawn_queue       # Queued coins waiting to spawn
+- spawn_history     # Audit trail of all spawns
+- distribution_config # Global settings
+
+-- Functions added:
+- spawn_coin()              # Spawn single coin
+- process_spawn_queue()     # Process pending queue
+- check_and_queue_spawns()  # Check zones, queue needed spawns
+- recycle_stale_coins()     # Recycle old uncollected coins
+- get_distribution_stats()  # Dashboard statistics
+```
+
+### Technical Approach
+```
+Auto-Distribution Flow:
+1. check_and_queue_spawns() runs periodically
+2. Checks each zone against min_coins threshold
+3. Queues spawn items with tier/value config
+4. process_spawn_queue() executes spawns
+5. spawn_coin() creates coin at random location
+6. Records in spawn_history for tracking
+```
 
 ---
 
@@ -275,22 +341,29 @@ admin-dashboard/src/
 │   │   ├── ZoneLayer.tsx       # Zone rendering
 │   │   ├── ZonePreviewLayer.tsx # Drawing preview
 │   │   ├── ZoneDialog.tsx      # Zone CRUD dialog
-│   │   ├── player-config.ts    # Player tracking config ⭐ M4 NEW
-│   │   ├── PlayerMarker.tsx    # Player markers ⭐ M4 NEW
-│   │   └── PlayerLayer.tsx     # Player layer with clustering ⭐ M4 NEW
+│   │   ├── player-config.ts    # Player tracking config ⭐ M4
+│   │   ├── PlayerMarker.tsx    # Player markers ⭐ M4
+│   │   ├── PlayerLayer.tsx     # Player layer with clustering ⭐ M4
+│   │   └── distribution-config.ts # Auto-distribution config ⭐ M5 NEW
 │   │
 │   └── dashboard/
 │       ├── coin-dialog.tsx     # Updated with coordinates
-│       └── live-players-map.tsx # Live player map widget ⭐ M4 NEW
+│       ├── live-players-map.tsx # Live player map widget ⭐ M4
+│       └── auto-distribution-panel.tsx # Distribution control panel ⭐ M5 NEW
+│
+│   └── ui/
+│       └── progress.tsx         # Progress bar component ⭐ M5 NEW
 │
 ├── hooks/
-│   └── use-player-tracking.ts  # Supabase Realtime hook ⭐ M4 NEW
+│   ├── use-player-tracking.ts  # Supabase Realtime hook ⭐ M4
+│   └── use-auto-distribution.ts # Distribution management ⭐ M5 NEW
 │
 └── types/
-    └── database.ts             # Zone + Player types
+    └── database.ts             # Zone + Player + Distribution types
 
 admin-dashboard/supabase/migrations/
-└── 003_player_locations.sql    # Player tracking schema ⭐ M4 NEW
+├── 003_player_locations.sql    # Player tracking schema ⭐ M4
+└── 004_auto_distribution.sql   # Distribution system ⭐ M5 NEW
 ```
 
 ---
@@ -316,8 +389,10 @@ Read: Docs/MAP-INTEGRATION-PROGRESS.md
 ```
 
 ### 2. Check Current Phase Status
-- We're on **Phase M4: Player Tracking**
-- Code is complete, browser testing in progress
+- We're on **Phase M6: Timed Releases**
+- M4 Player Tracking: COMPLETE
+- M5 Auto-Distribution: COMPLETE
+- M6 Timed Releases: Next phase
 
 ### 3. Start the Dev Server
 ```powershell
@@ -329,30 +404,33 @@ npm run dev
 - Navigate to `http://localhost:3000`
 - Login with test credentials
 - Dashboard should show **Live Players Map** with mock players
-- Go to **Zones** page to verify zone functionality
+- Go to **Zones** page, click **Auto-Distribution** tab
 
-### 5. Key Components to Check
-- `MapView.tsx` - Now supports `players` prop
-- `PlayerMarker.tsx` - Individual player markers
-- `PlayerLayer.tsx` - Player rendering with clustering
-- `use-player-tracking.ts` - Mock data for development
+### 5. Key Components to Check (M5)
+- `distribution-config.ts` - Spawn settings, value calculations
+- `useAutoDistribution.ts` - Mock data and spawn logic
+- `AutoDistributionPanel.tsx` - Control panel UI
+- `zones-client.tsx` - Now has Distribution tab
 
-### 6. Continue with M4 Testing
-- Verify players appear on dashboard map
-- Test player popup on hover/click
-- Check activity status colors (green/yellow/gray)
-- Verify player clustering at low zoom
+### 6. Test M5 Auto-Distribution
+- Verify Distribution tab shows on Zones page
+- Check system status indicator (Running/Paused)
+- View zone distribution status table
+- Test manual spawn dialog
+- Verify spawn queue displays
 
 ### 7. To Enable Real Data
-1. Run SQL migration: `supabase/migrations/003_player_locations.sql`
+1. Run SQL migrations:
+   - `supabase/migrations/003_player_locations.sql`
+   - `supabase/migrations/004_auto_distribution.sql`
 2. Enable Realtime for `player_locations` table
-3. Set `useMockData = false` in `use-player-tracking.ts`
+3. Set `useMockData = false` in hooks
 
-### 8. When M4 Complete, Move to M5
-Auto-Distribution will require:
-- Grid-based spawn algorithm
-- Zone coin limits
-- Respawn timing logic
+### 8. When M5 Complete, Move to M6
+Timed Releases will require:
+- Schedule coin drops at specific times
+- Batch releases (e.g., "100 coins over 10 minutes")
+- Hunt event scheduling
 
 ---
 
@@ -384,4 +462,4 @@ Auto-Distribution will require:
 
 ---
 
-*Last updated: January 22, 2026 - Phase M4 COMPLETE! Player tracking working with mock data on dashboard* 🗺️
+*Last updated: January 22, 2026 - Phase M5 COMPLETE! Auto-distribution panel working with stats, queue, and zone controls* ⚡

@@ -28,10 +28,12 @@ import {
   EyeOff,
   Edit,
   Trash2,
-  MapPinned
+  MapPinned,
+  Zap
 } from "lucide-react"
 import { toast } from "sonner"
 import { ZoneDialog } from "@/components/maps/ZoneDialog"
+import { AutoDistributionPanel } from "@/components/dashboard/auto-distribution-panel"
 import { 
   ZONE_TYPE_COLORS, 
   ZONE_STATUS_COLORS,
@@ -218,6 +220,13 @@ export function ZonesPageClient({ zones, userId }: ZonesPageClientProps) {
           >
             <Table2 className="h-4 w-4 mr-2" />
             List View
+          </TabsTrigger>
+          <TabsTrigger 
+            value="distribution"
+            className="data-[state=active]:bg-gold data-[state=active]:text-leather"
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            Auto-Distribution
           </TabsTrigger>
         </TabsList>
 
@@ -475,6 +484,11 @@ export function ZonesPageClient({ zones, userId }: ZonesPageClientProps) {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Auto-Distribution Tab */}
+        <TabsContent value="distribution" className="mt-4">
+          <AutoDistributionPanel />
         </TabsContent>
       </Tabs>
 
