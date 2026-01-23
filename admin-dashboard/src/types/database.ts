@@ -114,6 +114,140 @@ export interface SponsorWithAdmin extends Sponsor {
   admin_user?: UserProfile | null
 }
 
+// ============================================================================
+// SPONSOR ANALYTICS TYPES - Phase M7: Sponsor Features
+// ============================================================================
+
+/**
+ * Sponsor zone analytics - performance metrics for a sponsor's zones
+ */
+export interface SponsorZoneAnalytics {
+  zone_id: string
+  zone_name: string
+  sponsor_id: string
+  sponsor_name: string
+  
+  // Coin metrics
+  total_coins_placed: number
+  coins_collected: number
+  coins_active: number
+  coins_expired: number
+  
+  // Value metrics
+  total_value_placed: number
+  total_value_collected: number
+  average_coin_value: number
+  
+  // Engagement metrics
+  unique_collectors: number
+  total_collections: number
+  average_collection_time_minutes: number
+  
+  // Time-based metrics
+  first_coin_placed_at: string | null
+  last_coin_collected_at: string | null
+  peak_collection_hour: number | null // 0-23
+  
+  // Performance score (0-100)
+  performance_score: number
+}
+
+/**
+ * Sponsor analytics summary - overall performance across all zones
+ */
+export interface SponsorAnalytics {
+  sponsor_id: string
+  sponsor_name: string
+  
+  // Zone metrics
+  total_zones: number
+  active_zones: number
+  total_zone_area_km2: number
+  
+  // Coin metrics (aggregated)
+  total_coins_placed: number
+  total_coins_collected: number
+  total_coins_active: number
+  collection_rate: number // percentage
+  
+  // Value metrics (aggregated)
+  total_value_placed: number
+  total_value_collected: number
+  average_coin_value: number
+  roi_percentage: number // return on investment
+  
+  // Engagement metrics (aggregated)
+  total_unique_collectors: number
+  total_collections: number
+  average_collections_per_zone: number
+  
+  // Financial metrics
+  total_spent: number
+  cost_per_collection: number
+  cost_per_unique_collector: number
+  
+  // Time range
+  period_start: string
+  period_end: string
+  
+  // Zone analytics
+  zone_analytics: SponsorZoneAnalytics[]
+}
+
+/**
+ * Bulk coin placement configuration
+ */
+export interface BulkCoinPlacementConfig {
+  sponsor_id: string
+  zone_id: string | null // If null, place in sponsor's zones
+  
+  // Placement settings
+  coin_count: number
+  distribution_strategy: 'random' | 'grid' | 'cluster' | 'perimeter'
+  
+  // Value settings
+  value_range: {
+    min: number
+    max: number
+  }
+  tier_distribution: {
+    gold: number // percentage
+    silver: number
+    bronze: number
+  }
+  
+  // Timing
+  release_all_at_once: boolean
+  scheduled_release_time: string | null
+  
+  // Advanced
+  min_distance_between_coins_meters: number
+  avoid_existing_coins: boolean
+}
+
+/**
+ * Sponsor zone fee configuration
+ */
+export interface SponsorZoneFeeConfig {
+  zone_type: 'sponsor'
+  
+  // Base fees
+  zone_creation_fee: number // One-time fee to create a zone
+  monthly_maintenance_fee: number // Monthly fee to keep zone active
+  
+  // Coin placement fees
+  coin_placement_fee_per_coin: number // Fee per coin placed
+  bulk_placement_discount_percentage: number // Discount for bulk (e.g., 10% off for 50+ coins)
+  
+  // Performance-based fees
+  collection_fee_percentage: number // Percentage of coin value collected (e.g., 5%)
+  
+  // Minimums
+  minimum_zone_size_km2: number
+  minimum_coins_per_zone: number
+  minimum_monthly_spend: number
+}
+
 // Dashboard stats
 export interface DashboardStats {
   total_users: number

@@ -30,12 +30,14 @@ import {
   Trash2,
   MapPinned,
   Zap,
-  Calendar
+  Calendar,
+  Building2
 } from "lucide-react"
 import { toast } from "sonner"
 import { ZoneDialog } from "@/components/maps/ZoneDialog"
 import { AutoDistributionPanel } from "@/components/dashboard/auto-distribution-panel"
 import { TimedReleasesPanel } from "@/components/dashboard/timed-releases-panel"
+import { SponsorFeaturesPanel } from "@/components/dashboard/sponsor-features-panel"
 import { 
   ZONE_TYPE_COLORS, 
   ZONE_STATUS_COLORS,
@@ -236,6 +238,13 @@ export function ZonesPageClient({ zones, userId }: ZonesPageClientProps) {
           >
             <Calendar className="h-4 w-4 mr-2" />
             Timed Releases
+          </TabsTrigger>
+          <TabsTrigger 
+            value="sponsor-features"
+            className="data-[state=active]:bg-gold data-[state=active]:text-leather"
+          >
+            <Building2 className="h-4 w-4 mr-2" />
+            Sponsor Features
           </TabsTrigger>
         </TabsList>
 
@@ -503,6 +512,11 @@ export function ZonesPageClient({ zones, userId }: ZonesPageClientProps) {
         {/* Timed Releases Tab */}
         <TabsContent value="timed-releases" className="mt-4">
           <TimedReleasesPanel zones={filteredZones} />
+        </TabsContent>
+
+        {/* Sponsor Features Tab */}
+        <TabsContent value="sponsor-features" className="mt-4">
+          <SponsorFeaturesPanel zones={filteredZones} />
         </TabsContent>
       </Tabs>
 
