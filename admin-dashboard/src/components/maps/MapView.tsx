@@ -242,8 +242,8 @@ export function MapView({
     )
   }
 
-  // Show message if no coins AND no zones (both empty)
-  if (coins.length === 0 && zones.length === 0) {
+  // Show message if no coins, no zones, AND no players (all empty)
+  if (coins.length === 0 && zones.length === 0 && players.length === 0) {
     return (
       <Card className={`border-saddle-light/30 ${className}`} style={{ height }}>
         <CardContent className="flex flex-col items-center justify-center h-full gap-4">
