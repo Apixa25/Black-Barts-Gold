@@ -178,3 +178,200 @@ export interface NavItem {
   href: string
   icon: React.ComponentType<{ className?: string }>
 }
+
+// ============================================================================
+// ZONE TYPES - Phase M3: Zone Management
+// ============================================================================
+
+/**
+ * Zone types supported by Black Bart's Gold
+ * - player: Auto-generated 1-mile radius around active players
+ * - sponsor: Custom zones created by sponsors for their locations
+ * - hunt: Special zones for timed release treasure hunts
+ * - grid: System-generated zones for automated coin distribution
+ */
+export type ZoneType = 'player' | 'sponsor' | 'hunt' | 'grid'
+
+/**
+ * Zone status
+ * - active: Zone is live and coins can be placed/found
+ * - inactive: Zone is paused, no new coins spawned
+ * - scheduled: Zone will become active at start_time
+ * - completed: Hunt zone that has ended
+ * - archived: Zone is no longer used
+ */
+export type ZoneStatus = 'active' | 'inactive' | 'scheduled' | 'completed' | 'archived'
+
+/**
+ * Geometry type for zone boundaries
+ * - circle: Simple radius around center point
+ * - polygon: Custom shape with multiple vertices
+ */
+export type ZoneGeometryType = 'circle' | 'polygon'
+
+/**
+ * Polygon coordinate point
+ */
+export interface PolygonPoint {
+  latitude: number
+  longitude: number
+}
+
+/**
+ * Zone geometry - either a circle or polygon
+ */
+export interface ZoneGeometry {
+  type: ZoneGeometryType
+  // For circle type
+  center?: {
+    latitude: number
+    longitude: number
+  }
+  radius_meters?: number
+  // For polygon type
+  polygon?: PolygonPoint[]
+}
+
+/**
+ * Auto-spawn configuration for zones
+ * Defines how coins are automatically placed in the zone
+ */
+export interface ZoneAutoSpawnConfig {
+  enabled: boolean
+  min_coins: number           // Minimum coins to maintain in zone
+  max_coins: number           // Maximum coins allowed in zone
+  coin_type: CoinType         // Type of coins to spawn
+  min_value: number           // Minimum coin value
+  max_value: number           // Maximum coin value
+  tier_weights: {             // Probability weights for each tier
+    gold: number
+    silver: number
+    bronze: number
+  }
+  respawn_delay_seconds: number  // Time before respawning after collection
+}
+
+/**
+ * Timed release configuration for hunt zones
+ * Defines how coins are released over time during a hunt
+ */
+export interface ZoneTimedReleaseConfig {
+  enabled: boolean
+  total_coins: number         // Total coins to release
+  release_interval_seconds: number  // Time between releases
+  coins_per_release: number   // Coins released each interval
+  start_time: string          // ISO timestamp when release begins
+  end_time?: string           // Optional end time
+}
+
+/**
+ * Hunt type configuration (matches treasure-hunt-types.md)
+ */
+export type HuntType = 
+  | 'direct_navigation'    // Type 1: Full guidance
+  | 'compass_only'         // Type 2: Direction without distance
+  | 'pure_ar'             // Type 3: Visual only
+  | 'radar_only'          // Type 4: Hot-cold vibration
+  | 'timed_release'       // Type 5: Coins appear over time
+  | 'multi_find_race'     // Type 6: Gold/Silver/Bronze
+  | 'sequential'          // Type 7: One at a time
+
+/**
+ * Hunt configuration for zones
+ */
+export interface ZoneHuntConfig {
+  hunt_type: HuntType
+  show_distance: boolean
+  enable_compass: boolean
+  map_marker_type: 'exact' | 'general' | 'zone_only'
+  vibration_mode: 'all' | 'last_100m' | 'off'
+  multi_find_enabled: boolean
+  max_finders?: number
+  hunt_duration_hours?: number
+}
+
+/**
+ * Main Zone interface
+ */
+export interface Zone {
+  id: string
+  name: string
+  description: string | null
+  zone_type: ZoneType
+  status: ZoneStatus
+  geometry: ZoneGeometry
+  
+  // Ownership
+  owner_id: string | null      // User who created the zone
+  sponsor_id: string | null    // If sponsor zone, the sponsor
+  
+  // Auto-spawn configuration
+  auto_spawn_config: ZoneAutoSpawnConfig | null
+  
+  // Timed release (for hunt zones)
+  timed_release_config: ZoneTimedReleaseConfig | null
+  
+  // Hunt configuration
+  hunt_config: ZoneHuntConfig | null
+  
+  // Scheduling
+  start_time: string | null    // When zone becomes active
+  end_time: string | null      // When zone deactivates
+  
+  // Statistics
+  coins_placed: number
+  coins_collected: number
+  total_value_distributed: number
+  active_players: number
+  
+  // Visual customization
+  fill_color: string | null    // Zone fill color (hex)
+  border_color: string | null  // Zone border color (hex)
+  opacity: number              // Fill opacity (0-1)
+  
+  // Metadata
+  metadata: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Zone with related data (joined)
+ */
+export interface ZoneWithRelations extends Zone {
+  owner?: UserProfile | null
+  sponsor?: Sponsor | null
+  coins?: Coin[]
+}
+
+/**
+ * Zone statistics summary
+ */
+export interface ZoneStats {
+  total_zones: number
+  active_zones: number
+  player_zones: number
+  sponsor_zones: number
+  hunt_zones: number
+  total_coins_in_zones: number
+  total_active_players: number
+}
+
+/**
+ * Create zone input (for API/forms)
+ */
+export interface CreateZoneInput {
+  name: string
+  description?: string
+  zone_type: ZoneType
+  geometry: ZoneGeometry
+  sponsor_id?: string
+  auto_spawn_config?: ZoneAutoSpawnConfig
+  timed_release_config?: ZoneTimedReleaseConfig
+  hunt_config?: ZoneHuntConfig
+  start_time?: string
+  end_time?: string
+  fill_color?: string
+  border_color?: string
+  opacity?: number
+}

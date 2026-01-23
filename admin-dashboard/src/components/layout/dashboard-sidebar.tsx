@@ -12,6 +12,7 @@ import {
   Building2,
   Shield,
   Settings,
+  MapPinned,
 } from "lucide-react"
 
 interface DashboardSidebarProps {
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Users", href: "/users", icon: Users },
   { name: "Coins", href: "/coins", icon: Coins },
+  { name: "Zones", href: "/zones", icon: MapPinned },
   { name: "Finances", href: "/finances", icon: DollarSign },
   { name: "Sponsors", href: "/sponsors", icon: Building2 },
   { name: "Security", href: "/security", icon: Shield },

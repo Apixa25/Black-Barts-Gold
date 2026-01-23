@@ -1,10 +1,10 @@
 /**
- * Main Map View Component for Coin Visualization
+ * Main Map View Component for Coin & Zone Visualization
  * 
  * @file admin-dashboard/src/components/maps/MapView.tsx
- * @description Interactive map showing coin locations with filtering and controls
+ * @description Interactive map showing coins, zones, and controls
  * 
- * Character count: ~7,500
+ * Character count: ~9,500
  */
 
 "use client"
@@ -17,8 +17,9 @@ import {
   type MapRef,
   type ViewStateChangeEvent
 } from "react-map-gl/mapbox"
-import type { Coin, CoinStatus } from "@/types/database"
+import type { Coin, CoinStatus, Zone, ZoneType } from "@/types/database"
 import { CoinMarker } from "./CoinMarker"
+import { ZoneLayer, ZonePreviewLayer } from "./ZoneLayer"
 import { MapControls } from "./MapControls"
 import { 
   MAPBOX_TOKEN, 
@@ -36,34 +37,66 @@ import "mapbox-gl/dist/mapbox-gl.css"
 
 interface MapViewProps {
   coins: Coin[]
+  /** Zones to display on the map */
+  zones?: Zone[]
   height?: string | number
   onCoinClick?: (coin: Coin) => void
   onCoinEdit?: (coin: Coin) => void
   onCoinDelete?: (coin: Coin) => void
   onCoinDrag?: (coin: Coin, newLat: number, newLng: number) => void
   onMapClick?: (lat: number, lng: number) => void
+  /** Zone interaction handlers */
+  onZoneClick?: (zone: Zone) => void
+  onZoneEdit?: (zone: Zone) => void
+  onZoneDelete?: (zone: Zone) => void
+  onZoneToggleStatus?: (zone: Zone) => void
   selectedCoinId?: string
+  /** Selected zone for popup */
+  selectedZoneId?: string
   initialCenter?: { latitude: number; longitude: number; zoom: number }
   className?: string
   /** Enable click-to-place mode */
   placementMode?: boolean
   /** Enable drag-to-reposition coins */
   enableDrag?: boolean
+  /** Enable zone drawing mode */
+  zoneDrawMode?: 'circle' | 'polygon' | null
+  /** Preview geometry while drawing a zone */
+  zonePreview?: {
+    type: 'circle' | 'polygon'
+    center?: { latitude: number; longitude: number }
+    radius?: number
+    polygon?: { latitude: number; longitude: number }[]
+  } | null
+  /** Zone type for preview styling */
+  previewZoneType?: ZoneType
+  /** Show zone labels on map */
+  showZoneLabels?: boolean
 }
 
 export function MapView({
   coins,
+  zones = [],
   height = 500,
   onCoinClick,
   onCoinEdit,
   onCoinDelete,
   onCoinDrag,
   onMapClick,
+  onZoneClick,
+  onZoneEdit,
+  onZoneDelete,
+  onZoneToggleStatus,
   selectedCoinId,
+  selectedZoneId,
   initialCenter,
   className = "",
   placementMode = false,
   enableDrag = false,
+  zoneDrawMode = null,
+  zonePreview = null,
+  previewZoneType = "player",
+  showZoneLabels = true,
 }: MapViewProps) {
   const mapRef = useRef<MapRef>(null)
   
@@ -186,16 +219,16 @@ export function MapView({
     )
   }
 
-  // Show message if no coins
-  if (coins.length === 0) {
+  // Show message if no coins AND no zones (both empty)
+  if (coins.length === 0 && zones.length === 0) {
     return (
       <Card className={`border-saddle-light/30 ${className}`} style={{ height }}>
         <CardContent className="flex flex-col items-center justify-center h-full gap-4">
           <MapPin className="h-12 w-12 text-leather-light" />
           <div className="text-center">
-            <h3 className="font-bold text-saddle-dark">No Coins Yet</h3>
+            <h3 className="font-bold text-saddle-dark">No Items Yet</h3>
             <p className="text-sm text-leather-light mt-1">
-              Create your first coin to see it on the map
+              Create coins or zones to see them on the map
             </p>
           </div>
         </CardContent>
@@ -207,6 +240,8 @@ export function MapView({
     <div 
       className={`relative rounded-lg overflow-hidden border border-saddle-light/30 ${className} ${
         placementMode ? "ring-2 ring-gold" : ""
+      } ${
+        zoneDrawMode ? "ring-2 ring-fire" : ""
       }`} 
       style={{ height }}
     >
@@ -220,13 +255,35 @@ export function MapView({
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         reuseMaps
-        cursor={placementMode ? "crosshair" : "grab"}
+        cursor={placementMode || zoneDrawMode ? "crosshair" : "grab"}
       >
         {/* Navigation control (compass) */}
         <NavigationControl position="bottom-left" showCompass showZoom={false} />
         
         {/* Scale bar */}
         <ScaleControl position="bottom-right" />
+
+        {/* Zone layers (render before coins so coins appear on top) */}
+        {zones.length > 0 && (
+          <ZoneLayer
+            zones={zones}
+            selectedZoneId={selectedZoneId}
+            onZoneClick={onZoneClick}
+            onZoneEdit={onZoneEdit}
+            onZoneDelete={onZoneDelete}
+            onZoneToggleStatus={onZoneToggleStatus}
+            showLabels={showZoneLabels}
+            interactive={!placementMode && !zoneDrawMode}
+          />
+        )}
+
+        {/* Zone preview while drawing */}
+        {zonePreview && (
+          <ZonePreviewLayer 
+            geometry={zonePreview}
+            zoneType={previewZoneType}
+          />
+        )}
 
         {/* Coin markers */}
         {filteredCoins.map((coin) => (
@@ -238,7 +295,7 @@ export function MapView({
             onDelete={onCoinDelete}
             onDragEnd={onCoinDrag}
             isSelected={coin.id === selectedCoinId}
-            draggable={enableDrag && !placementMode}
+            draggable={enableDrag && !placementMode && !zoneDrawMode}
           />
         ))}
       </Map>
@@ -264,6 +321,20 @@ export function MapView({
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gold text-leather px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-bounce">
           <span>🎯</span>
           Click to place coin here
+        </div>
+      )}
+
+      {/* Zone draw mode instruction banner */}
+      {zoneDrawMode === 'circle' && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-fire text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-bounce">
+          <span>⭕</span>
+          Click to set zone center
+        </div>
+      )}
+      {zoneDrawMode === 'polygon' && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-fire text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 animate-bounce">
+          <span>📐</span>
+          Click to add points, double-click to finish
         </div>
       )}
 
