@@ -8,7 +8,8 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { createClient } from "@/lib/supabase/client"
 import type { 
   CheatFlag, 
   FlaggedPlayer, 
@@ -325,39 +326,144 @@ export function useAntiCheat(): UseAntiCheatReturn {
   const [flags, setFlags] = useState<CheatFlag[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  const supabase = createClient()
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   // Fetch all data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     
     try {
-      // TODO: Replace with actual Supabase calls
-      // const { data: flagsData, error: flagsError } = await supabase
-      //   .from('cheat_flags')
-      //   .select('*')
-      //   .order('detected_at', { ascending: false })
-      // if (flagsError) throw flagsError
+      // Use real Supabase data (Realtime enabled)
+      const useMockData = false
       
-      // Mock data for now
-      await new Promise(resolve => setTimeout(resolve, 500)) // Simulate API call
+      if (useMockData) {
+        // Mock data fallback
+        await new Promise(resolve => setTimeout(resolve, 500))
+        const mockFlags = generateMockCheatFlags()
+        const mockPlayers = generateMockFlaggedPlayers()
+        const mockStats = generateMockStats()
+        setFlags(mockFlags)
+        setFlaggedPlayers(mockPlayers)
+        setStats(mockStats)
+        return
+      }
       
-      const mockFlags = generateMockCheatFlags()
-      const mockPlayers = generateMockFlaggedPlayers()
-      const mockStats = generateMockStats()
+      // Fetch cheat flags
+      const { data: flagsData, error: flagsError } = await supabase
+        .from('cheat_flags')
+        .select('*')
+        .order('detected_at', { ascending: false })
       
-      setFlags(mockFlags)
-      setFlaggedPlayers(mockPlayers)
-      setStats(mockStats)
+      if (flagsError) throw flagsError
+      
+      const fetchedFlags = (flagsData || []) as CheatFlag[]
+      setFlags(fetchedFlags)
+      
+      // Group flags by user and create flagged players
+      const playersMap = new Map<string, FlaggedPlayer>()
+      
+      for (const flag of fetchedFlags) {
+        if (!playersMap.has(flag.user_id)) {
+          // Fetch user profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', flag.user_id)
+            .single()
+          
+          playersMap.set(flag.user_id, {
+            user_id: flag.user_id,
+            user_name: profile?.full_name || 'Unknown',
+            user_email: profile?.email || '',
+            active_flags: 0,
+            total_flags: 0,
+            highest_severity: flag.severity,
+            current_action: flag.action_taken,
+            last_flag_at: flag.detected_at,
+            flags: [],
+          })
+        }
+        
+        const player = playersMap.get(flag.user_id)!
+        player.flags.push(flag)
+        player.total_flags++
+        if (flag.status === 'pending' || flag.status === 'investigating') {
+          player.active_flags++
+        }
+        // Update highest severity
+        const severityOrder = ['low', 'medium', 'high', 'critical']
+        if (severityOrder.indexOf(flag.severity) > severityOrder.indexOf(player.highest_severity)) {
+          player.highest_severity = flag.severity
+        }
+        // Update current action
+        if (flag.action_taken !== 'none' && flag.action_taken !== 'cleared') {
+          player.current_action = flag.action_taken
+        }
+        // Update last flag time
+        if (new Date(flag.detected_at) > new Date(player.last_flag_at)) {
+          player.last_flag_at = flag.detected_at
+        }
+      }
+      
+      setFlaggedPlayers(Array.from(playersMap.values()))
+      
+      // Calculate stats
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const flagsToday = fetchedFlags.filter(f => new Date(f.detected_at) >= today)
+      const confirmedCheaters = new Set(
+        fetchedFlags.filter(f => f.status === 'confirmed').map(f => f.user_id)
+      )
+      const bannedPlayers = new Set(
+        fetchedFlags.filter(f => f.action_taken === 'banned').map(f => f.user_id)
+      )
+      
+      setStats({
+        total_flags: fetchedFlags.length,
+        pending_flags: fetchedFlags.filter(f => f.status === 'pending').length,
+        confirmed_cheaters: confirmedCheaters.size,
+        false_positives: fetchedFlags.filter(f => f.status === 'false_positive').length,
+        flags_by_reason: fetchedFlags.reduce((acc, f) => {
+          acc[f.reason] = (acc[f.reason] || 0) + 1
+          return acc
+        }, {} as Record<string, number>),
+        flags_by_severity: fetchedFlags.reduce((acc, f) => {
+          acc[f.severity] = (acc[f.severity] || 0) + 1
+          return acc
+        }, {} as Record<string, number>),
+        players_warned: new Set(fetchedFlags.filter(f => f.action_taken === 'warned').map(f => f.user_id)).size,
+        players_suspended: new Set(fetchedFlags.filter(f => f.action_taken === 'suspended').map(f => f.user_id)).size,
+        players_banned: bannedPlayers.size,
+        flags_today: flagsToday.length,
+        flags_this_week: fetchedFlags.filter(f => {
+          const weekAgo = new Date()
+          weekAgo.setDate(weekAgo.getDate() - 7)
+          return new Date(f.detected_at) >= weekAgo
+        }).length,
+        flags_this_month: fetchedFlags.filter(f => {
+          const monthAgo = new Date()
+          monthAgo.setMonth(monthAgo.getMonth() - 1)
+          return new Date(f.detected_at) >= monthAgo
+        }).length,
+        detection_rate: fetchedFlags.length > 0 
+          ? ((confirmedCheaters.size / fetchedFlags.length) * 100) 
+          : 0,
+      })
+      
     } catch (err) {
+      console.error('Error fetching anti-cheat data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch anti-cheat data')
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
 
   // Review a flag
-  const reviewFlag = async (
+  const reviewFlag = useCallback(async (
     flagId: string,
     status: CheatFlagStatus,
     action: PlayerAction,
@@ -367,22 +473,24 @@ export function useAntiCheat(): UseAntiCheatReturn {
     setError(null)
     
     try {
-      // TODO: Replace with actual Supabase call
-      // const { error } = await supabase
-      //   .from('cheat_flags')
-      //   .update({
-      //     status,
-      //     action_taken: action,
-      //     reviewed_by: currentUser.id,
-      //     reviewed_at: new Date().toISOString(),
-      //     notes,
-      //   })
-      //   .eq('id', flagId)
-      // if (error) throw error
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
       
-      // Mock implementation
-      await new Promise(resolve => setTimeout(resolve, 300))
+      const { error } = await supabase
+        .from('cheat_flags')
+        .update({
+          status,
+          action_taken: action,
+          reviewed_by: user?.id || null,
+          reviewed_at: new Date().toISOString(),
+          notes: notes || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', flagId)
       
+      if (error) throw error
+      
+      // Update local state immediately (Realtime will also update)
       setFlags(prev => prev.map(flag => 
         flag.id === flagId 
           ? {
@@ -390,23 +498,24 @@ export function useAntiCheat(): UseAntiCheatReturn {
               status,
               action_taken: action,
               reviewed_at: new Date().toISOString(),
+              reviewed_by: user?.id || null,
               notes: notes || flag.notes,
               updated_at: new Date().toISOString(),
             }
           : flag
       ))
       
-      // Refresh data
+      // Refresh data to get updated flagged players
       await fetchData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to review flag')
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, fetchData])
 
   // Take action on a player
-  const takeAction = async (
+  const takeAction = useCallback(async (
     userId: string,
     action: PlayerAction,
     reason: string
@@ -415,35 +524,43 @@ export function useAntiCheat(): UseAntiCheatReturn {
     setError(null)
     
     try {
-      // TODO: Replace with actual Supabase call
-      // const { error } = await supabase
-      //   .from('user_actions')
-      //   .insert({
-      //     user_id: userId,
-      //     action,
-      //     reason,
-      //     performed_by: currentUser.id,
-      //   })
-      // if (error) throw error
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
       
-      // Mock implementation
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Insert player action
+      const { error: actionError } = await supabase
+        .from('player_actions')
+        .insert({
+          user_id: userId,
+          action,
+          reason,
+          performed_by: user.id,
+          performed_at: new Date().toISOString(),
+        })
       
-      // Update flagged players
-      setFlaggedPlayers(prev => prev.map(player =>
-        player.user_id === userId
-          ? { ...player, current_action: action }
-          : player
-      ))
+      if (actionError) throw actionError
       
-      // Refresh data
+      // Update all flags for this user with the action
+      const { error: flagsError } = await supabase
+        .from('cheat_flags')
+        .update({
+          action_taken: action,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .eq('action_taken', 'none') // Only update flags with no action yet
+      
+      if (flagsError) throw flagsError
+      
+      // Refresh data (Realtime will also update)
       await fetchData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to take action')
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, fetchData])
 
   // Clear a flag (mark as false positive)
   const clearFlag = async (flagId: string, notes: string) => {
@@ -455,10 +572,70 @@ export function useAntiCheat(): UseAntiCheatReturn {
     return flags.filter(flag => flag.user_id === userId)
   }
 
-  // Initial fetch
+  // Set up Realtime subscription for cheat_flags
+  const setupRealtime = useCallback(() => {
+    // Create channel for cheat_flags changes
+    const channel = supabase
+      .channel('anti-cheat-flags')
+      .on(
+        'postgres_changes' as any,
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cheat_flags',
+        } as any,
+        (payload: { eventType: string; new?: CheatFlag; old?: CheatFlag }) => {
+          console.log('Cheat flag change:', payload)
+
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newFlag = payload.new as CheatFlag
+            setFlags(prev => {
+              const index = prev.findIndex(f => f.id === newFlag.id)
+              if (index >= 0) {
+                // Update existing
+                const updated = [...prev]
+                updated[index] = newFlag
+                return updated
+              } else {
+                // Add new
+                return [...prev, newFlag].sort((a, b) => 
+                  new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime()
+                )
+              }
+            })
+            // Refresh to update flagged players and stats
+            fetchData()
+          } else if (payload.eventType === 'DELETE') {
+            const oldFlag = payload.old as CheatFlag
+            setFlags(prev => prev.filter(f => f.id !== oldFlag.id))
+            // Refresh to update flagged players and stats
+            fetchData()
+          }
+        }
+      )
+      .subscribe((status: string) => {
+        console.log('Anti-cheat Realtime subscription status:', status)
+      })
+    
+    channelRef.current = channel
+    
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [supabase, fetchData])
+
+  // Initial fetch and Realtime setup
   useEffect(() => {
     fetchData()
-  }, [])
+    const cleanup = setupRealtime()
+    
+    return () => {
+      if (cleanup) cleanup()
+      if (channelRef.current) {
+        channelRef.current.unsubscribe()
+      }
+    }
+  }, [fetchData, setupRealtime])
 
   return {
     flaggedPlayers,

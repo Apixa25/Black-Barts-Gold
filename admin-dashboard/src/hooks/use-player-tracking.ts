@@ -156,9 +156,8 @@ export function usePlayerTracking(
    */
   const fetchPlayers = useCallback(async () => {
     try {
-      // For now, use mock data since table doesn't exist yet
-      // TODO: Replace with real Supabase query when table is created
-      const useMockData = true
+      // Use real Supabase data (Realtime enabled)
+      const useMockData = false
       
       if (useMockData) {
         const mockPlayers = generateMockPlayers(8)
@@ -331,9 +330,8 @@ export function usePlayerTracking(
     setIsLoading(true)
     fetchPlayers().finally(() => setIsLoading(false))
     
-    // Setup real-time (will use mock for now)
-    // setupRealtime()
-    setConnectionStatus('connected') // Mock connected status
+    // Setup real-time subscription (Realtime enabled in Supabase)
+    setupRealtime()
     
     // Refresh interval for updating activity statuses
     refreshIntervalRef.current = setInterval(() => {
