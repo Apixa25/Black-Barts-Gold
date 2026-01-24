@@ -17,7 +17,8 @@ import type {
   CheatReason,
   CheatSeverity,
   PlayerAction,
-  CheatFlagStatus
+  CheatFlagStatus,
+  PlayerMovementType
 } from "@/types/database"
 
 // ============================================================================
@@ -374,6 +375,18 @@ export function useAntiCheat(): UseAntiCheatReturn {
             .eq('id', flag.user_id)
             .single()
           
+          // Extract device/location info from flag evidence
+          const evidence = flag.evidence || {}
+          const currentLocationTimestamp = evidence.current_location?.timestamp || null
+          
+          // Infer movement type from flag reason
+          let movementType: PlayerMovementType = 'suspicious'
+          if (flag.reason === 'impossible_speed') {
+            movementType = 'driving'
+          } else if (flag.reason === 'teleportation' || flag.reason === 'gps_spoofing' || flag.reason === 'mock_location') {
+            movementType = 'suspicious'
+          }
+          
           playersMap.set(flag.user_id, {
             user_id: flag.user_id,
             user_name: profile?.full_name || 'Unknown',
@@ -383,6 +396,11 @@ export function useAntiCheat(): UseAntiCheatReturn {
             highest_severity: flag.severity,
             current_action: flag.action_taken,
             last_flag_at: flag.detected_at,
+            last_location_update: currentLocationTimestamp,
+            current_movement_type: movementType,
+            device_id: evidence.device_id || null,
+            is_mock_location: evidence.is_mock_location || false,
+            is_rooted: evidence.is_rooted || null,
             flags: [],
           })
         }
@@ -403,8 +421,33 @@ export function useAntiCheat(): UseAntiCheatReturn {
           player.current_action = flag.action_taken
         }
         // Update last flag time
-        if (new Date(flag.detected_at) > new Date(player.last_flag_at)) {
+        if (new Date(flag.detected_at) > new Date(player.last_flag_at || '')) {
           player.last_flag_at = flag.detected_at
+        }
+        // Update last location update if this flag has a more recent location
+        const evidence = flag.evidence || {}
+        const currentLocationTimestamp = evidence.current_location?.timestamp
+        if (currentLocationTimestamp) {
+          if (!player.last_location_update || 
+              new Date(currentLocationTimestamp) > new Date(player.last_location_update)) {
+            player.last_location_update = currentLocationTimestamp
+          }
+        }
+        // Update device info if available
+        if (evidence.device_id) {
+          player.device_id = evidence.device_id
+        }
+        if (evidence.is_mock_location !== undefined) {
+          player.is_mock_location = evidence.is_mock_location
+        }
+        if (evidence.is_rooted !== undefined) {
+          player.is_rooted = evidence.is_rooted
+        }
+        // Update movement type based on flag reason
+        if (flag.reason === 'impossible_speed') {
+          player.current_movement_type = 'driving'
+        } else if (flag.reason === 'teleportation' || flag.reason === 'gps_spoofing' || flag.reason === 'mock_location') {
+          player.current_movement_type = 'suspicious'
         }
       }
       
@@ -498,7 +541,7 @@ export function useAntiCheat(): UseAntiCheatReturn {
               status,
               action_taken: action,
               reviewed_at: new Date().toISOString(),
-              reviewed_by: user?.id || null,
+              reviewed_by: user?.id || undefined,
               notes: notes || flag.notes,
               updated_at: new Date().toISOString(),
             }
