@@ -69,9 +69,17 @@ namespace BlackBartsGold.Core
         #region URLs
         
         /// <summary>
-        /// Development server URL
+        /// Development server URL (localhost - for Unity Editor only)
+        /// For Android device testing, use SetDevServerIP() with your computer's local IP
         /// </summary>
         public const string DEV_BASE_URL = "http://localhost:3000/api/v1";
+        
+        /// <summary>
+        /// Custom development server URL (for Android device testing)
+        /// Set via SetDevServerIP() with your computer's local IP address
+        /// Example: 192.168.1.100
+        /// </summary>
+        private static string _customDevUrl = null;
         
         /// <summary>
         /// Staging server URL
@@ -80,8 +88,10 @@ namespace BlackBartsGold.Core
         
         /// <summary>
         /// Production server URL
+        /// NOTE: For now, production uses the Vercel-deployed admin dashboard
+        /// Update this URL once deployed
         /// </summary>
-        public const string PROD_BASE_URL = "https://api.blackbartsgold.com/api/v1";
+        public const string PROD_BASE_URL = "https://black-barts-gold-admin.vercel.app/api/v1";
         
         #endregion
         
@@ -168,12 +178,50 @@ namespace BlackBartsGold.Core
                 #endif
             }
             
+            // Load custom dev server URL if saved
+            if (PlayerPrefs.HasKey("dev_server_url"))
+            {
+                _customDevUrl = PlayerPrefs.GetString("dev_server_url");
+                Debug.Log($"[ApiConfig] Loaded custom dev URL: {_customDevUrl}");
+            }
+            
             Debug.Log($"[ApiConfig] Initialized with environment: {_currentEnvironment}");
         }
         
         #endregion
         
         #region URL Methods
+        
+        /// <summary>
+        /// Set custom development server IP for Android device testing.
+        /// When testing on a physical Android device, localhost won't work.
+        /// Use your computer's local IP address (e.g., 192.168.1.100).
+        /// 
+        /// Find your IP:
+        /// - Windows: ipconfig in Command Prompt, look for IPv4 Address
+        /// - Mac/Linux: ifconfig, look for inet address
+        /// </summary>
+        /// <param name="ipAddress">Your computer's local IP address</param>
+        /// <param name="port">Server port (default 3000 for Next.js)</param>
+        public static void SetDevServerIP(string ipAddress, int port = 3000)
+        {
+            _customDevUrl = $"http://{ipAddress}:{port}/api/v1";
+            Debug.Log($"[ApiConfig] Development server set to: {_customDevUrl}");
+            
+            // Save to PlayerPrefs so it persists
+            PlayerPrefs.SetString("dev_server_url", _customDevUrl);
+            PlayerPrefs.Save();
+        }
+        
+        /// <summary>
+        /// Clear custom development URL (revert to localhost)
+        /// </summary>
+        public static void ClearDevServerIP()
+        {
+            _customDevUrl = null;
+            PlayerPrefs.DeleteKey("dev_server_url");
+            Debug.Log("[ApiConfig] Custom dev server cleared, using localhost");
+        }
         
         /// <summary>
         /// Get base URL for current environment
@@ -183,7 +231,7 @@ namespace BlackBartsGold.Core
             return _currentEnvironment switch
             {
                 ApiEnvironment.Mock => "mock://",
-                ApiEnvironment.Development => DEV_BASE_URL,
+                ApiEnvironment.Development => _customDevUrl ?? DEV_BASE_URL,
                 ApiEnvironment.Staging => STAGING_BASE_URL,
                 ApiEnvironment.Production => PROD_BASE_URL,
                 _ => DEV_BASE_URL

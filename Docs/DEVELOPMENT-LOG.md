@@ -493,6 +493,13 @@ C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
 - ✅ Reference project-vision.md
 - ✅ AI handles git commits (user preference!)
 
+### Development Philosophy (IMPORTANT)
+- ⭐ **ALWAYS build market-standard implementations** - Never take shortcuts
+- ⭐ **Structurally sound over fast** - Build it right the first time
+- ⭐ **No quick fixes** - If we'll need to refactor later, build it properly now
+- ⭐ **Production architecture from day one** - Don't prototype with throwaway code
+- This means: When faced with "quick hack" vs "proper implementation", ALWAYS choose the proper implementation, even if it takes longer
+
 ---
 
 ## 🏆 PHASE 1 MVP COMPLETE! 🎉🏴‍☠️
