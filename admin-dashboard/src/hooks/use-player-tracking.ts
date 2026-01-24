@@ -191,13 +191,10 @@ export function usePlayerTracking(
       }
       
       // Real Supabase query (for when table exists)
+      // Use simpler query first - avoid joins that might fail
       let query = supabase
         .from('player_locations')
-        .select(`
-          *,
-          profiles:user_id (full_name, avatar_url),
-          zones:current_zone_id (name)
-        `)
+        .select('*')
         .order('updated_at', { ascending: false })
       
       // Filter by zone if specified
@@ -212,12 +209,74 @@ export function usePlayerTracking(
         query = query.gte('updated_at', cutoffTime.toISOString())
       }
       
+      // Check auth first
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      console.log('🔐 Auth check:', {
+        authenticated: !!user,
+        email: user?.email,
+        userId: user?.id,
+      })
+      
+      if (authError) {
+        console.error('❌ Auth error:', authError)
+      }
+      
       const { data, error: fetchError } = await query
       
-      if (fetchError) throw fetchError
+      if (fetchError) {
+        console.error('❌ Supabase query error:', fetchError)
+        console.error('Error details:', {
+          message: fetchError.message,
+          details: fetchError.details,
+          hint: fetchError.hint,
+          code: fetchError.code,
+        })
+        
+        // Log full error object for debugging
+        console.error('Full error object:', JSON.stringify(fetchError, null, 2))
+        throw fetchError
+      }
       
-      // Transform and filter
-      let transformed = (data || []).map(transformToActivePlayer)
+      // Transform locations to active players
+      let transformed = (data || []).map((location: any) => {
+        // Transform without joins (profiles/zones fetched separately if needed)
+        return {
+          id: location.id,
+          user_id: location.user_id,
+          user_name: null, // Will fetch separately if needed
+          avatar_url: null,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy_meters: location.accuracy_meters,
+          heading: location.heading,
+          activity_status: getActivityStatus(location.updated_at),
+          is_ar_active: location.is_ar_active,
+          movement_type: location.movement_type,
+          current_zone_id: location.current_zone_id,
+          current_zone_name: null, // Will fetch separately if needed
+          coins_collected_session: 0,
+          time_active_minutes: 0,
+          last_updated: location.updated_at,
+        } as ActivePlayer
+      })
+      
+      // Optionally fetch user names for players (if needed)
+      if (transformed.length > 0) {
+        const userIds = [...new Set(transformed.map(p => p.user_id))]
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', userIds)
+        
+        if (profiles) {
+          const profilesMap = new Map(profiles.map(p => [p.id, p]))
+          transformed = transformed.map(p => ({
+            ...p,
+            user_name: profilesMap.get(p.user_id)?.full_name || null,
+            avatar_url: profilesMap.get(p.user_id)?.avatar_url || null,
+          }))
+        }
+      }
       
       if (statusFilter) {
         transformed = transformed.filter((p: ActivePlayer) =>
@@ -230,7 +289,22 @@ export function usePlayerTracking(
       
     } catch (err) {
       console.error('Error fetching players:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch players')
+      
+      // Provide more helpful error messages
+      let errorMessage = 'Failed to fetch players'
+      if (err instanceof Error) {
+        errorMessage = err.message
+        // Check for common RLS errors
+        if (err.message.includes('permission denied') || err.message.includes('RLS')) {
+          errorMessage = 'Permission denied. Please ensure your user has super_admin role in the profiles table.'
+        } else if (err.message.includes('relation') && err.message.includes('does not exist')) {
+          errorMessage = 'Table not found. Please run the M4 migration (003_player_locations.sql) in Supabase.'
+        } else if (err.message.includes('JWT')) {
+          errorMessage = 'Authentication error. Please log out and log back in.'
+        }
+      }
+      
+      setError(errorMessage)
     }
   }, [supabase, zoneId, statusFilter, includeOffline])
   
