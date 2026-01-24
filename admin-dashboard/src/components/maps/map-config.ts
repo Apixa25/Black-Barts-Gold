@@ -17,10 +17,10 @@ export const isMapboxConfigured = () => {
   return MAPBOX_TOKEN && MAPBOX_TOKEN.startsWith("pk.")
 }
 
-// Default map center (San Francisco - good testing location)
+// Default map center (Crescent City, California - home base)
 export const DEFAULT_CENTER = {
-  longitude: -122.4194,
-  latitude: 37.7749,
+  longitude: -124.2017,
+  latitude: 41.7561,
   zoom: 12,
 }
 

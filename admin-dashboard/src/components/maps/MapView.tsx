@@ -9,7 +9,7 @@
 
 "use client"
 
-import { useState, useCallback, useRef, useMemo, useEffect } from "react"
+import { useState, useCallback, useRef, useMemo } from "react"
 import { 
   Map, 
   NavigationControl, 
@@ -144,7 +144,7 @@ export function MapView({
     return coins.filter(coin => visibleStatuses.includes(coin.status))
   }, [coins, visibleStatuses])
 
-  // Calculate bounds to fit all coins
+  // Calculate bounds to fit all coins (user-triggered via Fit Bounds control)
   const fitBounds = useCallback(() => {
     if (!mapRef.current || filteredCoins.length === 0) return
 
@@ -165,16 +165,7 @@ export function MapView({
     )
   }, [filteredCoins])
 
-  // Auto-fit to coins on initial load
-  useEffect(() => {
-    if (coins.length > 0 && !initialCenter) {
-      // Small delay to ensure map is ready
-      const timer = setTimeout(() => {
-        fitBounds()
-      }, 500)
-      return () => clearTimeout(timer)
-    }
-  }, []) // Only on mount
+  // Map always starts at default center (Crescent City, CA); use Fit Bounds to zoom to coins
 
   // Handle zoom controls
   const handleZoomIn = useCallback(() => {

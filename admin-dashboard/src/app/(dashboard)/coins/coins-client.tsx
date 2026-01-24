@@ -9,7 +9,7 @@ import { CoinsTable } from "@/components/dashboard/coins-table"
 import { CoinsSearch } from "@/components/dashboard/coins-search"
 import { CoinDialog } from "@/components/dashboard/coin-dialog"
 import { Button } from "@/components/ui/button"
-import { Map, Table2, Loader2, MapPin, MousePointerClick, X, Move } from "lucide-react"
+import { Map, Table2, Loader2, MapPin, MousePointerClick, X, Move, Maximize2 } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -183,6 +183,13 @@ export function CoinsPageClient({
             Map View
           </TabsTrigger>
           <TabsTrigger 
+            value="fullview"
+            className="data-[state=active]:bg-gold data-[state=active]:text-leather"
+          >
+            <Maximize2 className="h-4 w-4 mr-2" />
+            Full View
+          </TabsTrigger>
+          <TabsTrigger 
             value="table"
             className="data-[state=active]:bg-gold data-[state=active]:text-leather"
           >
@@ -279,7 +286,110 @@ export function CoinsPageClient({
               ) : (
                 <MapView
                   coins={coins}
-                  height={500}
+                  height={1000}
+                  onCoinClick={handleCoinClick}
+                  onCoinEdit={handleEditCoin}
+                  onCoinDrag={handleCoinDrag}
+                  onMapClick={handleMapClick}
+                  selectedCoinId={selectedCoinId}
+                  placementMode={placementMode}
+                  enableDrag={dragMode}
+                  className="rounded-b-lg"
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Full View Tab — large map for coin placement review */}
+        <TabsContent value="fullview" className="mt-4">
+          <Card className={`border-saddle-light/30 ${
+            placementMode ? "ring-2 ring-gold ring-offset-2" : 
+            dragMode ? "ring-2 ring-brass ring-offset-2" : ""
+          }`}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-saddle-dark flex items-center gap-2">
+                    <Maximize2 className="h-5 w-5 text-gold" />
+                    Coin Map — Full View
+                    {placementMode && (
+                      <span className="ml-2 px-2 py-0.5 bg-gold/20 text-gold-dark text-xs rounded-full animate-pulse">
+                        📍 Placement Mode
+                      </span>
+                    )}
+                    {dragMode && (
+                      <span className="ml-2 px-2 py-0.5 bg-brass/20 text-brass text-xs rounded-full animate-pulse">
+                        🖐️ Drag Mode
+                      </span>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    {placementMode 
+                      ? "Click anywhere on the map to place a new coin"
+                      : dragMode
+                        ? "Drag coin markers to reposition them"
+                        : `${coins.length} coins • Maximized view for placement review`
+                    }
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={dragMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={toggleDragMode}
+                    className={dragMode 
+                      ? "bg-brass hover:bg-brass/80 text-white" 
+                      : "border-saddle-light/50"
+                    }
+                    disabled={placementMode}
+                  >
+                    {dragMode ? (
+                      <>
+                        <X className="h-4 w-4 mr-1" />
+                        Done
+                      </>
+                    ) : (
+                      <>
+                        <Move className="h-4 w-4 mr-1" />
+                        Move
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant={placementMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={togglePlacementMode}
+                    className={placementMode 
+                      ? "bg-gold hover:bg-gold-dark text-leather" 
+                      : "border-saddle-light/50"
+                    }
+                    disabled={dragMode}
+                  >
+                    {placementMode ? (
+                      <>
+                        <X className="h-4 w-4 mr-1" />
+                        Cancel
+                      </>
+                    ) : (
+                      <>
+                        <MousePointerClick className="h-4 w-4 mr-1" />
+                        Place
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {error ? (
+                <div className="text-fire text-sm p-4 bg-fire/10 rounded-lg m-4">
+                  Error loading coins: {error}
+                </div>
+              ) : (
+                <MapView
+                  coins={coins}
+                  height="min(80vh, 1200px)"
                   onCoinClick={handleCoinClick}
                   onCoinEdit={handleEditCoin}
                   onCoinDrag={handleCoinDrag}
