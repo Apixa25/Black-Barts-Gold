@@ -391,7 +391,7 @@ admin-dashboard/supabase/migrations/
 | PlayerFlagDialog | ✅ Done | Review flags, take actions, view evidence |
 | SQL migration | ✅ Done | `007_anti_cheat.sql` with auto-detection |
 | Security tab | ✅ Done | "Anti-Cheat" tab + Shield icon |
-| Browser testing | ⏳ Pending | Verify in UI |
+| Browser testing | ✅ Done | All features verified and working |
 
 ### Files Created for M8
 ```
@@ -456,6 +456,30 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1Ijoic3RldmVuc2lsbHMyIi...
 ### Test Credentials
 - Email: `stevensills2@gmail.com`
 - Password: `123456`
+
+### Supabase CLI (Installed & Ready)
+
+The Supabase CLI is installed as a dev dependency in `admin-dashboard`. Use it for migrations, linking to your remote project, and local development.
+
+**Run from `admin-dashboard` directory:**
+
+| Command | Description |
+|--------|-------------|
+| `npm run supabase:login` | Log in to Supabase (opens browser) |
+| `npm run supabase:link` | Link this project to your remote Supabase project |
+| `npm run supabase:status` | Show status of local Supabase (if running) |
+| `npm run supabase:db:push` | Push local migrations to remote DB |
+| `npm run supabase:db:pull` | Pull remote schema as migration |
+| `npm run supabase:db:reset` | Reset local DB and re-run migrations |
+| `npm run supabase:start` | Start local Supabase (Docker required) |
+| `npm run supabase:stop` | Stop local Supabase |
+
+**One-time setup to use with your remote project:**
+1. `cd admin-dashboard`
+2. `npm run supabase:login` — sign in via browser
+3. `npm run supabase:link` — choose your project (e.g. Black Bart's Gold)
+
+After linking, you can run `npm run supabase:db:push` to apply migrations to your remote database.
 
 ---
 
@@ -601,4 +625,4 @@ Sponsor Features will require:
 
 ---
 
-*Last updated: January 23, 2026 - Phase M8 COMPLETE! All 8 phases finished! Anti-Cheat system fully implemented with detection, flagging, and enforcement* 🛡️🎉
+*Last updated: January 22, 2026 - Phase M8 COMPLETE! All 8 phases finished! Anti-Cheat system fully implemented with detection, flagging, and enforcement. Browser testing verified all features working perfectly! 🛡️🎉✅
