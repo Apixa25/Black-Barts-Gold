@@ -172,11 +172,15 @@ namespace BlackBartsGold.Core
             // Wait for AR to initialize
             yield return new WaitForSeconds(1.5f);
             
+            // START THE GPS SERVICE! (This was missing before)
+            Debug.Log("[UIManager] 📍 Starting GPS service...");
+            GPSManager.Instance.StartLocationService();
+            
             // Wait for GPS to be ready (max 30 seconds)
             float gpsTimeout = 30f;
             float elapsed = 0f;
             
-            Debug.Log("[UIManager] 📍 Waiting for GPS...");
+            Debug.Log("[UIManager] 📍 Waiting for GPS to get a fix...");
             
             while (!GPSManager.Instance.IsTracking && elapsed < gpsTimeout)
             {

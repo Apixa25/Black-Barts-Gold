@@ -75,8 +75,8 @@ namespace BlackBartsGold.Location
         private float maxLocationAge = 30f;
         
         [SerializeField]
-        [Tooltip("Minimum accuracy to accept (meters)")]
-        private float minAcceptableAccuracy = 50f;
+        [Tooltip("Minimum accuracy to accept (meters) - higher values are more lenient")]
+        private float minAcceptableAccuracy = 200f; // Relaxed from 50m to work indoors/poor GPS
         
         [Header("Timeout Settings")]
         [SerializeField]
@@ -255,17 +255,7 @@ namespace BlackBartsGold.Location
             
             Log("Starting location service...");
             
-            // Check if GPS is enabled
-            if (!IsGPSEnabled)
-            {
-                SetState(GPSServiceState.Disabled);
-                ErrorMessage = "Location services are disabled. Please enable GPS.";
-                OnGPSDisabled?.Invoke();
-                OnLocationError?.Invoke(ErrorMessage);
-                return;
-            }
-            
-            // Start the location coroutine
+            // Start the location coroutine (it will handle permission requests)
             if (locationCoroutine != null)
             {
                 StopCoroutine(locationCoroutine);
