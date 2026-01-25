@@ -131,6 +131,7 @@ namespace BlackBartsGold.Core
         public async Task<List<Coin>> GetNearbyCoins(double latitude, double longitude, float radiusMeters = 500f)
         {
             Debug.Log($"[CoinApiService] 📍 Fetching coins near ({latitude:F6}, {longitude:F6}) r={radiusMeters}m");
+            Debug.Log($"[CoinApiService] Current API mode: {ApiConfig.CurrentEnvironment}, UseMock: {ApiConfig.UseMockApi}");
             
             // Check cache validity
             if (IsCacheValid(latitude, longitude))
@@ -143,19 +144,31 @@ namespace BlackBartsGold.Core
             {
                 if (ApiConfig.UseMockApi)
                 {
+                    Debug.Log("[CoinApiService] 🎭 Using MOCK API - returning fake coins");
                     return await GetMockNearbyCoins(latitude, longitude, radiusMeters);
                 }
                 
                 string endpoint = ApiConfig.Coins.GetNearbyUrl(latitude, longitude, radiusMeters);
+                string fullUrl = ApiConfig.BuildUrl(endpoint);
+                Debug.Log($"[CoinApiService] 🌐 Making REAL API call to: {fullUrl}");
+                
                 var response = await ApiClient.Instance.Get<NearbyCoinsResponse>(endpoint);
+                
+                Debug.Log($"[CoinApiService] 📦 API Response received: success={response?.success}, coins count={response?.coins?.Count ?? 0}");
                 
                 if (response?.coins != null)
                 {
+                    Debug.Log($"[CoinApiService] ✅ Found {response.coins.Count} coins from server!");
+                    foreach (var coin in response.coins)
+                    {
+                        Debug.Log($"  - Coin: {coin.id}, Value: ${coin.value:F2}, Status: {coin.status}, Lat: {coin.latitude:F6}, Lng: {coin.longitude:F6}");
+                    }
                     UpdateCache(response.coins, latitude, longitude);
                     OnNearbyCoinsUpdated?.Invoke(response.coins);
                     return response.coins;
                 }
                 
+                Debug.Log("[CoinApiService] ⚠️ No coins in response");
                 return new List<Coin>();
             }
             catch (ApiException ex)

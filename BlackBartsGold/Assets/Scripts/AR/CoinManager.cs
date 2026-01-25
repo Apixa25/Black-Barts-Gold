@@ -207,7 +207,19 @@ namespace BlackBartsGold.AR
         /// </summary>
         public void SetNearbyCoins(List<Coin> coins)
         {
-            if (coins == null) return;
+            Debug.Log($"[CoinManager] 📥 SetNearbyCoins called with {coins?.Count ?? 0} coins");
+            
+            if (coins == null)
+            {
+                Debug.LogWarning("[CoinManager] ⚠️ Coins list is null!");
+                return;
+            }
+            
+            if (coins.Count == 0)
+            {
+                Debug.Log("[CoinManager] ℹ️ No coins to spawn");
+                return;
+            }
             
             // Find coins to despawn (no longer in list)
             List<string> toRemove = new List<string>();
@@ -226,15 +238,18 @@ namespace BlackBartsGold.AR
             }
             
             // Spawn new coins
+            int spawnedCount = 0;
             foreach (var coin in coins)
             {
                 if (!coinLookup.ContainsKey(coin.id))
                 {
-                    SpawnCoin(coin);
+                    Debug.Log($"[CoinManager] 🪙 Spawning coin: {coin.id}, Value: ${coin.value:F2}");
+                    var spawned = SpawnCoin(coin);
+                    if (spawned != null) spawnedCount++;
                 }
             }
             
-            Log($"SetNearbyCoins: {coins.Count} coins, {ActiveCoinCount} active");
+            Debug.Log($"[CoinManager] ✅ SetNearbyCoins complete: {spawnedCount} new coins spawned, {ActiveCoinCount} total active");
         }
         
         /// <summary>

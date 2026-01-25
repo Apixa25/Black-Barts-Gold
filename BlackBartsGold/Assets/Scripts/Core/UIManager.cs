@@ -160,6 +160,15 @@ namespace BlackBartsGold.Core
         {
             Debug.Log("[UIManager] 🗺️ Starting coin fetch from API...");
             
+            // DIAGNOSTIC: Log current API configuration
+            Debug.Log("═══════════════════════════════════════════════════");
+            Debug.Log("[DIAGNOSTIC] API Configuration:");
+            Debug.Log($"  Environment: {ApiConfig.CurrentEnvironment}");
+            Debug.Log($"  Use Mock API: {ApiConfig.UseMockApi}");
+            Debug.Log($"  Base URL: {ApiConfig.GetBaseUrl()}");
+            Debug.Log($"  Is Production: {ApiConfig.IsProduction()}");
+            Debug.Log("═══════════════════════════════════════════════════");
+            
             // Wait for AR to initialize
             yield return new WaitForSeconds(1.5f);
             
@@ -252,10 +261,17 @@ namespace BlackBartsGold.Core
             
             if (coins != null && coins.Count > 0)
             {
+                Debug.Log($"[UIManager] 🎯 Passing {coins.Count} coins to CoinManager");
+                
+                // Log each coin for debugging
+                foreach (var coin in coins)
+                {
+                    Debug.Log($"[UIManager] Coin to spawn: ID={coin.id}, Value=${coin.value:F2}, Status={coin.status}, Lat={coin.latitude:F6}, Lng={coin.longitude:F6}");
+                }
+                
                 // Pass coins to CoinManager for AR spawning
                 if (CoinManager.Instance != null)
                 {
-                    Debug.Log($"[UIManager] 🎯 Passing {coins.Count} coins to CoinManager");
                     CoinManager.Instance.SetNearbyCoins(coins);
                     
                     // Immediately trigger position recalculation so coins appear at correct GPS positions
@@ -263,6 +279,10 @@ namespace BlackBartsGold.Core
                     {
                         Debug.Log("[UIManager] 📍 Triggering immediate position recalculation");
                         CoinSpawner.Instance.RecalculateAllCoinPositions();
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[UIManager] ⚠️ CoinSpawner not found - coins may not be positioned correctly");
                     }
                 }
                 else
@@ -272,7 +292,7 @@ namespace BlackBartsGold.Core
             }
             else
             {
-                Debug.Log("[UIManager] ℹ️ No coins found nearby.");
+                Debug.LogWarning("[UIManager] ⚠️ No coins found nearby! Make sure you've placed coins in the admin dashboard near your current GPS location.");
             }
         }
         
