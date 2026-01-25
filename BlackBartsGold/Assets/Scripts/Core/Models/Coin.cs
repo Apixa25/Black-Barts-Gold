@@ -9,6 +9,7 @@
 
 using System;
 using UnityEngine;
+using Newtonsoft.Json;
 
 namespace BlackBartsGold.Core.Models
 {
@@ -55,6 +56,7 @@ namespace BlackBartsGold.Core.Models
         /// <summary>
         /// Visual tier based on value (Gold, Silver, Bronze, etc.)
         /// </summary>
+        [JsonProperty("tier")]
         public CoinTier currentTier;
         
         #endregion
@@ -192,19 +194,19 @@ namespace BlackBartsGold.Core.Models
         /// <summary>
         /// Is this coin within collection range?
         /// </summary>
-        [NonSerialized]
+        [JsonProperty("isInRange")]
         public bool isInRange;
         
         /// <summary>
         /// Current distance from player in meters
         /// </summary>
-        [NonSerialized]
+        [JsonProperty("distanceMeters")]
         public float distanceFromPlayer;
         
         /// <summary>
         /// Compass bearing to this coin (degrees, 0=North)
         /// </summary>
-        [NonSerialized]
+        [JsonProperty("bearingDegrees")]
         public float bearingFromPlayer;
         
         #endregion

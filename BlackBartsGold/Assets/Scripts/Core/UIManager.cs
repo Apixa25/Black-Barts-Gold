@@ -13,6 +13,10 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections;
+using System.Collections.Generic;
+using BlackBartsGold.Location;
+using BlackBartsGold.AR;
+using BlackBartsGold.Core.Models;
 
 namespace BlackBartsGold.Core
 {
@@ -138,8 +142,8 @@ namespace BlackBartsGold.Core
                 Debug.Log("[UIManager] ARHunt scene - showing AR HUD");
                 if (arHudPanel != null) arHudPanel.SetActive(true);
                 
-                // Spawn test coins after a short delay (let AR initialize)
-                StartCoroutine(SpawnTestCoinsDelayed());
+                // Fetch real coins from API after AR initializes
+                StartCoroutine(FetchCoinsFromAPI());
             }
             else if (isInARMode == false)
             {
@@ -149,21 +153,195 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Spawn test coins after AR scene loads
+        /// Fetch real coins from the API after AR scene loads.
+        /// Waits for GPS to be ready, then calls the coin API.
         /// </summary>
-        private IEnumerator SpawnTestCoinsDelayed()
+        private IEnumerator FetchCoinsFromAPI()
         {
+            Debug.Log("[UIManager] 🗺️ Starting coin fetch from API...");
+            
             // Wait for AR to initialize
             yield return new WaitForSeconds(1.5f);
             
-            Debug.Log("[UIManager] Spawning test coins...");
-            SpawnTestCoins();
+            // Wait for GPS to be ready (max 30 seconds)
+            float gpsTimeout = 30f;
+            float elapsed = 0f;
+            
+            Debug.Log("[UIManager] 📍 Waiting for GPS...");
+            
+            while (!GPSManager.Instance.IsTracking && elapsed < gpsTimeout)
+            {
+                elapsed += 0.5f;
+                yield return new WaitForSeconds(0.5f);
+                
+                if (elapsed % 5f < 0.5f) // Log every 5 seconds
+                {
+                    Debug.Log($"[UIManager] Still waiting for GPS... ({elapsed:F0}s)");
+                }
+            }
+            
+            if (!GPSManager.Instance.IsTracking)
+            {
+                Debug.LogWarning("[UIManager] ⚠️ GPS timeout! Using last known location or mock data.");
+            }
+            
+            // Get current location
+            LocationData location = GPSManager.Instance.CurrentLocation ?? GPSManager.Instance.LastKnownLocation;
+            
+            if (location == null)
+            {
+                Debug.LogWarning("[UIManager] ⚠️ No GPS location available. Cannot fetch coins.");
+                // Could show user a message here
+                yield break;
+            }
+            
+            Debug.Log($"[UIManager] 📍 GPS ready! Location: ({location.Latitude:F6}, {location.Longitude:F6})");
+            
+            // Fetch coins from API
+            yield return FetchAndSpawnCoins(location.Latitude, location.Longitude);
+            
+            // Start periodic refresh coroutine
+            StartCoroutine(PeriodicCoinRefresh());
         }
         
         /// <summary>
-        /// Spawn test coins in front of camera (3-6 feet away)
+        /// Fetch coins from the API and spawn them via CoinManager.
+        /// This is an async operation wrapped in a coroutine.
         /// </summary>
-        private void SpawnTestCoins()
+        private IEnumerator FetchAndSpawnCoins(double latitude, double longitude)
+        {
+            Debug.Log($"[UIManager] 🪙 Fetching coins near ({latitude:F6}, {longitude:F6})...");
+            
+            List<Coin> coins = null;
+            bool fetchComplete = false;
+            string errorMessage = null;
+            
+            // Call the async API method
+            var fetchTask = CoinApiService.Instance.GetNearbyCoins(latitude, longitude, 500f);
+            
+            // Wait for the task to complete
+            fetchTask.ContinueWith(task =>
+            {
+                if (task.IsFaulted)
+                {
+                    errorMessage = task.Exception?.InnerException?.Message ?? "Unknown error";
+                    Debug.LogError($"[UIManager] ❌ API Error: {errorMessage}");
+                }
+                else if (task.IsCompleted)
+                {
+                    coins = task.Result;
+                    Debug.Log($"[UIManager] ✅ Received {coins?.Count ?? 0} coins from API");
+                }
+                fetchComplete = true;
+            });
+            
+            // Wait for completion
+            float timeout = 15f;
+            float waitTime = 0f;
+            while (!fetchComplete && waitTime < timeout)
+            {
+                waitTime += 0.1f;
+                yield return new WaitForSeconds(0.1f);
+            }
+            
+            if (!fetchComplete)
+            {
+                Debug.LogError("[UIManager] ❌ API request timed out!");
+                yield break;
+            }
+            
+            if (coins != null && coins.Count > 0)
+            {
+                // Pass coins to CoinManager for AR spawning
+                if (CoinManager.Instance != null)
+                {
+                    Debug.Log($"[UIManager] 🎯 Passing {coins.Count} coins to CoinManager");
+                    CoinManager.Instance.SetNearbyCoins(coins);
+                    
+                    // Immediately trigger position recalculation so coins appear at correct GPS positions
+                    if (CoinSpawner.Instance != null)
+                    {
+                        Debug.Log("[UIManager] 📍 Triggering immediate position recalculation");
+                        CoinSpawner.Instance.RecalculateAllCoinPositions();
+                    }
+                }
+                else
+                {
+                    Debug.LogError("[UIManager] ❌ CoinManager not found!");
+                }
+            }
+            else
+            {
+                Debug.Log("[UIManager] ℹ️ No coins found nearby.");
+            }
+        }
+        
+        /// <summary>
+        /// Periodically refresh coins when the player moves significantly.
+        /// </summary>
+        private IEnumerator PeriodicCoinRefresh()
+        {
+            Debug.Log("[UIManager] 🔄 Starting periodic coin refresh...");
+            
+            float refreshInterval = 30f; // Refresh every 30 seconds
+            float lastRefreshLat = 0;
+            float lastRefreshLng = 0;
+            float minMovementForRefresh = 50f; // Meters
+            
+            while (isInARMode)
+            {
+                yield return new WaitForSeconds(refreshInterval);
+                
+                if (!GPSManager.Instance.IsTracking) continue;
+                
+                var location = GPSManager.Instance.CurrentLocation;
+                if (location == null) continue;
+                
+                // Calculate distance from last refresh
+                float distance = CalculateDistance(
+                    lastRefreshLat, lastRefreshLng,
+                    (float)location.Latitude, (float)location.Longitude
+                );
+                
+                // Only refresh if we've moved enough
+                if (distance > minMovementForRefresh || lastRefreshLat == 0)
+                {
+                    Debug.Log($"[UIManager] 🔄 Refreshing coins (moved {distance:F0}m)");
+                    lastRefreshLat = (float)location.Latitude;
+                    lastRefreshLng = (float)location.Longitude;
+                    
+                    yield return FetchAndSpawnCoins(location.Latitude, location.Longitude);
+                }
+            }
+            
+            Debug.Log("[UIManager] 🔄 Stopped periodic coin refresh (left AR mode)");
+        }
+        
+        /// <summary>
+        /// Calculate approximate distance between two GPS points in meters.
+        /// Uses Haversine formula.
+        /// </summary>
+        private float CalculateDistance(float lat1, float lon1, float lat2, float lon2)
+        {
+            const float R = 6371000; // Earth's radius in meters
+            
+            float dLat = (lat2 - lat1) * Mathf.Deg2Rad;
+            float dLon = (lon2 - lon1) * Mathf.Deg2Rad;
+            
+            float a = Mathf.Sin(dLat / 2) * Mathf.Sin(dLat / 2) +
+                      Mathf.Cos(lat1 * Mathf.Deg2Rad) * Mathf.Cos(lat2 * Mathf.Deg2Rad) *
+                      Mathf.Sin(dLon / 2) * Mathf.Sin(dLon / 2);
+            
+            float c = 2 * Mathf.Atan2(Mathf.Sqrt(a), Mathf.Sqrt(1 - a));
+            
+            return R * c;
+        }
+        
+        /// <summary>
+        /// [DEBUG ONLY] Spawn test coins in front of camera (3-6 feet away).
+        /// This is only used when API is unavailable or for testing.
+        /// </summary>
+        private void SpawnDebugTestCoins()
         {
             Camera cam = Camera.main;
             if (cam == null)

@@ -171,11 +171,11 @@ namespace BlackBartsGold.Core
             }
             else
             {
-                // Default to Mock for development
+                // Default based on build type
                 #if UNITY_EDITOR
-                _currentEnvironment = ApiEnvironment.Mock;
+                _currentEnvironment = ApiEnvironment.Mock; // Mock in Editor for testing
                 #else
-                _currentEnvironment = ApiEnvironment.Mock; // Change to Production for release
+                _currentEnvironment = ApiEnvironment.Production; // Production on device builds
                 #endif
             }
             

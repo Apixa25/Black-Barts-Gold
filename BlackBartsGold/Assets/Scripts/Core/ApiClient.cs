@@ -15,6 +15,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using BlackBartsGold.Core.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace BlackBartsGold.Core
 {
@@ -54,6 +56,28 @@ namespace BlackBartsGold.Core
         /// Check if instance exists
         /// </summary>
         public static bool Exists => _instance != null;
+        
+        #endregion
+        
+        #region JSON Settings
+        
+        /// <summary>
+        /// JSON serialization settings for Newtonsoft.Json
+        /// Configured for proper enum handling and camelCase
+        /// </summary>
+        private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
+        {
+            // Convert enums to/from strings (e.g., "fixed" <-> CoinType.Fixed)
+            Converters = { new StringEnumConverter() },
+            // Use camelCase for JSON properties (matches API)
+            ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver(),
+            // Ignore null values when serializing
+            NullValueHandling = NullValueHandling.Ignore,
+            // Don't fail on missing properties
+            MissingMemberHandling = MissingMemberHandling.Ignore,
+            // Format dates in ISO 8601
+            DateFormatHandling = DateFormatHandling.IsoDateFormat
+        };
         
         #endregion
         
@@ -298,7 +322,7 @@ namespace BlackBartsGold.Core
                 case "POST":
                 case "PUT":
                 case "PATCH":
-                    string jsonBody = body != null ? JsonUtility.ToJson(body) : "{}";
+                    string jsonBody = body != null ? JsonConvert.SerializeObject(body, _jsonSettings) : "{}";
                     byte[] bodyBytes = Encoding.UTF8.GetBytes(jsonBody);
                     
                     request = new UnityWebRequest(url, method);
@@ -396,7 +420,7 @@ namespace BlackBartsGold.Core
             
             try
             {
-                return JsonUtility.FromJson<T>(json);
+                return JsonConvert.DeserializeObject<T>(json, _jsonSettings);
             }
             catch (Exception ex)
             {
