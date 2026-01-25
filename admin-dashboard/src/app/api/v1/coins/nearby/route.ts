@@ -22,6 +22,33 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { keysToCamelCase } from '@/lib/api-utils'
 
+// Type for coin data from database query
+interface CoinFromDB {
+  id: string
+  coin_type: string
+  value: number
+  tier: string | null
+  is_mythical: boolean
+  latitude: number
+  longitude: number
+  location_name: string | null
+  status: string
+  hider_id: string | null
+  hidden_at: string | null
+  sponsor_id: string | null
+  logo_url: string | null
+  multi_find: boolean
+  finds_remaining: number | null
+  description: string | null
+}
+
+// Extended coin with computed fields
+interface CoinWithDistance extends CoinFromDB {
+  distanceMeters: number
+  bearingDegrees: number
+  isInRange: boolean
+}
+
 // Default search radius in meters
 const DEFAULT_RADIUS = 500
 const MAX_RADIUS = 5000 // Maximum allowed radius to prevent abuse
@@ -178,8 +205,8 @@ export async function GET(request: NextRequest) {
     
     // Calculate precise distance and filter to actual radius
     // Also add distance and bearing for each coin
-    const nearbyCoins = (coins || [])
-      .map(coin => {
+    const nearbyCoins: CoinWithDistance[] = (coins || [])
+      .map((coin: CoinFromDB): CoinWithDistance => {
         const distance = haversineDistance(lat, lng, coin.latitude, coin.longitude)
         const bearing = calculateBearing(lat, lng, coin.latitude, coin.longitude)
         
@@ -192,8 +219,8 @@ export async function GET(request: NextRequest) {
           isInRange: distance <= 5,
         }
       })
-      .filter(coin => coin.distanceMeters <= radius)
-      .sort((a, b) => a.distanceMeters - b.distanceMeters) // Closest first
+      .filter((coin: CoinWithDistance) => coin.distanceMeters <= radius)
+      .sort((a: CoinWithDistance, b: CoinWithDistance) => a.distanceMeters - b.distanceMeters)
     
     // Log for debugging (remove in production)
     console.log(`[API] /coins/nearby: Found ${nearbyCoins.length} coins within ${radius}m of (${lat}, ${lng})`)
