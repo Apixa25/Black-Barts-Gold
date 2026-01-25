@@ -11,6 +11,9 @@ import {
 } from "lucide-react"
 import { FinancesPageClient } from "./finances-client"
 
+// Force dynamic rendering - this page needs real data from Supabase
+export const dynamic = 'force-dynamic'
+
 interface FinancesPageProps {
   searchParams: Promise<{ type?: string; status?: string; range?: string }>
 }

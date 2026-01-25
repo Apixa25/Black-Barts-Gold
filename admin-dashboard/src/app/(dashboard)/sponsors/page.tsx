@@ -3,6 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Building2, CheckCircle, Clock, DollarSign, Coins } from "lucide-react"
 import { SponsorsPageClient } from "./sponsors-client"
 
+// Force dynamic rendering - this page needs real data from Supabase
+export const dynamic = 'force-dynamic'
+
 interface SponsorsPageProps {
   searchParams: Promise<{ search?: string; status?: string }>
 }

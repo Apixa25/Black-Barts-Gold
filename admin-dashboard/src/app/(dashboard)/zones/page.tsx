@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MapPinned, Users, Trophy, Coins } from "lucide-react"
 import type { Zone } from "@/types/database"
 
-export const dynamic = "force-dynamic"
+// Force dynamic rendering - this page needs real data from Supabase
+export const dynamic = 'force-dynamic'
 
 // Mock zones for development (until database table is created)
 const mockZones: Zone[] = [

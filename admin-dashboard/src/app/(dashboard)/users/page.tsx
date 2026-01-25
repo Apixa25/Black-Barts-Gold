@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, UserPlus, Shield } from "lucide-react"
 import { Suspense } from "react"
 
+// Force dynamic rendering - this page needs real data from Supabase
+export const dynamic = 'force-dynamic'
+
 interface UsersPageProps {
   searchParams: Promise<{ search?: string; role?: string }>
 }

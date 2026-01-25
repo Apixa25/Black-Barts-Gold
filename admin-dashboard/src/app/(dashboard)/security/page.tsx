@@ -11,6 +11,9 @@ import {
 } from "lucide-react"
 import { SecurityPageClient } from "./security-client"
 
+// Force dynamic rendering - this page needs real data from Supabase
+export const dynamic = 'force-dynamic'
+
 interface SecurityPageProps {
   searchParams: Promise<{ type?: string; severity?: string; range?: string }>
 }

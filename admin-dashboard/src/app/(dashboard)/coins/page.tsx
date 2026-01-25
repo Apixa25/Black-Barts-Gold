@@ -3,6 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Coins, Eye, CheckCircle, DollarSign, Sparkles } from "lucide-react"
 import { CoinsPageClient } from "./coins-client"
 
+// Force dynamic rendering - this page needs real data from Supabase
+export const dynamic = 'force-dynamic'
+
 interface CoinsPageProps {
   searchParams: Promise<{ search?: string; status?: string; tier?: string }>
 }
