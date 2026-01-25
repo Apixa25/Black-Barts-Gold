@@ -82,16 +82,17 @@ namespace BlackBartsGold.Core
         private static string _customDevUrl = null;
         
         /// <summary>
-        /// Staging server URL
+        /// Staging server URL (Vercel preview deployment)
+        /// Used for testing before pushing to production
         /// </summary>
-        public const string STAGING_BASE_URL = "https://staging-api.blackbartsgold.com/api/v1";
+        public const string STAGING_BASE_URL = "https://black-barts-gold-admin.vercel.app/api/v1";
         
         /// <summary>
         /// Production server URL
-        /// NOTE: For now, production uses the Vercel-deployed admin dashboard
-        /// Update this URL once deployed
+        /// Custom domain pointing to Vercel-deployed admin dashboard
+        /// Update this if using a different domain name
         /// </summary>
-        public const string PROD_BASE_URL = "https://black-barts-gold-admin.vercel.app/api/v1";
+        public const string PROD_BASE_URL = "https://admin.blackbartsgold.com/api/v1";
         
         #endregion
         
