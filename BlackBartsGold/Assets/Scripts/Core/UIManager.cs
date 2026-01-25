@@ -195,10 +195,10 @@ namespace BlackBartsGold.Core
                 yield break;
             }
             
-            Debug.Log($"[UIManager] 📍 GPS ready! Location: ({location.Latitude:F6}, {location.Longitude:F6})");
+            Debug.Log($"[UIManager] 📍 GPS ready! Location: ({location.latitude:F6}, {location.longitude:F6})");
             
             // Fetch coins from API
-            yield return FetchAndSpawnCoins(location.Latitude, location.Longitude);
+            yield return FetchAndSpawnCoins(location.latitude, location.longitude);
             
             // Start periodic refresh coroutine
             StartCoroutine(PeriodicCoinRefresh());
@@ -300,17 +300,17 @@ namespace BlackBartsGold.Core
                 // Calculate distance from last refresh
                 float distance = CalculateDistance(
                     lastRefreshLat, lastRefreshLng,
-                    (float)location.Latitude, (float)location.Longitude
+                    (float)location.latitude, (float)location.longitude
                 );
                 
                 // Only refresh if we've moved enough
                 if (distance > minMovementForRefresh || lastRefreshLat == 0)
                 {
                     Debug.Log($"[UIManager] 🔄 Refreshing coins (moved {distance:F0}m)");
-                    lastRefreshLat = (float)location.Latitude;
-                    lastRefreshLng = (float)location.Longitude;
+                    lastRefreshLat = (float)location.latitude;
+                    lastRefreshLng = (float)location.longitude;
                     
-                    yield return FetchAndSpawnCoins(location.Latitude, location.Longitude);
+                    yield return FetchAndSpawnCoins(location.latitude, location.longitude);
                 }
             }
             
