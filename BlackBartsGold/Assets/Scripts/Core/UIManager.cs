@@ -170,6 +170,34 @@ namespace BlackBartsGold.Core
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             
+            // ================================================================
+            // AR TRACKING STATUS - This is the critical issue!
+            // ARCore must be tracking before planes can be detected
+            // ================================================================
+            var arSession = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARSession>();
+            if (arSession != null)
+            {
+                var state = UnityEngine.XR.ARFoundation.ARSession.state;
+                string stateColor = state == UnityEngine.XR.ARFoundation.ARSessionState.SessionTracking 
+                    ? "green" : "red";
+                sb.AppendLine($"<b>AR:</b> <color={stateColor}>{state}</color>");
+            }
+            else
+            {
+                sb.AppendLine("<b>AR:</b> <color=red>NO SESSION</color>");
+            }
+            
+            // Check plane detection
+            var planeManager = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARPlaneManager>();
+            if (planeManager != null)
+            {
+                sb.AppendLine($"<b>Planes:</b> {planeManager.trackables.count}");
+            }
+            else
+            {
+                sb.AppendLine("<b>Planes:</b> No PlaneManager");
+            }
+            
             // API Config
             sb.AppendLine($"<b>API:</b> {ApiConfig.CurrentEnvironment}");
             sb.AppendLine($"Mock: {ApiConfig.UseMockApi}");
