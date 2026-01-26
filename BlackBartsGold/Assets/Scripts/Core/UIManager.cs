@@ -176,6 +176,12 @@ namespace BlackBartsGold.Core
                 sb.AppendLine("<b>GPS:</b> <color=red>Not initialized</color>");
             }
             
+            // Compass heading (for debugging AR alignment)
+            if (Input.compass.enabled)
+            {
+                sb.AppendLine($"<b>Compass:</b> {Input.compass.trueHeading:F0}°");
+            }
+            
             // Coin Manager with position info
             if (CoinManager.Instance != null)
             {
