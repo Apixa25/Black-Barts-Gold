@@ -80,6 +80,11 @@ namespace BlackBartsGold.Core
         private float _miniMapRange = 50f; // meters
         private float _miniMapRadius = 100f; // pixels
         
+        // Place Coin button (proper AR anchor system)
+        private GameObject _placeCoinButton;
+        private TextMeshProUGUI _placeCoinButtonText;
+        private Coin _coinToPlace; // The coin ready to be placed in AR
+        
         #endregion
         
         #region Unity Lifecycle
@@ -153,6 +158,9 @@ namespace BlackBartsGold.Core
             
             // Update mini-map
             UpdateMiniMap();
+            
+            // Update Place Coin button (proper AR anchor system)
+            UpdatePlaceCoinButton();
         }
         
         /// <summary>
@@ -205,37 +213,49 @@ namespace BlackBartsGold.Core
                 sb.AppendLine($"<b>Active Coins:</b> {CoinManager.Instance.ActiveCoinCount}");
                 
                 // Show first coin's position for debugging
-                if (CoinManager.Instance.ActiveCoinCount > 0 && cam != null)
+                if (CoinManager.Instance.ActiveCoinCount > 0)
                 {
                     var firstCoin = CoinManager.Instance.ActiveCoins[0];
-                    if (firstCoin != null)
+                    if (firstCoin != null && firstCoin.CoinData != null && GPSManager.Instance != null)
                     {
-                        Vector3 coinWorldPos = firstCoin.transform.position;
-                        sb.AppendLine($"<b>Coin1 World:</b> ({coinWorldPos.x:F1}, {coinWorldPos.y:F1}, {coinWorldPos.z:F1})");
+                        var playerLoc = GPSManager.Instance.CurrentLocation;
+                        var coinData = firstCoin.CoinData;
+                        
                         sb.AppendLine($"Coin1 Dist: {firstCoin.DistanceFromPlayer:F1}m");
                         
                         // ================================================================
-                        // CAMERA-RELATIVE direction (Pokémon GO style)
-                        // Transform coin position into camera's local space
+                        // COMPASS-RELATIVE direction (since AR tracking isn't working)
+                        // Use GPS bearing adjusted by compass heading - same as mini-map
                         // ================================================================
-                        Vector3 directionToCoin = coinWorldPos - cam.transform.position;
-                        Vector3 localDir = cam.transform.InverseTransformDirection(directionToCoin);
-                        
-                        // In local space: +X is right, +Y is up, +Z is forward
-                        // Using 0 threshold so direction is always clear
-                        string xDir = localDir.x > 0 ? "RIGHT" : "LEFT";
-                        string zDir = localDir.z > 0 ? "FRONT" : "BEHIND";
-                        string yDir = localDir.y > 0.5f ? "UP" : (localDir.y < -0.5f ? "DOWN" : "");
-                        string direction = $"{zDir} {xDir} {yDir}".Trim();
-                        
-                        if (string.IsNullOrEmpty(direction))
+                        if (playerLoc != null)
                         {
-                            direction = "NEAR"; // Coin is very close in all directions
+                            // Calculate GPS bearing from player to coin
+                            var coinLoc = new LocationData(coinData.latitude, coinData.longitude);
+                            float gpsBearing = (float)playerLoc.BearingTo(coinLoc);
+                            
+                            // Adjust by compass heading (so "front" = direction you're facing)
+                            float compassHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
+                            float relativeBearing = gpsBearing - compassHeading;
+                            
+                            // Normalize to -180 to 180
+                            while (relativeBearing > 180) relativeBearing -= 360;
+                            while (relativeBearing < -180) relativeBearing += 360;
+                            
+                            // Convert to direction words
+                            // 0° = directly ahead, 90° = right, 180° = behind, -90° = left
+                            string direction;
+                            if (relativeBearing >= -45 && relativeBearing <= 45)
+                                direction = "FRONT";
+                            else if (relativeBearing > 45 && relativeBearing < 135)
+                                direction = "RIGHT";
+                            else if (relativeBearing >= 135 || relativeBearing <= -135)
+                                direction = "BEHIND";
+                            else
+                                direction = "LEFT";
+                            
+                            sb.AppendLine($"<b>Look:</b> {direction}");
+                            sb.AppendLine($"<b>Bearing:</b> {relativeBearing:F0}°");
                         }
-                        sb.AppendLine($"<b>Look:</b> {direction}");
-                        
-                        // Show local direction values for debugging
-                        sb.AppendLine($"<b>Local:</b> ({localDir.x:F1}, {localDir.y:F1}, {localDir.z:F1})");
                     }
                 }
             }
@@ -928,10 +948,16 @@ namespace BlackBartsGold.Core
             // ================================================================
             CreateMiniMap(panel.transform);
             
+            // ================================================================
+            // PLACE COIN BUTTON (bottom center) - Pokémon GO style
+            // Appears when player is close to a coin, places it on AR plane
+            // ================================================================
+            CreatePlaceCoinButton(panel.transform);
+            
             // Instructions (bottom of screen)
             var instructions = CreateText(panel.transform, "Instructions", 
-                "Point camera at ground to find treasure!", 
-                new Vector2(0, -400), 24, Color.white, FontStyles.Normal);
+                "Use mini-map to navigate to coins!", 
+                new Vector2(0, -450), 24, Color.white, FontStyles.Normal);
             
             return panel;
         }
@@ -995,7 +1021,7 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void CreateMiniMap(Transform parent)
         {
-            // Container in top-right corner
+            // Container in top-right corner - DOUBLED SIZE for visibility
             var mapContainer = new GameObject("MiniMapContainer");
             mapContainer.transform.SetParent(parent, false);
             
@@ -1004,9 +1030,10 @@ namespace BlackBartsGold.Core
             containerRect.anchorMax = new Vector2(1, 1);
             containerRect.pivot = new Vector2(1, 1);
             containerRect.anchoredPosition = new Vector2(-20, -20);
-            containerRect.sizeDelta = new Vector2(220, 220);
+            containerRect.sizeDelta = new Vector2(400, 400); // DOUBLED from 220
             
             _miniMapContainer = containerRect;
+            _miniMapRadius = 180f; // DOUBLED from 100
             
             // Circular background
             var bgImage = mapContainer.AddComponent<Image>();
@@ -1019,7 +1046,7 @@ namespace BlackBartsGold.Core
             var ringRect = rangeRing.AddComponent<RectTransform>();
             ringRect.anchorMin = new Vector2(0.5f, 0.5f);
             ringRect.anchorMax = new Vector2(0.5f, 0.5f);
-            ringRect.sizeDelta = new Vector2(200, 200);
+            ringRect.sizeDelta = new Vector2(360, 360); // DOUBLED from 200
             var ringImage = rangeRing.AddComponent<Image>();
             ringImage.color = new Color(1, 1, 1, 0.2f);
             ringImage.raycastTarget = false;
@@ -1030,45 +1057,45 @@ namespace BlackBartsGold.Core
             var innerRect = innerRing.AddComponent<RectTransform>();
             innerRect.anchorMin = new Vector2(0.5f, 0.5f);
             innerRect.anchorMax = new Vector2(0.5f, 0.5f);
-            innerRect.sizeDelta = new Vector2(100, 100);
+            innerRect.sizeDelta = new Vector2(180, 180); // DOUBLED from 100
             var innerImage = innerRing.AddComponent<Image>();
             innerImage.color = new Color(1, 1, 1, 0.15f);
             innerImage.raycastTarget = false;
             
-            // Player dot (center, blue)
+            // Player dot (center, blue) - DOUBLED SIZE
             var playerDot = new GameObject("PlayerDot");
             playerDot.transform.SetParent(mapContainer.transform, false);
             var playerRect = playerDot.AddComponent<RectTransform>();
             playerRect.anchorMin = new Vector2(0.5f, 0.5f);
             playerRect.anchorMax = new Vector2(0.5f, 0.5f);
-            playerRect.sizeDelta = new Vector2(16, 16);
+            playerRect.sizeDelta = new Vector2(28, 28); // DOUBLED from 16
             var playerImage = playerDot.AddComponent<Image>();
             playerImage.color = new Color(0.2f, 0.6f, 1f); // Blue
             playerImage.raycastTarget = false;
             _playerDot = playerRect;
             
-            // Direction indicator (triangle showing where you're facing)
+            // Direction indicator (triangle showing where you're facing) - DOUBLED
             var dirIndicator = new GameObject("DirectionIndicator");
             dirIndicator.transform.SetParent(playerDot.transform, false);
             var dirRect = dirIndicator.AddComponent<RectTransform>();
-            dirRect.anchoredPosition = new Vector2(0, 12);
-            dirRect.sizeDelta = new Vector2(10, 10);
+            dirRect.anchoredPosition = new Vector2(0, 20); // DOUBLED from 12
+            dirRect.sizeDelta = new Vector2(16, 16); // DOUBLED from 10
             var dirImage = dirIndicator.AddComponent<Image>();
             dirImage.color = new Color(0.2f, 0.6f, 1f);
             dirImage.raycastTarget = false;
             
-            // Title
+            // Title - BIGGER
             var title = CreateText(mapContainer.transform, "MapTitle", "RADAR 50m", 
-                Vector2.zero, 18, Color.white, FontStyles.Bold);
+                Vector2.zero, 28, Color.white, FontStyles.Bold); // BIGGER font
             var titleRect = title.GetComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0.5f, 1);
             titleRect.anchorMax = new Vector2(0.5f, 1);
             titleRect.pivot = new Vector2(0.5f, 1);
-            titleRect.anchoredPosition = new Vector2(0, -5);
+            titleRect.anchoredPosition = new Vector2(0, -8);
             
-            // North indicator
+            // North indicator - BIGGER
             var northLabel = CreateText(mapContainer.transform, "NorthLabel", "N", 
-                Vector2.zero, 16, Color.white, FontStyles.Bold);
+                Vector2.zero, 24, Color.white, FontStyles.Bold); // BIGGER font
             var northRect = northLabel.GetComponent<RectTransform>();
             northRect.anchorMin = new Vector2(0.5f, 1);
             northRect.anchorMax = new Vector2(0.5f, 1);
@@ -1131,7 +1158,7 @@ namespace BlackBartsGold.Core
                     dot = dotObj.AddComponent<RectTransform>();
                     dot.anchorMin = new Vector2(0.5f, 0.5f);
                     dot.anchorMax = new Vector2(0.5f, 0.5f);
-                    dot.sizeDelta = new Vector2(14, 14);
+                    dot.sizeDelta = new Vector2(24, 24); // BIGGER dots
                     var dotImage = dotObj.AddComponent<Image>();
                     dotImage.color = GoldColor;
                     dotImage.raycastTarget = false;
@@ -1182,6 +1209,150 @@ namespace BlackBartsGold.Core
                 if (dot != null)
                     Destroy(dot.gameObject);
                 _coinDots.Remove(coinId);
+            }
+        }
+        
+        /// <summary>
+        /// Create the "Place Coin in AR" button (Pokémon GO style)
+        /// </summary>
+        private void CreatePlaceCoinButton(Transform parent)
+        {
+            // Button container at bottom center
+            var buttonObj = new GameObject("PlaceCoinButton");
+            buttonObj.transform.SetParent(parent, false);
+            
+            var buttonRect = buttonObj.AddComponent<RectTransform>();
+            buttonRect.anchorMin = new Vector2(0.5f, 0);
+            buttonRect.anchorMax = new Vector2(0.5f, 0);
+            buttonRect.pivot = new Vector2(0.5f, 0);
+            buttonRect.anchoredPosition = new Vector2(0, 520); // Above instructions
+            buttonRect.sizeDelta = new Vector2(350, 80);
+            
+            // Button background
+            var bgImage = buttonObj.AddComponent<Image>();
+            bgImage.color = new Color(0.2f, 0.7f, 0.3f, 0.9f); // Green
+            
+            // Make it clickable
+            var button = buttonObj.AddComponent<UnityEngine.UI.Button>();
+            button.onClick.AddListener(OnPlaceCoinButtonClicked);
+            
+            // Button text
+            var textObj = new GameObject("ButtonText");
+            textObj.transform.SetParent(buttonObj.transform, false);
+            var textRect = textObj.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.sizeDelta = Vector2.zero;
+            
+            var tmpText = textObj.AddComponent<TextMeshProUGUI>();
+            tmpText.text = "PLACE COIN IN AR";
+            tmpText.fontSize = 32;
+            tmpText.color = Color.white;
+            tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.fontStyle = FontStyles.Bold;
+            
+            _placeCoinButton = buttonObj;
+            _placeCoinButtonText = tmpText;
+            
+            // Start hidden
+            buttonObj.SetActive(false);
+            
+            Debug.Log("[UIManager] Place Coin button created");
+        }
+        
+        /// <summary>
+        /// Handle Place Coin button click
+        /// </summary>
+        private void OnPlaceCoinButtonClicked()
+        {
+            if (_coinToPlace == null)
+            {
+                Debug.LogWarning("[UIManager] No coin to place!");
+                return;
+            }
+            
+            Debug.Log($"[UIManager] Placing coin {_coinToPlace.id} in AR...");
+            
+            // Use proper AR anchor system
+            var placer = ARCoinPlacer.Instance;
+            if (placer != null)
+            {
+                var placed = placer.PlaceCoinInAR(_coinToPlace);
+                if (placed != null)
+                {
+                    Debug.Log($"[UIManager] ✅ Coin placed successfully!");
+                    // Hide button after placing
+                    _placeCoinButton?.SetActive(false);
+                    _coinToPlace = null;
+                }
+                else
+                {
+                    Debug.LogWarning("[UIManager] Failed to place coin - point camera at ground!");
+                    _placeCoinButtonText.text = "POINT AT GROUND!";
+                }
+            }
+            else
+            {
+                Debug.LogError("[UIManager] ARCoinPlacer not found!");
+            }
+        }
+        
+        /// <summary>
+        /// Update the Place Coin button visibility based on proximity
+        /// </summary>
+        private void UpdatePlaceCoinButton()
+        {
+            if (_placeCoinButton == null) return;
+            if (GPSManager.Instance == null || CoinManager.Instance == null) return;
+            
+            var playerLoc = GPSManager.Instance.CurrentLocation;
+            if (playerLoc == null)
+            {
+                _placeCoinButton.SetActive(false);
+                return;
+            }
+            
+            // Find closest coin within placement range
+            Coin closestCoin = null;
+            float closestDist = 20f; // Max placement distance
+            
+            foreach (var controller in CoinManager.Instance.ActiveCoins)
+            {
+                if (controller?.CoinData == null) continue;
+                
+                var coin = controller.CoinData;
+                
+                // Skip if already placed in AR
+                if (ARCoinPlacer.Instance != null && ARCoinPlacer.Instance.IsCoinPlaced(coin.id))
+                    continue;
+                
+                float distance = (float)playerLoc.DistanceTo(new LocationData(coin.latitude, coin.longitude));
+                
+                if (distance < closestDist)
+                {
+                    closestDist = distance;
+                    closestCoin = coin;
+                }
+            }
+            
+            // Show/hide button based on proximity
+            if (closestCoin != null)
+            {
+                _coinToPlace = closestCoin;
+                _placeCoinButton.SetActive(true);
+                _placeCoinButtonText.text = $"PLACE COIN ({closestDist:F0}m away)";
+                
+                // Change color based on distance
+                var bgImage = _placeCoinButton.GetComponent<Image>();
+                if (closestDist < 10f)
+                    bgImage.color = new Color(0.2f, 0.8f, 0.3f, 0.9f); // Bright green - close!
+                else
+                    bgImage.color = new Color(0.8f, 0.6f, 0.2f, 0.9f); // Orange - getting closer
+            }
+            else
+            {
+                _placeCoinButton.SetActive(false);
+                _coinToPlace = null;
             }
         }
         

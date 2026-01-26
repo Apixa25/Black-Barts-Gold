@@ -216,6 +216,11 @@ namespace BlackBartsGold.AR
         private Vector3 collectStartPos;
         private float collectTimer = 0f;
         
+        // Compass-based positioning - DISABLED! Using proper AR anchors instead
+        // See ARCoinPlacer.cs for the correct Pokémon GO style implementation
+        private bool _useCompassPositioning = false; // DISABLED
+        private float _coinDisplayDistance = 5f;
+        
         #endregion
         
         #region Unity Lifecycle
@@ -303,6 +308,16 @@ namespace BlackBartsGold.AR
                 }
             }
             
+            // ================================================================
+            // COMPASS-BASED POSITIONING (workaround for broken AR tracking)
+            // Since AR tracking isn't working, position coins relative to
+            // compass heading so they appear in the correct direction
+            // ================================================================
+            if (_useCompassPositioning)
+            {
+                UpdateCompassPosition();
+            }
+            
             // Spin animation
             UpdateSpinAnimation();
             
@@ -314,6 +329,53 @@ namespace BlackBartsGold.AR
             
             // Update distance from player
             UpdateDistanceFromPlayer();
+        }
+        
+        /// <summary>
+        /// Position coin based on GPS bearing and compass heading.
+        /// This is a workaround for when AR tracking isn't working.
+        /// </summary>
+        private void UpdateCompassPosition()
+        {
+            if (CoinData == null || cameraTransform == null) return;
+            
+            // Get player's GPS location
+            var gpsManager = BlackBartsGold.Location.GPSManager.Instance;
+            if (gpsManager == null || gpsManager.CurrentLocation == null) return;
+            
+            var playerLoc = gpsManager.CurrentLocation;
+            var coinLoc = new LocationData(CoinData.latitude, CoinData.longitude);
+            
+            // Calculate GPS bearing from player to coin (0° = North, 90° = East)
+            float gpsBearing = (float)playerLoc.BearingTo(coinLoc);
+            
+            // Get current compass heading (direction player is facing)
+            float compassHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
+            
+            // Calculate relative bearing (how far off from where player is looking)
+            // 0° = directly ahead, 90° = to the right, 180° = behind
+            float relativeBearing = gpsBearing - compassHeading;
+            
+            // Calculate actual GPS distance
+            float gpsDistance = (float)playerLoc.DistanceTo(coinLoc);
+            
+            // Clamp display distance (don't render too far or too close)
+            float displayDistance = Mathf.Clamp(gpsDistance, 2f, 10f);
+            
+            // Convert bearing to position in front of camera
+            float bearingRad = relativeBearing * Mathf.Deg2Rad;
+            
+            // Calculate position relative to camera
+            // In Unity: +X is right, +Z is forward
+            float x = Mathf.Sin(bearingRad) * displayDistance;
+            float z = Mathf.Cos(bearingRad) * displayDistance;
+            float y = 0f; // Eye level relative to camera
+            
+            // Position coin relative to camera
+            Vector3 newPosition = cameraTransform.position + new Vector3(x, y, z);
+            
+            // Smoothly move to new position to reduce jitter
+            transform.position = Vector3.Lerp(transform.position, newPosition, Time.deltaTime * 5f);
         }
         
         #endregion
