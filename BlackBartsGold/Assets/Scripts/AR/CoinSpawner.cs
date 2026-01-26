@@ -173,6 +173,13 @@ namespace BlackBartsGold.AR
         /// </summary>
         private System.Collections.IEnumerator CaptureInitialCompassHeading()
         {
+            // ================================================================
+            // POKÉMON GO PATTERN: Clear positioned coins at start of AR session
+            // Each AR session gets fresh coin positioning based on new compass heading
+            // ================================================================
+            coinARPositions.Clear();
+            Debug.Log("[CoinSpawner] 🧹 Cleared positioned coins for new AR session");
+            
             // Wait for compass to stabilize
             yield return new WaitForSeconds(0.5f);
             
@@ -205,16 +212,28 @@ namespace BlackBartsGold.AR
             PlayerLocation = location.Clone();
             IsTrackingGPS = true;
             
-            // Check if we've moved enough to warrant recalculation
-            if (ShouldRecalculatePositions())
+            // ================================================================
+            // POKÉMON GO PATTERN: Do NOT recalculate existing coin positions!
+            // Coins are positioned ONCE when spawned, then stay fixed in world space.
+            // AR tracking handles camera movement - we don't need to reposition coins.
+            // GPS is only used to determine WHICH coins to spawn, not WHERE they appear.
+            // ================================================================
+            
+            // Only update the last location for spawn distance calculations
+            if (LastUpdateLocation == null)
             {
-                RecalculateAllCoinPositions();
+                LastUpdateLocation = location.Clone();
             }
         }
         
         private void Update()
         {
-            // Periodic position updates (fallback for when not using GPSManager events)
+            // ================================================================
+            // POKÉMON GO PATTERN: No continuous position recalculation!
+            // Coins stay fixed in world space once spawned.
+            // ================================================================
+            
+            // Periodic updates only for GPS fallback (when GPSManager isn't available)
             if (Time.time - lastUpdateTime >= updateInterval)
             {
                 lastUpdateTime = Time.time;
@@ -225,11 +244,8 @@ namespace BlackBartsGold.AR
                     UpdatePlayerLocation();
                 }
                 
-                // Check if we've moved enough to warrant recalculation
-                if (ShouldRecalculatePositions())
-                {
-                    RecalculateAllCoinPositions();
-                }
+                // NOTE: We intentionally do NOT recalculate coin positions here.
+                // Coins are positioned once when spawned and stay in world space.
             }
         }
         
@@ -372,7 +388,8 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Recalculate AR positions for all active coins
+        /// Position coins that haven't been positioned yet.
+        /// POKÉMON GO PATTERN: Coins are positioned ONCE when spawned, then stay fixed in world space.
         /// </summary>
         public void RecalculateAllCoinPositions()
         {
@@ -381,36 +398,53 @@ namespace BlackBartsGold.AR
             
             if (PlayerLocation == null)
             {
-                Debug.LogWarning("[CoinSpawner] ⚠️ Cannot recalculate - PlayerLocation is NULL!");
+                Debug.LogWarning("[CoinSpawner] ⚠️ Cannot position - PlayerLocation is NULL!");
                 return;
             }
             
             if (CoinManager.Instance == null)
             {
-                Debug.LogWarning("[CoinSpawner] ⚠️ Cannot recalculate - CoinManager.Instance is NULL!");
+                Debug.LogWarning("[CoinSpawner] ⚠️ Cannot position - CoinManager.Instance is NULL!");
                 return;
             }
             
-            Debug.Log($"[CoinSpawner] Active coins to position: {CoinManager.Instance.ActiveCoinCount}");
+            Debug.Log($"[CoinSpawner] Active coins: {CoinManager.Instance.ActiveCoinCount}, Already positioned: {coinARPositions.Count}");
             
             LastUpdateLocation = PlayerLocation.Clone();
             
             int positionedCount = 0;
+            int skippedCount = 0;
+            
             foreach (var coin in CoinManager.Instance.ActiveCoins)
             {
-                if (coin != null)
+                if (coin != null && coin.CoinId != null)
                 {
-                    Debug.Log($"[CoinSpawner] Positioning coin: {coin.CoinId}");
+                    // ================================================================
+                    // POKÉMON GO PATTERN: Only position coins ONCE!
+                    // If this coin has already been positioned, skip it.
+                    // This keeps coins fixed in world space.
+                    // ================================================================
+                    if (coinARPositions.ContainsKey(coin.CoinId))
+                    {
+                        Debug.Log($"[CoinSpawner] ⏭️ Skipping already-positioned coin: {coin.CoinId}");
+                        skippedCount++;
+                        continue;
+                    }
+                    
+                    Debug.Log($"[CoinSpawner] 🆕 Positioning NEW coin: {coin.CoinId}");
                     Debug.Log($"[CoinSpawner]   Coin GPS: ({coin.CoinData?.latitude:F6}, {coin.CoinData?.longitude:F6})");
                     
                     UpdateCoinPosition(coin);
                     
-                    Debug.Log($"[CoinSpawner]   Final AR position: {coin.transform.position}");
+                    // Mark this coin as positioned so we don't move it again
+                    coinARPositions[coin.CoinId] = coin.transform.position;
+                    
+                    Debug.Log($"[CoinSpawner]   ✅ Fixed at AR position: {coin.transform.position}");
                     positionedCount++;
                 }
             }
             
-            Debug.Log($"[CoinSpawner] ✅ Recalculated {positionedCount} coin positions");
+            Debug.Log($"[CoinSpawner] ✅ Positioned {positionedCount} new coins, skipped {skippedCount} existing coins");
         }
         
         /// <summary>

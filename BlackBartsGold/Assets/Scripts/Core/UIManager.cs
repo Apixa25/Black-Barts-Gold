@@ -73,6 +73,13 @@ namespace BlackBartsGold.Core
         private float _diagnosticUpdateInterval = 0.5f;
         private float _lastDiagnosticUpdate = 0f;
         
+        // Mini-map references
+        private RectTransform _miniMapContainer;
+        private RectTransform _playerDot;
+        private Dictionary<string, RectTransform> _coinDots = new Dictionary<string, RectTransform>();
+        private float _miniMapRange = 50f; // meters
+        private float _miniMapRadius = 100f; // pixels
+        
         #endregion
         
         #region Unity Lifecycle
@@ -143,6 +150,9 @@ namespace BlackBartsGold.Core
                 string diagnostics = BuildDiagnosticsString();
                 _debugDiagnosticsText.text = diagnostics;
             }
+            
+            // Update mini-map
+            UpdateMiniMap();
         }
         
         /// <summary>
@@ -182,49 +192,66 @@ namespace BlackBartsGold.Core
                 sb.AppendLine($"<b>Compass:</b> {Input.compass.trueHeading:F0}°");
             }
             
+            // Camera reference (needed for direction calculations)
+            Camera cam = Camera.main;
+            if (cam == null)
+            {
+                cam = FindFirstObjectByType<Camera>();
+            }
+            
             // Coin Manager with position info
             if (CoinManager.Instance != null)
             {
                 sb.AppendLine($"<b>Active Coins:</b> {CoinManager.Instance.ActiveCoinCount}");
                 
                 // Show first coin's position for debugging
-                if (CoinManager.Instance.ActiveCoinCount > 0)
+                if (CoinManager.Instance.ActiveCoinCount > 0 && cam != null)
                 {
                     var firstCoin = CoinManager.Instance.ActiveCoins[0];
                     if (firstCoin != null)
                     {
-                        Vector3 pos = firstCoin.transform.position;
-                        sb.AppendLine($"<b>Coin1 Pos:</b> ({pos.x:F1}, {pos.y:F1}, {pos.z:F1})");
+                        Vector3 coinWorldPos = firstCoin.transform.position;
+                        sb.AppendLine($"<b>Coin1 World:</b> ({coinWorldPos.x:F1}, {coinWorldPos.y:F1}, {coinWorldPos.z:F1})");
                         sb.AppendLine($"Coin1 Dist: {firstCoin.DistanceFromPlayer:F1}m");
                         
-                        // Direction hint for finding the coin
-                        string xDir = pos.x > 1 ? "RIGHT" : (pos.x < -1 ? "LEFT" : "");
-                        string zDir = pos.z < -1 ? "BEHIND" : (pos.z > 1 ? "FRONT" : "");
-                        string yDir = pos.y > 2 ? "UP" : (pos.y < 0 ? "DOWN" : "");
+                        // ================================================================
+                        // CAMERA-RELATIVE direction (Pokémon GO style)
+                        // Transform coin position into camera's local space
+                        // ================================================================
+                        Vector3 directionToCoin = coinWorldPos - cam.transform.position;
+                        Vector3 localDir = cam.transform.InverseTransformDirection(directionToCoin);
+                        
+                        // In local space: +X is right, +Y is up, +Z is forward
+                        // Using 0 threshold so direction is always clear
+                        string xDir = localDir.x > 0 ? "RIGHT" : "LEFT";
+                        string zDir = localDir.z > 0 ? "FRONT" : "BEHIND";
+                        string yDir = localDir.y > 0.5f ? "UP" : (localDir.y < -0.5f ? "DOWN" : "");
                         string direction = $"{zDir} {xDir} {yDir}".Trim();
-                        if (!string.IsNullOrEmpty(direction))
+                        
+                        if (string.IsNullOrEmpty(direction))
                         {
-                            sb.AppendLine($"<b>Look:</b> {direction}");
+                            direction = "NEAR"; // Coin is very close in all directions
                         }
+                        sb.AppendLine($"<b>Look:</b> {direction}");
+                        
+                        // Show local direction values for debugging
+                        sb.AppendLine($"<b>Local:</b> ({localDir.x:F1}, {localDir.y:F1}, {localDir.z:F1})");
                     }
                 }
             }
             
-            // Camera position for reference
-            Camera cam = Camera.main;
-            if (cam == null)
-            {
-                // Fallback: AR cameras aren't always tagged MainCamera
-                cam = FindFirstObjectByType<Camera>();
-            }
+            // Camera position and rotation for debugging AR tracking
             if (cam != null)
             {
                 Vector3 camPos = cam.transform.position;
-                sb.AppendLine($"<b>Cam:</b> ({camPos.x:F1}, {camPos.y:F1}, {camPos.z:F1})");
+                Vector3 camRot = cam.transform.eulerAngles;
+                sb.AppendLine($"<b>Cam:</b> {cam.name}"); // WHICH camera are we using?
+                sb.AppendLine($"<b>Cam Pos:</b> ({camPos.x:F1}, {camPos.y:F1}, {camPos.z:F1})");
+                sb.AppendLine($"<b>Cam RotY:</b> {camRot.y:F0}°"); // Just Y rotation (should change when turning!)
             }
             else
             {
-                sb.AppendLine("<b>Cam:</b> <color=red>Not found!</color>");
+                sb.AppendLine("<b>Cam:</b> <color=red>NOT FOUND!</color>");
             }
             
             // Coin API Cache
@@ -895,6 +922,12 @@ namespace BlackBartsGold.Core
             // ================================================================
             CreateDebugDiagnosticsPanel(panel.transform);
             
+            // ================================================================
+            // MINI-MAP (top-right corner) - Pokémon GO style radar
+            // Shows nearby coins as dots relative to player position
+            // ================================================================
+            CreateMiniMap(panel.transform);
+            
             // Instructions (bottom of screen)
             var instructions = CreateText(panel.transform, "Instructions", 
                 "Point camera at ground to find treasure!", 
@@ -916,33 +949,33 @@ namespace BlackBartsGold.Core
             panelRect.anchorMin = new Vector2(0, 0);
             panelRect.anchorMax = new Vector2(0, 0);
             panelRect.pivot = new Vector2(0, 0);
-            panelRect.anchoredPosition = new Vector2(10, 10);
-            panelRect.sizeDelta = new Vector2(280, 180);
+            panelRect.anchoredPosition = new Vector2(20, 20);
+            panelRect.sizeDelta = new Vector2(560, 450); // DOUBLED SIZE for readability
             
             // Semi-transparent black background
             var bgImage = debugPanel.AddComponent<Image>();
-            bgImage.color = new Color(0, 0, 0, 0.7f);
+            bgImage.color = new Color(0, 0, 0, 0.8f); // Slightly more opaque
             bgImage.raycastTarget = false;
             
-            // Title
+            // Title - DOUBLED font size
             var title = CreateText(debugPanel.transform, "DebugTitle", "🔧 DEBUG INFO", 
-                Vector2.zero, 16, GoldColor, FontStyles.Bold);
+                Vector2.zero, 32, GoldColor, FontStyles.Bold);
             var titleRect = title.GetComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0, 1);
             titleRect.anchorMax = new Vector2(1, 1);
             titleRect.pivot = new Vector2(0.5f, 1);
-            titleRect.anchoredPosition = new Vector2(0, -5);
-            titleRect.sizeDelta = new Vector2(0, 25);
+            titleRect.anchoredPosition = new Vector2(0, -10);
+            titleRect.sizeDelta = new Vector2(0, 45);
             
-            // Diagnostic text (dynamically updated)
+            // Diagnostic text (dynamically updated) - DOUBLED font size
             var diagText = CreateText(debugPanel.transform, "DiagnosticsText", 
-                "Loading...", Vector2.zero, 14, Color.white, FontStyles.Normal);
+                "Loading...", Vector2.zero, 26, Color.white, FontStyles.Normal);
             var diagRect = diagText.GetComponent<RectTransform>();
             diagRect.anchorMin = new Vector2(0, 0);
             diagRect.anchorMax = new Vector2(1, 1);
             diagRect.pivot = new Vector2(0, 1);
-            diagRect.anchoredPosition = new Vector2(10, -30);
-            diagRect.sizeDelta = new Vector2(-20, -40);
+            diagRect.anchoredPosition = new Vector2(15, -55);
+            diagRect.sizeDelta = new Vector2(-30, -70);
             
             // Configure text settings
             var tmpText = diagText.GetComponent<TextMeshProUGUI>();
@@ -955,6 +988,201 @@ namespace BlackBartsGold.Core
             
             // Store reference for updates
             _debugDiagnosticsText = tmpText;
+        }
+        
+        /// <summary>
+        /// Create mini-map showing nearby coins (Pokémon GO style radar)
+        /// </summary>
+        private void CreateMiniMap(Transform parent)
+        {
+            // Container in top-right corner
+            var mapContainer = new GameObject("MiniMapContainer");
+            mapContainer.transform.SetParent(parent, false);
+            
+            var containerRect = mapContainer.AddComponent<RectTransform>();
+            containerRect.anchorMin = new Vector2(1, 1); // Top-right
+            containerRect.anchorMax = new Vector2(1, 1);
+            containerRect.pivot = new Vector2(1, 1);
+            containerRect.anchoredPosition = new Vector2(-20, -20);
+            containerRect.sizeDelta = new Vector2(220, 220);
+            
+            _miniMapContainer = containerRect;
+            
+            // Circular background
+            var bgImage = mapContainer.AddComponent<Image>();
+            bgImage.color = new Color(0, 0, 0, 0.7f);
+            bgImage.raycastTarget = false;
+            
+            // Range ring (50m indicator)
+            var rangeRing = new GameObject("RangeRing");
+            rangeRing.transform.SetParent(mapContainer.transform, false);
+            var ringRect = rangeRing.AddComponent<RectTransform>();
+            ringRect.anchorMin = new Vector2(0.5f, 0.5f);
+            ringRect.anchorMax = new Vector2(0.5f, 0.5f);
+            ringRect.sizeDelta = new Vector2(200, 200);
+            var ringImage = rangeRing.AddComponent<Image>();
+            ringImage.color = new Color(1, 1, 1, 0.2f);
+            ringImage.raycastTarget = false;
+            
+            // Inner range ring (25m)
+            var innerRing = new GameObject("InnerRing");
+            innerRing.transform.SetParent(mapContainer.transform, false);
+            var innerRect = innerRing.AddComponent<RectTransform>();
+            innerRect.anchorMin = new Vector2(0.5f, 0.5f);
+            innerRect.anchorMax = new Vector2(0.5f, 0.5f);
+            innerRect.sizeDelta = new Vector2(100, 100);
+            var innerImage = innerRing.AddComponent<Image>();
+            innerImage.color = new Color(1, 1, 1, 0.15f);
+            innerImage.raycastTarget = false;
+            
+            // Player dot (center, blue)
+            var playerDot = new GameObject("PlayerDot");
+            playerDot.transform.SetParent(mapContainer.transform, false);
+            var playerRect = playerDot.AddComponent<RectTransform>();
+            playerRect.anchorMin = new Vector2(0.5f, 0.5f);
+            playerRect.anchorMax = new Vector2(0.5f, 0.5f);
+            playerRect.sizeDelta = new Vector2(16, 16);
+            var playerImage = playerDot.AddComponent<Image>();
+            playerImage.color = new Color(0.2f, 0.6f, 1f); // Blue
+            playerImage.raycastTarget = false;
+            _playerDot = playerRect;
+            
+            // Direction indicator (triangle showing where you're facing)
+            var dirIndicator = new GameObject("DirectionIndicator");
+            dirIndicator.transform.SetParent(playerDot.transform, false);
+            var dirRect = dirIndicator.AddComponent<RectTransform>();
+            dirRect.anchoredPosition = new Vector2(0, 12);
+            dirRect.sizeDelta = new Vector2(10, 10);
+            var dirImage = dirIndicator.AddComponent<Image>();
+            dirImage.color = new Color(0.2f, 0.6f, 1f);
+            dirImage.raycastTarget = false;
+            
+            // Title
+            var title = CreateText(mapContainer.transform, "MapTitle", "RADAR 50m", 
+                Vector2.zero, 18, Color.white, FontStyles.Bold);
+            var titleRect = title.GetComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0.5f, 1);
+            titleRect.anchorMax = new Vector2(0.5f, 1);
+            titleRect.pivot = new Vector2(0.5f, 1);
+            titleRect.anchoredPosition = new Vector2(0, -5);
+            
+            // North indicator
+            var northLabel = CreateText(mapContainer.transform, "NorthLabel", "N", 
+                Vector2.zero, 16, Color.white, FontStyles.Bold);
+            var northRect = northLabel.GetComponent<RectTransform>();
+            northRect.anchorMin = new Vector2(0.5f, 1);
+            northRect.anchorMax = new Vector2(0.5f, 1);
+            northRect.pivot = new Vector2(0.5f, 0.5f);
+            northRect.anchoredPosition = new Vector2(0, -25);
+            
+            Debug.Log("[UIManager] 🗺️ Mini-map created!");
+        }
+        
+        /// <summary>
+        /// Update mini-map with coin positions
+        /// </summary>
+        private void UpdateMiniMap()
+        {
+            if (_miniMapContainer == null) return;
+            if (GPSManager.Instance == null || !GPSManager.Instance.IsTracking) return;
+            if (CoinManager.Instance == null) return;
+            
+            var playerLoc = GPSManager.Instance.CurrentLocation;
+            if (playerLoc == null) return;
+            
+            float currentHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
+            
+            // Track which coins we've updated
+            HashSet<string> updatedCoins = new HashSet<string>();
+            
+            foreach (var controller in CoinManager.Instance.ActiveCoins)
+            {
+                if (controller?.CoinData == null) continue;
+                
+                var coin = controller.CoinData;
+                
+                // Calculate distance and bearing
+                float distance = (float)playerLoc.DistanceTo(new LocationData(coin.latitude, coin.longitude));
+                float bearing = (float)playerLoc.BearingTo(new LocationData(coin.latitude, coin.longitude));
+                
+                // Skip if out of range
+                if (distance > _miniMapRange)
+                {
+                    RemoveMiniMapDot(coin.id);
+                    continue;
+                }
+                
+                // Adjust bearing for compass heading (so "up" on map = direction you're facing)
+                float adjustedBearing = bearing - currentHeading;
+                float bearingRad = adjustedBearing * Mathf.Deg2Rad;
+                
+                // Calculate position on mini-map
+                float normalizedDist = distance / _miniMapRange;
+                float pixelDist = normalizedDist * _miniMapRadius;
+                float x = Mathf.Sin(bearingRad) * pixelDist;
+                float y = Mathf.Cos(bearingRad) * pixelDist;
+                
+                // Get or create dot
+                RectTransform dot;
+                if (!_coinDots.TryGetValue(coin.id, out dot))
+                {
+                    var dotObj = new GameObject($"CoinDot_{coin.id}");
+                    dotObj.transform.SetParent(_miniMapContainer, false);
+                    dot = dotObj.AddComponent<RectTransform>();
+                    dot.anchorMin = new Vector2(0.5f, 0.5f);
+                    dot.anchorMax = new Vector2(0.5f, 0.5f);
+                    dot.sizeDelta = new Vector2(14, 14);
+                    var dotImage = dotObj.AddComponent<Image>();
+                    dotImage.color = GoldColor;
+                    dotImage.raycastTarget = false;
+                    _coinDots[coin.id] = dot;
+                }
+                
+                // Update position
+                dot.anchoredPosition = new Vector2(x, y);
+                dot.gameObject.SetActive(true);
+                
+                // Color based on state
+                var img = dot.GetComponent<Image>();
+                if (img != null)
+                {
+                    if (controller.IsInRange)
+                        img.color = new Color(0.29f, 0.87f, 0.5f); // Green - in range!
+                    else
+                        img.color = GoldColor; // Gold
+                }
+                
+                // Scale based on distance (closer = bigger)
+                float scale = Mathf.Lerp(1.5f, 0.7f, normalizedDist);
+                dot.localScale = Vector3.one * scale;
+                
+                updatedCoins.Add(coin.id);
+            }
+            
+            // Remove dots for coins no longer active
+            var toRemove = new List<string>();
+            foreach (var id in _coinDots.Keys)
+            {
+                if (!updatedCoins.Contains(id))
+                    toRemove.Add(id);
+            }
+            foreach (var id in toRemove)
+            {
+                RemoveMiniMapDot(id);
+            }
+        }
+        
+        /// <summary>
+        /// Remove a coin dot from mini-map
+        /// </summary>
+        private void RemoveMiniMapDot(string coinId)
+        {
+            if (_coinDots.TryGetValue(coinId, out var dot))
+            {
+                if (dot != null)
+                    Destroy(dot.gameObject);
+                _coinDots.Remove(coinId);
+            }
         }
         
         /// <summary>
