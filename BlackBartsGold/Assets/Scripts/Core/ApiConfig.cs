@@ -165,28 +165,50 @@ namespace BlackBartsGold.Core
         /// </summary>
         private static void LoadSavedEnvironment()
         {
+            // ================================================================
+            // CRITICAL FIX: Device builds ALWAYS use Production mode
+            // This ensures the Prize-Finder APK connects to the real admin 
+            // dashboard at https://admin.blackbartsgold.com/api/v1
+            // ================================================================
+            
+            #if UNITY_EDITOR
+            // In Editor: Allow PlayerPrefs override for testing different environments
             if (PlayerPrefs.HasKey(ENVIRONMENT_KEY))
             {
                 _currentEnvironment = (ApiEnvironment)PlayerPrefs.GetInt(ENVIRONMENT_KEY);
             }
             else
             {
-                // Default based on build type
-                #if UNITY_EDITOR
                 _currentEnvironment = ApiEnvironment.Mock; // Mock in Editor for testing
-                #else
-                _currentEnvironment = ApiEnvironment.Production; // Production on device builds
-                #endif
             }
+            #else
+            // On Device: ALWAYS use Production mode - ignore any saved PlayerPrefs
+            // This fixes the bug where Mock mode could get "stuck" on device builds
+            _currentEnvironment = ApiEnvironment.Production;
             
-            // Load custom dev server URL if saved
+            // Clear any stale environment override from previous test builds
+            if (PlayerPrefs.HasKey(ENVIRONMENT_KEY))
+            {
+                PlayerPrefs.DeleteKey(ENVIRONMENT_KEY);
+                PlayerPrefs.Save();
+            }
+            #endif
+            
+            // Load custom dev server URL if saved (only relevant for Development mode)
             if (PlayerPrefs.HasKey("dev_server_url"))
             {
                 _customDevUrl = PlayerPrefs.GetString("dev_server_url");
                 Debug.Log($"[ApiConfig] Loaded custom dev URL: {_customDevUrl}");
             }
             
-            Debug.Log($"[ApiConfig] Initialized with environment: {_currentEnvironment}");
+            // Log the configuration prominently at startup
+            Debug.Log("═══════════════════════════════════════════════════════════════");
+            Debug.Log($"[ApiConfig] 🌐 API CONFIGURATION");
+            Debug.Log($"[ApiConfig]   Environment: {_currentEnvironment}");
+            Debug.Log($"[ApiConfig]   Use Mock API: {UseMockApi}");
+            Debug.Log($"[ApiConfig]   Base URL: {GetBaseUrl()}");
+            Debug.Log($"[ApiConfig]   Platform: {Application.platform}");
+            Debug.Log("═══════════════════════════════════════════════════════════════");
         }
         
         #endregion
