@@ -75,8 +75,8 @@ namespace BlackBartsGold.Location
         private float maxLocationAge = 30f;
         
         [SerializeField]
-        [Tooltip("Minimum accuracy to accept (meters) - higher values are more lenient")]
-        private float minAcceptableAccuracy = 200f; // Relaxed from 50m to work indoors/poor GPS
+        [Tooltip("Minimum accuracy to accept for displaying coins (meters) - higher values are more lenient")]
+        private float minAcceptableAccuracy = 200f; // Lenient for display; collection requires better accuracy (see CoinController)
         
         [Header("Timeout Settings")]
         [SerializeField]

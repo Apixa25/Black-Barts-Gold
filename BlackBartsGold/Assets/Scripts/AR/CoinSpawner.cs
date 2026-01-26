@@ -12,6 +12,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
+using BlackBartsGold.Location;
 
 namespace BlackBartsGold.AR
 {
@@ -53,7 +54,7 @@ namespace BlackBartsGold.AR
         [Header("Settings")]
         [SerializeField]
         [Tooltip("Maximum distance to render coins (meters)")]
-        private float maxRenderDistance = 100f;
+        private float maxRenderDistance = 500f; // Increased for better visibility during testing
         
         [SerializeField]
         [Tooltip("Height above ground for coins (meters)")]
@@ -132,19 +133,58 @@ namespace BlackBartsGold.AR
         
         private void Start()
         {
-            // Start GPS tracking
-            StartGPSTracking();
+            // Subscribe to GPSManager location updates instead of managing our own GPS
+            if (BlackBartsGold.Location.GPSManager.Instance != null)
+            {
+                BlackBartsGold.Location.GPSManager.Instance.OnLocationUpdated += OnGPSLocationUpdated;
+                Log("Subscribed to GPSManager location updates");
+                
+                // Get initial location if already available
+                var currentLocation = BlackBartsGold.Location.GPSManager.Instance.CurrentLocation;
+                if (currentLocation != null)
+                {
+                    PlayerLocation = currentLocation.Clone();
+                    LastUpdateLocation = PlayerLocation?.Clone();
+                    Log($"Got initial location from GPSManager: {PlayerLocation?.ToCoordinateString()}");
+                }
+            }
+            else
+            {
+                // Fallback to own GPS tracking if GPSManager not available
+                Log("GPSManager not found, using fallback GPS tracking");
+                StartGPSTracking();
+            }
+        }
+        
+        /// <summary>
+        /// Handle GPS location updates from GPSManager
+        /// </summary>
+        private void OnGPSLocationUpdated(LocationData location)
+        {
+            if (location == null) return;
+            
+            PlayerLocation = location.Clone();
+            IsTrackingGPS = true;
+            
+            // Check if we've moved enough to warrant recalculation
+            if (ShouldRecalculatePositions())
+            {
+                RecalculateAllCoinPositions();
+            }
         }
         
         private void Update()
         {
-            // Periodic position updates
+            // Periodic position updates (fallback for when not using GPSManager events)
             if (Time.time - lastUpdateTime >= updateInterval)
             {
                 lastUpdateTime = Time.time;
                 
-                // Get latest GPS position
-                UpdatePlayerLocation();
+                // Only use our own GPS tracking if not using GPSManager
+                if (BlackBartsGold.Location.GPSManager.Instance == null)
+                {
+                    UpdatePlayerLocation();
+                }
                 
                 // Check if we've moved enough to warrant recalculation
                 if (ShouldRecalculatePositions())
@@ -156,6 +196,12 @@ namespace BlackBartsGold.AR
         
         private void OnDestroy()
         {
+            // Unsubscribe from GPSManager events
+            if (GPSManager.Instance != null)
+            {
+                GPSManager.Instance.OnLocationUpdated -= OnGPSLocationUpdated;
+            }
+            
             StopGPSTracking();
         }
         
@@ -258,12 +304,16 @@ namespace BlackBartsGold.AR
         /// </summary>
         public void SetPlayerLocationManually(double latitude, double longitude)
         {
+            Debug.Log($"[CoinSpawner] 📍 SetPlayerLocationManually called: ({latitude:F6}, {longitude:F6})");
+            
             PlayerLocation = new LocationData(latitude, longitude);
             LastUpdateLocation = PlayerLocation.Clone();
+            IsTrackingGPS = true; // Mark as tracking since we have a location
             
-            Log($"Player location set manually: {PlayerLocation.ToCoordinateString()}");
+            Debug.Log($"[CoinSpawner] ✅ PlayerLocation set: {PlayerLocation.ToCoordinateString()}");
             
-            RecalculateAllCoinPositions();
+            // Note: We don't call RecalculateAllCoinPositions here anymore
+            // because UIManager will call it separately after setting the location
         }
         
         #endregion
@@ -287,25 +337,41 @@ namespace BlackBartsGold.AR
         /// </summary>
         public void RecalculateAllCoinPositions()
         {
+            Debug.Log($"[CoinSpawner] 🔄 RecalculateAllCoinPositions called");
+            Debug.Log($"[CoinSpawner] PlayerLocation: {(PlayerLocation != null ? $"({PlayerLocation.latitude:F6}, {PlayerLocation.longitude:F6})" : "NULL")}");
+            
             if (PlayerLocation == null)
             {
-                Log("Cannot recalculate - no player location");
+                Debug.LogWarning("[CoinSpawner] ⚠️ Cannot recalculate - PlayerLocation is NULL!");
                 return;
             }
             
             if (CoinManager.Instance == null)
             {
+                Debug.LogWarning("[CoinSpawner] ⚠️ Cannot recalculate - CoinManager.Instance is NULL!");
                 return;
             }
             
+            Debug.Log($"[CoinSpawner] Active coins to position: {CoinManager.Instance.ActiveCoinCount}");
+            
             LastUpdateLocation = PlayerLocation.Clone();
             
+            int positionedCount = 0;
             foreach (var coin in CoinManager.Instance.ActiveCoins)
             {
-                UpdateCoinPosition(coin);
+                if (coin != null)
+                {
+                    Debug.Log($"[CoinSpawner] Positioning coin: {coin.CoinId}");
+                    Debug.Log($"[CoinSpawner]   Coin GPS: ({coin.CoinData?.latitude:F6}, {coin.CoinData?.longitude:F6})");
+                    
+                    UpdateCoinPosition(coin);
+                    
+                    Debug.Log($"[CoinSpawner]   Final AR position: {coin.transform.position}");
+                    positionedCount++;
+                }
             }
             
-            Log($"Recalculated {CoinManager.Instance.ActiveCoinCount} coin positions");
+            Debug.Log($"[CoinSpawner] ✅ Recalculated {positionedCount} coin positions");
         }
         
         /// <summary>
@@ -313,8 +379,23 @@ namespace BlackBartsGold.AR
         /// </summary>
         public void UpdateCoinPosition(CoinController coin)
         {
-            if (coin == null || coin.CoinData == null) return;
-            if (PlayerLocation == null) return;
+            if (coin == null)
+            {
+                Debug.LogWarning("[CoinSpawner] UpdateCoinPosition: coin is null");
+                return;
+            }
+            
+            if (coin.CoinData == null)
+            {
+                Debug.LogWarning($"[CoinSpawner] UpdateCoinPosition: coin {coin.name} has null CoinData");
+                return;
+            }
+            
+            if (PlayerLocation == null)
+            {
+                Debug.LogWarning("[CoinSpawner] UpdateCoinPosition: PlayerLocation is null");
+                return;
+            }
             
             // Create LocationData for coin
             LocationData coinLocation = new LocationData(
@@ -324,14 +405,17 @@ namespace BlackBartsGold.AR
             
             // Check if within render distance
             float distance = PlayerLocation.DistanceTo(coinLocation);
+            Debug.Log($"[CoinSpawner]   Distance to coin: {distance:F1}m (max: {maxRenderDistance}m)");
+            
             if (distance > maxRenderDistance)
             {
-                // Too far, could despawn
+                Debug.LogWarning($"[CoinSpawner]   Coin is too far ({distance:F1}m > {maxRenderDistance}m)");
                 return;
             }
             
             // Convert GPS to AR position
             Vector3 arPosition = GpsToArPosition(coinLocation);
+            Debug.Log($"[CoinSpawner]   Calculated AR position: {arPosition}");
             
             // Apply to coin
             coin.transform.position = arPosition;
@@ -347,12 +431,15 @@ namespace BlackBartsGold.AR
         {
             if (PlayerLocation == null)
             {
+                Debug.LogWarning("[CoinSpawner] GpsToArPosition: PlayerLocation is null, returning zero");
                 return Vector3.zero;
             }
             
             // Calculate distance and bearing from player to target
             float distance = PlayerLocation.DistanceTo(targetLocation);
             float bearing = PlayerLocation.BearingTo(targetLocation);
+            
+            Debug.Log($"[CoinSpawner]   GPS conversion: distance={distance:F2}m, bearing={bearing:F1}°");
             
             // Convert bearing to radians (Unity uses radians)
             float bearingRad = bearing * Mathf.Deg2Rad;
@@ -368,9 +455,13 @@ namespace BlackBartsGold.AR
             // If we have an AR origin, offset from it
             Vector3 position = new Vector3(x, y, z);
             
+            Debug.Log($"[CoinSpawner]   Local position: ({x:F2}, {y:F2}, {z:F2}), AR Origin: {(arOrigin != null ? arOrigin.name : "NULL")}");
+            
             if (arOrigin != null)
             {
-                position = arOrigin.TransformPoint(position);
+                Vector3 worldPos = arOrigin.TransformPoint(position);
+                Debug.Log($"[CoinSpawner]   World position (transformed): {worldPos}");
+                position = worldPos;
             }
             
             return position;

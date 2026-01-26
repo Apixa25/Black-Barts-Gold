@@ -226,40 +226,40 @@ namespace BlackBartsGold.Core
             Debug.Log($"[UIManager] 🪙 Fetching coins near ({latitude:F6}, {longitude:F6})...");
             
             List<Coin> coins = null;
+            System.Exception caughtException = null;
             bool fetchComplete = false;
-            string errorMessage = null;
             
             // Call the async API method
             var fetchTask = CoinApiService.Instance.GetNearbyCoins(latitude, longitude, 500f);
             
-            // Wait for the task to complete
-            fetchTask.ContinueWith(task =>
-            {
-                if (task.IsFaulted)
-                {
-                    errorMessage = task.Exception?.InnerException?.Message ?? "Unknown error";
-                    Debug.LogError($"[UIManager] ❌ API Error: {errorMessage}");
-                }
-                else if (task.IsCompleted)
-                {
-                    coins = task.Result;
-                    Debug.Log($"[UIManager] ✅ Received {coins?.Count ?? 0} coins from API");
-                }
-                fetchComplete = true;
-            });
-            
-            // Wait for completion
+            // Poll for task completion on the main thread (Unity-safe approach)
             float timeout = 15f;
             float waitTime = 0f;
-            while (!fetchComplete && waitTime < timeout)
+            
+            while (!fetchTask.IsCompleted && waitTime < timeout)
             {
                 waitTime += 0.1f;
                 yield return new WaitForSeconds(0.1f);
             }
             
+            // Now check result on main thread
+            if (fetchTask.IsFaulted)
+            {
+                caughtException = fetchTask.Exception?.InnerException ?? fetchTask.Exception;
+                Debug.LogError($"[UIManager] ❌ API Error: {caughtException?.Message}");
+                Debug.LogError($"[UIManager] Stack trace: {caughtException?.StackTrace}");
+                yield break;
+            }
+            else if (fetchTask.IsCompleted && !fetchTask.IsCanceled)
+            {
+                coins = fetchTask.Result;
+                fetchComplete = true;
+                Debug.Log($"[UIManager] ✅ Received {coins?.Count ?? 0} coins from API");
+            }
+            
             if (!fetchComplete)
             {
-                Debug.LogError("[UIManager] ❌ API request timed out!");
+                Debug.LogError("[UIManager] ❌ API request timed out or was cancelled!");
                 yield break;
             }
             
@@ -281,6 +281,19 @@ namespace BlackBartsGold.Core
                     // Immediately trigger position recalculation so coins appear at correct GPS positions
                     if (CoinSpawner.Instance != null)
                     {
+                        // CRITICAL: Set CoinSpawner's location from GPSManager before recalculating!
+                        // CoinSpawner has its own GPS tracking that may not be ready yet
+                        var gpsLocation = GPSManager.Instance.CurrentLocation ?? GPSManager.Instance.LastKnownLocation;
+                        if (gpsLocation != null)
+                        {
+                            Debug.Log($"[UIManager] 📍 Setting CoinSpawner location from GPSManager: ({gpsLocation.latitude:F6}, {gpsLocation.longitude:F6})");
+                            CoinSpawner.Instance.SetPlayerLocationManually(gpsLocation.latitude, gpsLocation.longitude);
+                        }
+                        else
+                        {
+                            Debug.LogWarning("[UIManager] ⚠️ No GPS location available for CoinSpawner!");
+                        }
+                        
                         Debug.Log("[UIManager] 📍 Triggering immediate position recalculation");
                         CoinSpawner.Instance.RecalculateAllCoinPositions();
                     }

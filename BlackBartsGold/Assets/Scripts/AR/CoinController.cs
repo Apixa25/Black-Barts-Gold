@@ -13,9 +13,28 @@ using System;
 using System.Collections;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
+using BlackBartsGold.Location;
 
 namespace BlackBartsGold.AR
 {
+    /// <summary>
+    /// GPS accuracy requirements for different operations
+    /// </summary>
+    public static class GPSAccuracyRequirements
+    {
+        /// <summary>
+        /// Maximum GPS accuracy (in meters) required to collect a coin.
+        /// This prevents players from collecting coins when GPS is inaccurate.
+        /// Lower = more strict, Higher = more lenient
+        /// </summary>
+        public const float COLLECTION_ACCURACY = 25f;
+        
+        /// <summary>
+        /// Minimum GPS accuracy to show coins on map (lenient)
+        /// </summary>
+        public const float DISPLAY_ACCURACY = 200f;
+    }
+
     // CoinVisualState is now defined in Core/Enums.cs
     /// <summary>
     /// Controls an individual coin's behavior and appearance in AR.
@@ -619,6 +638,19 @@ namespace BlackBartsGold.AR
                     Debug.Log($"[CoinController] Collection blocked - out of range: {CoinId}");
                 }
                 return false;
+            }
+            
+            // CHECK GPS ACCURACY - Prevent collection with poor GPS
+            // This prevents cheating by collecting coins when GPS is inaccurate
+            if (GPSManager.Exists && GPSManager.Instance.CurrentLocation != null)
+            {
+                float currentAccuracy = GPSManager.Instance.CurrentLocation.horizontalAccuracy;
+                if (currentAccuracy > GPSAccuracyRequirements.COLLECTION_ACCURACY)
+                {
+                    Debug.LogWarning($"[CoinController] Collection blocked - GPS accuracy too low: {currentAccuracy:F0}m (need < {GPSAccuracyRequirements.COLLECTION_ACCURACY}m)");
+                    // TODO: Show user feedback "GPS signal too weak to collect"
+                    return false;
+                }
             }
             
             // Start collection!

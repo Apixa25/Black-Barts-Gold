@@ -207,9 +207,10 @@ namespace BlackBartsGold.Core
             
             for (int i = 0; i < coinCount; i++)
             {
-                // Generate random offset (within radius)
-                float offsetLat = UnityEngine.Random.Range(-0.001f, 0.001f);
-                float offsetLng = UnityEngine.Random.Range(-0.001f, 0.001f);
+                // Generate random offset (within ~50m radius to ensure coins are visible)
+                // 0.0005 degrees ≈ 55m latitude, ~40m longitude
+                float offsetLat = UnityEngine.Random.Range(-0.0005f, 0.0005f);
+                float offsetLng = UnityEngine.Random.Range(-0.0005f, 0.0005f);
                 
                 // Random coin type and value
                 CoinType type = UnityEngine.Random.value > 0.7f ? CoinType.Pool : CoinType.Fixed;
