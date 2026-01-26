@@ -1,8 +1,11 @@
 /**
  * GET /api/v1/coins/nearby
  * 
- * Fetch coins near a GPS location for the Unity mobile app.
+ * Fetch coins near a GPS location for the Unity mobile app (Prize-Finder).
  * This is the primary endpoint for the AR treasure hunting experience.
+ * 
+ * IMPORTANT: This endpoint uses a PUBLIC Supabase client (no cookie auth)
+ * so that the Unity mobile app can access it without browser cookies.
  * 
  * Query Parameters:
  * - lat: Latitude (required)
@@ -19,7 +22,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/server'
 import { keysToCamelCase } from '@/lib/api-utils'
 
 // Type for coin data from database query
@@ -156,8 +159,8 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    // Get Supabase client
-    const supabase = await createClient()
+    // Get PUBLIC Supabase client (no cookie auth - for mobile app access)
+    const supabase = createPublicClient()
     
     // Calculate bounding box for efficient query
     const bbox = getBoundingBox(lat, lng, radius)

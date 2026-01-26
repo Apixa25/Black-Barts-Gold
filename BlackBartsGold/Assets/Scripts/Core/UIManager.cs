@@ -65,6 +65,16 @@ namespace BlackBartsGold.Core
         
         #endregion
         
+        #region Debug Diagnostic Panel
+        
+        // References for the AR diagnostic panel
+        private TextMeshProUGUI _coinCounterText;
+        private TextMeshProUGUI _debugDiagnosticsText;
+        private float _diagnosticUpdateInterval = 0.5f;
+        private float _lastDiagnosticUpdate = 0f;
+        
+        #endregion
+        
         #region Unity Lifecycle
         
         private Canvas _ourCanvas;
@@ -103,6 +113,83 @@ namespace BlackBartsGold.Core
         {
             // Show login by default
             ShowLogin();
+        }
+        
+        private void Update()
+        {
+            // Update diagnostic panel when in AR mode
+            if (isInARMode && Time.time - _lastDiagnosticUpdate >= _diagnosticUpdateInterval)
+            {
+                _lastDiagnosticUpdate = Time.time;
+                UpdateDiagnosticsPanel();
+            }
+        }
+        
+        /// <summary>
+        /// Update the AR diagnostics panel with real-time info
+        /// </summary>
+        private void UpdateDiagnosticsPanel()
+        {
+            // Update coin counter
+            if (_coinCounterText != null && CoinManager.Instance != null)
+            {
+                int activeCoins = CoinManager.Instance.ActiveCoinCount;
+                _coinCounterText.text = $"Coins: {activeCoins}";
+            }
+            
+            // Update debug diagnostics
+            if (_debugDiagnosticsText != null)
+            {
+                string diagnostics = BuildDiagnosticsString();
+                _debugDiagnosticsText.text = diagnostics;
+            }
+        }
+        
+        /// <summary>
+        /// Build the diagnostics string with current system state
+        /// </summary>
+        private string BuildDiagnosticsString()
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            
+            // API Config
+            sb.AppendLine($"<b>API:</b> {ApiConfig.CurrentEnvironment}");
+            sb.AppendLine($"Mock: {ApiConfig.UseMockApi}");
+            
+            // GPS Status
+            if (GPSManager.Instance != null)
+            {
+                var loc = GPSManager.Instance.CurrentLocation;
+                if (loc != null)
+                {
+                    sb.AppendLine($"<b>GPS:</b> {loc.latitude:F5}, {loc.longitude:F5}");
+                    sb.AppendLine($"Accuracy: {loc.horizontalAccuracy:F0}m");
+                }
+                else
+                {
+                    sb.AppendLine("<b>GPS:</b> <color=red>No location</color>");
+                }
+                sb.AppendLine($"Tracking: {GPSManager.Instance.IsTracking}");
+            }
+            else
+            {
+                sb.AppendLine("<b>GPS:</b> <color=red>Not initialized</color>");
+            }
+            
+            // Coin Manager
+            if (CoinManager.Instance != null)
+            {
+                sb.AppendLine($"<b>Active Coins:</b> {CoinManager.Instance.ActiveCoinCount}");
+            }
+            
+            // Coin API Cache
+            if (CoinApiService.Exists)
+            {
+                var cached = CoinApiService.Instance.GetCachedCoins();
+                sb.AppendLine($"<b>Cached Coins:</b> {cached.Count}");
+            }
+            
+            return sb.ToString();
         }
         
         /// <summary>
@@ -754,12 +841,75 @@ namespace BlackBartsGold.Core
             coinRect.anchoredPosition = new Vector2(-20, -50);
             coinRect.sizeDelta = new Vector2(200, 50);
             
+            // Store reference for dynamic updates
+            _coinCounterText = coinCounter.GetComponent<TextMeshProUGUI>();
+            
+            // ================================================================
+            // DEBUG DIAGNOSTIC PANEL (bottom-left)
+            // Shows GPS, API status, and coin count to help debug connection issues
+            // ================================================================
+            CreateDebugDiagnosticsPanel(panel.transform);
+            
             // Instructions (bottom of screen)
             var instructions = CreateText(panel.transform, "Instructions", 
                 "Point camera at ground to find treasure!", 
                 new Vector2(0, -400), 24, Color.white, FontStyles.Normal);
             
             return panel;
+        }
+        
+        /// <summary>
+        /// Create debug diagnostics panel showing GPS, API, and coin status
+        /// </summary>
+        private void CreateDebugDiagnosticsPanel(Transform parent)
+        {
+            // Container panel with semi-transparent background
+            var debugPanel = new GameObject("DebugDiagnosticsPanel");
+            debugPanel.transform.SetParent(parent, false);
+            
+            var panelRect = debugPanel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0, 0);
+            panelRect.anchorMax = new Vector2(0, 0);
+            panelRect.pivot = new Vector2(0, 0);
+            panelRect.anchoredPosition = new Vector2(10, 10);
+            panelRect.sizeDelta = new Vector2(280, 180);
+            
+            // Semi-transparent black background
+            var bgImage = debugPanel.AddComponent<Image>();
+            bgImage.color = new Color(0, 0, 0, 0.7f);
+            bgImage.raycastTarget = false;
+            
+            // Title
+            var title = CreateText(debugPanel.transform, "DebugTitle", "🔧 DEBUG INFO", 
+                Vector2.zero, 16, GoldColor, FontStyles.Bold);
+            var titleRect = title.GetComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0, 1);
+            titleRect.anchorMax = new Vector2(1, 1);
+            titleRect.pivot = new Vector2(0.5f, 1);
+            titleRect.anchoredPosition = new Vector2(0, -5);
+            titleRect.sizeDelta = new Vector2(0, 25);
+            
+            // Diagnostic text (dynamically updated)
+            var diagText = CreateText(debugPanel.transform, "DiagnosticsText", 
+                "Loading...", Vector2.zero, 14, Color.white, FontStyles.Normal);
+            var diagRect = diagText.GetComponent<RectTransform>();
+            diagRect.anchorMin = new Vector2(0, 0);
+            diagRect.anchorMax = new Vector2(1, 1);
+            diagRect.pivot = new Vector2(0, 1);
+            diagRect.anchoredPosition = new Vector2(10, -30);
+            diagRect.sizeDelta = new Vector2(-20, -40);
+            
+            // Configure text settings
+            var tmpText = diagText.GetComponent<TextMeshProUGUI>();
+            if (tmpText != null)
+            {
+                tmpText.alignment = TextAlignmentOptions.TopLeft;
+                tmpText.enableWordWrapping = true;
+                tmpText.richText = true;
+            }
+            
+            // Store reference for updates
+            _debugDiagnosticsText = tmpText;
         }
         
         /// <summary>
