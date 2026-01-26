@@ -273,6 +273,36 @@ namespace BlackBartsGold.AR
             
             if (IsCollected) return;
             
+            // CRITICAL FIX: Find camera if not found in Awake()
+            // This can happen if coin spawns before AR camera is ready
+            // or if AR camera isn't tagged as "MainCamera"
+            if (cameraTransform == null)
+            {
+                // Try Camera.main first
+                mainCamera = Camera.main;
+                
+                // Fallback: Find ANY camera if Camera.main is null
+                // AR Foundation cameras aren't always tagged as MainCamera
+                if (mainCamera == null)
+                {
+                    mainCamera = FindFirstObjectByType<Camera>();
+                    if (mainCamera != null)
+                    {
+                        Debug.Log($"[CoinController] ⚠️ Camera.main was null! Found fallback camera: {mainCamera.name}");
+                    }
+                }
+                
+                if (mainCamera != null)
+                {
+                    cameraTransform = mainCamera.transform;
+                    Debug.Log($"[CoinController] ✅ Found camera: {mainCamera.name} at {cameraTransform.position}");
+                }
+                else
+                {
+                    Debug.LogWarning("[CoinController] ❌ No camera found in scene!");
+                }
+            }
+            
             // Spin animation
             UpdateSpinAnimation();
             

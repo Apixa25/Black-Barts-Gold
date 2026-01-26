@@ -176,17 +176,36 @@ namespace BlackBartsGold.Core
                 sb.AppendLine("<b>GPS:</b> <color=red>Not initialized</color>");
             }
             
-            // Coin Manager
+            // Coin Manager with position info
             if (CoinManager.Instance != null)
             {
                 sb.AppendLine($"<b>Active Coins:</b> {CoinManager.Instance.ActiveCoinCount}");
+                
+                // Show first coin's position for debugging
+                if (CoinManager.Instance.ActiveCoinCount > 0)
+                {
+                    var firstCoin = CoinManager.Instance.ActiveCoins[0];
+                    if (firstCoin != null)
+                    {
+                        Vector3 pos = firstCoin.transform.position;
+                        sb.AppendLine($"<b>Coin1 Pos:</b> ({pos.x:F1}, {pos.y:F1}, {pos.z:F1})");
+                        sb.AppendLine($"Coin1 Dist: {firstCoin.DistanceFromPlayer:F1}m");
+                    }
+                }
+            }
+            
+            // Camera position for reference
+            if (Camera.main != null)
+            {
+                Vector3 camPos = Camera.main.transform.position;
+                sb.AppendLine($"<b>Cam:</b> ({camPos.x:F1}, {camPos.y:F1}, {camPos.z:F1})");
             }
             
             // Coin API Cache
             if (CoinApiService.Exists)
             {
                 var cached = CoinApiService.Instance.GetCachedCoins();
-                sb.AppendLine($"<b>Cached Coins:</b> {cached.Count}");
+                sb.AppendLine($"<b>Cached:</b> {cached.Count}");
             }
             
             return sb.ToString();
