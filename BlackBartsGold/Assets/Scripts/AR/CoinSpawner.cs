@@ -58,7 +58,7 @@ namespace BlackBartsGold.AR
         
         [SerializeField]
         [Tooltip("Height above ground for coins (meters)")]
-        private float coinHeight = 1.5f;
+        private float coinHeight = 0.5f; // Lowered for easier visibility (knee height)
         
         [SerializeField]
         [Tooltip("Update positions every X seconds")]
@@ -106,6 +106,10 @@ namespace BlackBartsGold.AR
         private float lastUpdateTime = 0f;
         private Dictionary<string, Vector3> coinARPositions = new Dictionary<string, Vector3>();
         
+        // Compass heading when AR started (for aligning AR world with real world)
+        private float _initialCompassHeading = 0f;
+        private bool _hasInitialHeading = false;
+        
         #endregion
         
         #region Unity Lifecycle
@@ -133,6 +137,13 @@ namespace BlackBartsGold.AR
         
         private void Start()
         {
+            // ================================================================
+            // COMPASS SETUP - Pokémon GO style world alignment
+            // This aligns AR coordinates with real-world compass directions
+            // ================================================================
+            Input.compass.enabled = true;
+            StartCoroutine(CaptureInitialCompassHeading());
+            
             // Subscribe to GPSManager location updates instead of managing our own GPS
             if (BlackBartsGold.Location.GPSManager.Instance != null)
             {
@@ -154,6 +165,34 @@ namespace BlackBartsGold.AR
                 Log("GPSManager not found, using fallback GPS tracking");
                 StartGPSTracking();
             }
+        }
+        
+        /// <summary>
+        /// Capture the compass heading when AR starts
+        /// This is used to align GPS bearings with the AR coordinate system
+        /// </summary>
+        private System.Collections.IEnumerator CaptureInitialCompassHeading()
+        {
+            // Wait for compass to stabilize
+            yield return new WaitForSeconds(0.5f);
+            
+            // Try to get a valid compass reading
+            for (int i = 0; i < 10; i++)
+            {
+                if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
+                {
+                    _initialCompassHeading = Input.compass.trueHeading;
+                    _hasInitialHeading = true;
+                    Debug.Log($"[CoinSpawner] 🧭 Captured initial compass heading: {_initialCompassHeading:F1}°");
+                    yield break;
+                }
+                yield return new WaitForSeconds(0.2f);
+            }
+            
+            // Fallback: use camera forward direction as "north"
+            Debug.LogWarning("[CoinSpawner] ⚠️ Compass not available, using camera forward as north");
+            _initialCompassHeading = 0f;
+            _hasInitialHeading = true;
         }
         
         /// <summary>
@@ -426,6 +465,7 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Convert GPS coordinates to AR world position
+        /// Uses compass heading to align AR world with real-world directions (Pokémon GO style)
         /// </summary>
         public Vector3 GpsToArPosition(LocationData targetLocation)
         {
@@ -437,30 +477,50 @@ namespace BlackBartsGold.AR
             
             // Calculate distance and bearing from player to target
             float distance = PlayerLocation.DistanceTo(targetLocation);
-            float bearing = PlayerLocation.BearingTo(targetLocation);
+            float gpsBearing = PlayerLocation.BearingTo(targetLocation); // 0° = North, 90° = East
             
-            Debug.Log($"[CoinSpawner]   GPS conversion: distance={distance:F2}m, bearing={bearing:F1}°");
+            // ================================================================
+            // COMPASS ALIGNMENT (Pokémon GO approach)
+            // ================================================================
+            // GPS bearing is relative to true north
+            // But AR's +Z axis points wherever the camera was facing when AR started
+            // We need to adjust the bearing by the initial compass heading
+            //
+            // Example: 
+            //   - Coin is at GPS bearing 90° (due east)
+            //   - User was facing 45° (northeast) when AR started
+            //   - Adjusted bearing = 90° - 45° = 45°
+            //   - Coin should appear 45° to the right of where user was looking
+            // ================================================================
             
-            // Convert bearing to radians (Unity uses radians)
-            float bearingRad = bearing * Mathf.Deg2Rad;
+            float adjustedBearing = gpsBearing;
+            if (_hasInitialHeading)
+            {
+                // Subtract initial heading to align GPS north with AR forward
+                adjustedBearing = gpsBearing - _initialCompassHeading;
+                Debug.Log($"[CoinSpawner]   Compass adjustment: GPS bearing {gpsBearing:F1}° - heading {_initialCompassHeading:F1}° = {adjustedBearing:F1}°");
+            }
             
-            // Calculate X (east-west) and Z (north-south) offsets
-            // Unity coordinate system: +X is right, +Z is forward (north)
+            // Convert adjusted bearing to radians
+            float bearingRad = adjustedBearing * Mathf.Deg2Rad;
+            
+            // Calculate X (left-right) and Z (forward-back) offsets
+            // In Unity: +X is right, +Z is forward
             float x = distance * Mathf.Sin(bearingRad);
             float z = distance * Mathf.Cos(bearingRad);
             
-            // Y is fixed height above ground
+            // Y is fixed height - using lower height for easier visibility
             float y = coinHeight;
             
-            // If we have an AR origin, offset from it
+            // Create position relative to AR origin (or world origin if no AR origin)
             Vector3 position = new Vector3(x, y, z);
             
-            Debug.Log($"[CoinSpawner]   Local position: ({x:F2}, {y:F2}, {z:F2}), AR Origin: {(arOrigin != null ? arOrigin.name : "NULL")}");
+            Debug.Log($"[CoinSpawner]   GPS conversion: dist={distance:F1}m, bearing={gpsBearing:F1}° → AR pos: ({x:F1}, {y:F1}, {z:F1})");
             
             if (arOrigin != null)
             {
                 Vector3 worldPos = arOrigin.TransformPoint(position);
-                Debug.Log($"[CoinSpawner]   World position (transformed): {worldPos}");
+                Debug.Log($"[CoinSpawner]   World position (via AR origin): {worldPos}");
                 position = worldPos;
             }
             

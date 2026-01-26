@@ -443,33 +443,52 @@ namespace BlackBartsGold.AR
         {
             GameObject coin = new GameObject("Coin");
             
-            // Create visual
-            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            // ================================================================
+            // DEBUG: HUGE COINS FOR VISIBILITY TESTING
+            // TODO: Reduce size once we confirm coins are visible
+            // Normal size would be: 0.3f, 0.02f, 0.3f (30cm diameter)
+            // Debug size: 2.0f, 0.1f, 2.0f (2 METER diameter - impossible to miss!)
+            // ================================================================
+            
+            // Create visual - using SPHERE for better visibility (coins can be cylinders later)
+            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             visual.name = "CoinModel";
             visual.transform.SetParent(coin.transform);
-            visual.transform.localScale = new Vector3(0.3f, 0.02f, 0.3f);
-            visual.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            visual.transform.localScale = new Vector3(2.0f, 2.0f, 2.0f); // 2 METER SPHERE!
             
-            // Gold material
+            // Use UNLIT shader for mobile compatibility (Standard shader can fail on mobile)
             MeshRenderer renderer = visual.GetComponent<MeshRenderer>();
             if (renderer != null)
             {
-                renderer.material = new Material(Shader.Find("Standard"));
-                renderer.material.color = new Color(1f, 0.84f, 0f); // Gold
-                renderer.material.SetFloat("_Metallic", 0.8f);
-                renderer.material.SetFloat("_Smoothness", 0.7f);
+                // Try mobile-friendly unlit shader first
+                Shader unlitShader = Shader.Find("Unlit/Color");
+                if (unlitShader == null)
+                {
+                    unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+                }
+                if (unlitShader == null)
+                {
+                    unlitShader = Shader.Find("Standard"); // Fallback
+                }
+                
+                renderer.material = new Material(unlitShader);
+                renderer.material.color = new Color(1f, 0.84f, 0f); // Bright Gold
+                
+                Debug.Log($"[CoinManager] Created coin with shader: {renderer.material.shader.name}");
             }
             
-            // Remove collider from visual
+            // Remove collider from visual (we'll add our own)
             Collider visualCol = visual.GetComponent<Collider>();
             if (visualCol != null) Destroy(visualCol);
             
-            // Add sphere collider to parent
+            // Add sphere collider to parent (larger for easier tapping)
             SphereCollider col = coin.AddComponent<SphereCollider>();
-            col.radius = 0.2f;
+            col.radius = 1.5f; // Large collider for 2m sphere
             
             // Add CoinController
             coin.AddComponent<CoinController>();
+            
+            Debug.Log("[CoinManager] 🪙 Created DEBUG coin: 2 METER GOLD SPHERE");
             
             return coin;
         }

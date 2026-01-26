@@ -190,15 +190,35 @@ namespace BlackBartsGold.Core
                         Vector3 pos = firstCoin.transform.position;
                         sb.AppendLine($"<b>Coin1 Pos:</b> ({pos.x:F1}, {pos.y:F1}, {pos.z:F1})");
                         sb.AppendLine($"Coin1 Dist: {firstCoin.DistanceFromPlayer:F1}m");
+                        
+                        // Direction hint for finding the coin
+                        string xDir = pos.x > 1 ? "RIGHT" : (pos.x < -1 ? "LEFT" : "");
+                        string zDir = pos.z < -1 ? "BEHIND" : (pos.z > 1 ? "FRONT" : "");
+                        string yDir = pos.y > 2 ? "UP" : (pos.y < 0 ? "DOWN" : "");
+                        string direction = $"{zDir} {xDir} {yDir}".Trim();
+                        if (!string.IsNullOrEmpty(direction))
+                        {
+                            sb.AppendLine($"<b>Look:</b> {direction}");
+                        }
                     }
                 }
             }
             
             // Camera position for reference
-            if (Camera.main != null)
+            Camera cam = Camera.main;
+            if (cam == null)
             {
-                Vector3 camPos = Camera.main.transform.position;
+                // Fallback: AR cameras aren't always tagged MainCamera
+                cam = FindFirstObjectByType<Camera>();
+            }
+            if (cam != null)
+            {
+                Vector3 camPos = cam.transform.position;
                 sb.AppendLine($"<b>Cam:</b> ({camPos.x:F1}, {camPos.y:F1}, {camPos.z:F1})");
+            }
+            else
+            {
+                sb.AppendLine("<b>Cam:</b> <color=red>Not found!</color>");
             }
             
             // Coin API Cache
