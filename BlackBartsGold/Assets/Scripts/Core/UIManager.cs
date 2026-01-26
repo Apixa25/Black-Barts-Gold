@@ -80,7 +80,12 @@ namespace BlackBartsGold.Core
         private float _miniMapRange = 50f; // meters
         private float _miniMapRadius = 100f; // pixels
         
-        // Place Coin button (proper AR anchor system)
+        // Compass smoothing for mini-map (reduces jitter)
+        private float _smoothedCompassHeading = 0f;
+        private float _compassVelocity = 0f;
+        private float _compassSmoothTime = 0.2f; // Smoothing factor
+        
+        // Reveal Coin button (proper AR anchor system)
         private GameObject _placeCoinButton;
         private TextMeshProUGUI _placeCoinButtonText;
         private Coin _coinToPlace; // The coin ready to be placed in AR
@@ -187,15 +192,23 @@ namespace BlackBartsGold.Core
                 sb.AppendLine("<b>AR:</b> <color=red>NO SESSION</color>");
             }
             
-            // Check plane detection
+            // Check plane detection - needed for "Reveal Coin"
             var planeManager = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARPlaneManager>();
             if (planeManager != null)
             {
-                sb.AppendLine($"<b>Planes:</b> {planeManager.trackables.count}");
+                int planeCount = planeManager.trackables.count;
+                if (planeCount > 0)
+                {
+                    sb.AppendLine($"<b>Planes:</b> <color=green>{planeCount} detected</color>");
+                }
+                else
+                {
+                    sb.AppendLine($"<b>Planes:</b> <color=yellow>Scanning...</color>");
+                }
             }
             else
             {
-                sb.AppendLine("<b>Planes:</b> No PlaneManager");
+                sb.AppendLine("<b>Planes:</b> <color=red>No PlaneManager</color>");
             }
             
             // API Config
@@ -1145,7 +1158,9 @@ namespace BlackBartsGold.Core
             var playerLoc = GPSManager.Instance.CurrentLocation;
             if (playerLoc == null) return;
             
-            float currentHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
+            // Get raw compass heading and apply smoothing to reduce jitter
+            float rawHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
+            _smoothedCompassHeading = Mathf.SmoothDampAngle(_smoothedCompassHeading, rawHeading, ref _compassVelocity, _compassSmoothTime);
             
             // Track which coins we've updated
             HashSet<string> updatedCoins = new HashSet<string>();
@@ -1167,8 +1182,8 @@ namespace BlackBartsGold.Core
                     continue;
                 }
                 
-                // Adjust bearing for compass heading (so "up" on map = direction you're facing)
-                float adjustedBearing = bearing - currentHeading;
+                // Adjust bearing for SMOOTHED compass heading (reduces jitter)
+                float adjustedBearing = bearing - _smoothedCompassHeading;
                 float bearingRad = adjustedBearing * Mathf.Deg2Rad;
                 
                 // Calculate position on mini-map
@@ -1273,7 +1288,7 @@ namespace BlackBartsGold.Core
             textRect.sizeDelta = Vector2.zero;
             
             var tmpText = textObj.AddComponent<TextMeshProUGUI>();
-            tmpText.text = "PLACE COIN IN AR";
+            tmpText.text = "REVEAL COIN";
             tmpText.fontSize = 32;
             tmpText.color = Color.white;
             tmpText.alignment = TextAlignmentOptions.Center;
@@ -1285,21 +1300,21 @@ namespace BlackBartsGold.Core
             // Start hidden
             buttonObj.SetActive(false);
             
-            Debug.Log("[UIManager] Place Coin button created");
+            Debug.Log("[UIManager] Reveal Coin button created");
         }
         
         /// <summary>
-        /// Handle Place Coin button click
+        /// Handle Reveal Coin button click - anchors coin to AR plane
         /// </summary>
         private void OnPlaceCoinButtonClicked()
         {
             if (_coinToPlace == null)
             {
-                Debug.LogWarning("[UIManager] No coin to place!");
+                Debug.LogWarning("[UIManager] No coin to reveal!");
                 return;
             }
             
-            Debug.Log($"[UIManager] Placing coin {_coinToPlace.id} in AR...");
+            Debug.Log($"[UIManager] Revealing coin {_coinToPlace.id} in AR...");
             
             // Use proper AR anchor system
             var placer = ARCoinPlacer.Instance;
@@ -1308,15 +1323,15 @@ namespace BlackBartsGold.Core
                 var placed = placer.PlaceCoinInAR(_coinToPlace);
                 if (placed != null)
                 {
-                    Debug.Log($"[UIManager] ✅ Coin placed successfully!");
+                    Debug.Log($"[UIManager] ✅ Coin revealed successfully!");
                     // Hide button after placing
                     _placeCoinButton?.SetActive(false);
                     _coinToPlace = null;
                 }
                 else
                 {
-                    Debug.LogWarning("[UIManager] Failed to place coin - point camera at ground!");
-                    _placeCoinButtonText.text = "POINT AT GROUND!";
+                    Debug.LogWarning("[UIManager] Failed to reveal coin - point camera at ground!");
+                    _placeCoinButtonText.text = "SCAN GROUND FIRST!";
                 }
             }
             else
@@ -1368,7 +1383,7 @@ namespace BlackBartsGold.Core
             {
                 _coinToPlace = closestCoin;
                 _placeCoinButton.SetActive(true);
-                _placeCoinButtonText.text = $"PLACE COIN ({closestDist:F0}m away)";
+                _placeCoinButtonText.text = $"REVEAL COIN ({closestDist:F0}m)";
                 
                 // Change color based on distance
                 var bgImage = _placeCoinButton.GetComponent<Image>();

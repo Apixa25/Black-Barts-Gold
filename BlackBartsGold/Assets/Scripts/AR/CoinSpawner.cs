@@ -388,63 +388,51 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Position coins that haven't been positioned yet.
-        /// POKÉMON GO PATTERN: Coins are positioned ONCE when spawned, then stay fixed in world space.
+        /// DISABLED: Old GPS-to-AR positioning system.
+        /// 
+        /// Coins now use COMPASS-BILLBOARD mode by default (in CoinController).
+        /// This shows coins floating in the correct compass direction.
+        /// 
+        /// When player is close and taps "Reveal Coin", ARCoinPlacer anchors
+        /// the coin to a detected AR plane.
         /// </summary>
         public void RecalculateAllCoinPositions()
         {
             Debug.Log($"[CoinSpawner] 🔄 RecalculateAllCoinPositions called");
-            Debug.Log($"[CoinSpawner] PlayerLocation: {(PlayerLocation != null ? $"({PlayerLocation.latitude:F6}, {PlayerLocation.longitude:F6})" : "NULL")}");
+            Debug.Log($"[CoinSpawner] ⚠️ GPS-to-AR positioning is DISABLED");
+            Debug.Log($"[CoinSpawner] ℹ️ Coins use CompassBillboard mode (see CoinController)");
+            Debug.Log($"[CoinSpawner] ℹ️ Use 'Reveal Coin' button to anchor coins to AR planes");
             
-            if (PlayerLocation == null)
-            {
-                Debug.LogWarning("[CoinSpawner] ⚠️ Cannot position - PlayerLocation is NULL!");
-                return;
-            }
+            // ================================================================
+            // ARCHITECTURE FIX: We no longer position coins using GPS-to-AR conversion!
+            // 
+            // Why this was broken:
+            // - AR world space and GPS are different coordinate systems
+            // - AR origin is arbitrary (where camera started)
+            // - GPS doesn't tell us which direction we're facing
+            // - Result: "yellow blob stuck to screen"
+            //
+            // New approach:
+            // - Coins spawn with CompassBillboard mode (default)
+            // - CoinController.UpdateCompassBillboard() positions them
+            // - Shows coins floating in correct compass direction
+            // - "Reveal Coin" button anchors them to AR planes
+            // ================================================================
             
-            if (CoinManager.Instance == null)
-            {
-                Debug.LogWarning("[CoinSpawner] ⚠️ Cannot position - CoinManager.Instance is NULL!");
-                return;
-            }
+            if (CoinManager.Instance == null) return;
             
-            Debug.Log($"[CoinSpawner] Active coins: {CoinManager.Instance.ActiveCoinCount}, Already positioned: {coinARPositions.Count}");
-            
-            LastUpdateLocation = PlayerLocation.Clone();
-            
-            int positionedCount = 0;
-            int skippedCount = 0;
-            
+            // Just ensure all coins are in billboard mode
             foreach (var coin in CoinManager.Instance.ActiveCoins)
             {
-                if (coin != null && coin.CoinId != null)
+                if (coin != null)
                 {
-                    // ================================================================
-                    // POKÉMON GO PATTERN: Only position coins ONCE!
-                    // If this coin has already been positioned, skip it.
-                    // This keeps coins fixed in world space.
-                    // ================================================================
-                    if (coinARPositions.ContainsKey(coin.CoinId))
-                    {
-                        Debug.Log($"[CoinSpawner] ⏭️ Skipping already-positioned coin: {coin.CoinId}");
-                        skippedCount++;
-                        continue;
-                    }
-                    
-                    Debug.Log($"[CoinSpawner] 🆕 Positioning NEW coin: {coin.CoinId}");
-                    Debug.Log($"[CoinSpawner]   Coin GPS: ({coin.CoinData?.latitude:F6}, {coin.CoinData?.longitude:F6})");
-                    
-                    UpdateCoinPosition(coin);
-                    
-                    // Mark this coin as positioned so we don't move it again
-                    coinARPositions[coin.CoinId] = coin.transform.position;
-                    
-                    Debug.Log($"[CoinSpawner]   ✅ Fixed at AR position: {coin.transform.position}");
-                    positionedCount++;
+                    // Coins start in CompassBillboard mode
+                    // They will be positioned by CoinController.UpdateCompassBillboard()
+                    coin.SetDisplayMode(CoinController.CoinDisplayMode.CompassBillboard);
                 }
             }
             
-            Debug.Log($"[CoinSpawner] ✅ Positioned {positionedCount} new coins, skipped {skippedCount} existing coins");
+            Debug.Log($"[CoinSpawner] ✅ {CoinManager.Instance.ActiveCoinCount} coins set to CompassBillboard mode");
         }
         
         /// <summary>

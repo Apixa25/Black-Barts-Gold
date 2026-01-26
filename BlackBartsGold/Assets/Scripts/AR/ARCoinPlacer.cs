@@ -236,16 +236,46 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Place coin at a specific pose (position + rotation)
+        /// Uses EXISTING coin from CoinManager instead of creating new one
         /// </summary>
         public PlacedCoin PlaceCoinAtPose(Coin coinData, Pose pose)
         {
-            Log($"Placing coin {coinData.id} at {pose.position}");
+            Log($"Revealing coin {coinData.id} at {pose.position}");
+            
+            // Find the EXISTING coin controller for this coin
+            CoinController existingCoin = null;
+            if (CoinManager.Instance != null)
+            {
+                foreach (var controller in CoinManager.Instance.ActiveCoins)
+                {
+                    if (controller != null && controller.CoinId == coinData.id)
+                    {
+                        existingCoin = controller;
+                        break;
+                    }
+                }
+            }
             
             // Create anchor at this position
             ARAnchor anchor = CreateAnchorAtPose(pose);
             
-            // Create coin visual
-            GameObject coinObject = CreateCoinVisual(coinData);
+            GameObject coinObject;
+            
+            if (existingCoin != null)
+            {
+                // USE the existing coin - don't create a new one!
+                coinObject = existingCoin.gameObject;
+                Log($"Using existing coin object: {coinObject.name}");
+                
+                // Switch to Anchored mode (stops compass-billboard positioning)
+                existingCoin.SetDisplayMode(CoinController.CoinDisplayMode.Anchored);
+            }
+            else
+            {
+                // Fallback: create new coin visual if existing one not found
+                Log($"Warning: Existing coin not found, creating new visual");
+                coinObject = CreateCoinVisual(coinData);
+            }
             
             if (anchor != null)
             {
@@ -275,7 +305,7 @@ namespace BlackBartsGold.AR
             
             _placedCoins.Add(placed);
             
-            Log($"✅ Coin placed successfully! Total placed: {_placedCoins.Count}");
+            Log($"✅ Coin revealed successfully! Total revealed: {_placedCoins.Count}");
             
             return placed;
         }

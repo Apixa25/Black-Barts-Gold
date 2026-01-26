@@ -216,10 +216,47 @@ namespace BlackBartsGold.AR
         private Vector3 collectStartPos;
         private float collectTimer = 0f;
         
-        // Compass-based positioning - DISABLED! Using proper AR anchors instead
-        // See ARCoinPlacer.cs for the correct Pokémon GO style implementation
-        private bool _useCompassPositioning = false; // DISABLED
-        private float _coinDisplayDistance = 5f;
+        // ================================================================
+        // COIN DISPLAY MODES
+        // ================================================================
+        // CompassBillboard: Coin floats in correct compass direction (distance viewing)
+        // Anchored: Coin is fixed on AR plane (after "Reveal")
+        // ================================================================
+        
+        /// <summary>
+        /// Display mode for this coin
+        /// </summary>
+        public enum CoinDisplayMode
+        {
+            CompassBillboard,  // Float in compass direction (default for distance)
+            Anchored           // Fixed on AR plane (after Reveal)
+        }
+        
+        private CoinDisplayMode _displayMode = CoinDisplayMode.CompassBillboard;
+        private float _billboardDistance = 12f; // Visual distance in front of camera (meters)
+        private float _billboardMinDistance = 5f; // Don't show billboard if closer than this
+        private float _compassSmoothTime = 0.15f; // Smoothing for compass jitter
+        private float _smoothedBearing = 0f;
+        private float _bearingVelocity = 0f;
+        
+        /// <summary>
+        /// Set the display mode for this coin
+        /// </summary>
+        public void SetDisplayMode(CoinDisplayMode mode)
+        {
+            _displayMode = mode;
+            Debug.Log($"[CoinController] Coin {CoinId} display mode: {mode}");
+        }
+        
+        /// <summary>
+        /// Is this coin in billboard mode (floating in compass direction)?
+        /// </summary>
+        public bool IsBillboardMode => _displayMode == CoinDisplayMode.CompassBillboard;
+        
+        /// <summary>
+        /// Is this coin anchored to AR space?
+        /// </summary>
+        public bool IsAnchored => _displayMode == CoinDisplayMode.Anchored;
         
         #endregion
         
@@ -309,13 +346,13 @@ namespace BlackBartsGold.AR
             }
             
             // ================================================================
-            // COMPASS-BASED POSITIONING (workaround for broken AR tracking)
-            // Since AR tracking isn't working, position coins relative to
-            // compass heading so they appear in the correct direction
+            // COMPASS-BILLBOARD MODE: Position coin in correct compass direction
+            // This is the PROPER way to show coins at a distance - NOT AR anchoring
+            // Coin floats in the direction you need to look, relative to camera
             // ================================================================
-            if (_useCompassPositioning)
+            if (_displayMode == CoinDisplayMode.CompassBillboard)
             {
-                UpdateCompassPosition();
+                UpdateCompassBillboard();
             }
             
             // Spin animation
@@ -332,10 +369,16 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Position coin based on GPS bearing and compass heading.
-        /// This is a workaround for when AR tracking isn't working.
+        /// COMPASS-BILLBOARD MODE: Position coin floating in the correct compass direction
+        /// This is the PROPER way to show coins at a distance (like navigation waypoints)
+        /// 
+        /// How it works:
+        /// 1. Calculate GPS bearing from player to coin
+        /// 2. Subtract current compass heading to get relative bearing
+        /// 3. Position coin in that direction relative to camera
+        /// 4. Smooth the position to reduce compass jitter
         /// </summary>
-        private void UpdateCompassPosition()
+        private void UpdateCompassBillboard()
         {
             if (CoinData == null || cameraTransform == null) return;
             
@@ -353,29 +396,68 @@ namespace BlackBartsGold.AR
             float compassHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
             
             // Calculate relative bearing (how far off from where player is looking)
-            // 0° = directly ahead, 90° = to the right, 180° = behind
-            float relativeBearing = gpsBearing - compassHeading;
+            // 0° = directly ahead, 90° = to the right, 180° = behind, -90° = left
+            float targetBearing = gpsBearing - compassHeading;
             
-            // Calculate actual GPS distance
+            // Normalize to -180 to 180 range
+            while (targetBearing > 180f) targetBearing -= 360f;
+            while (targetBearing < -180f) targetBearing += 360f;
+            
+            // Smooth the bearing to reduce compass jitter
+            _smoothedBearing = Mathf.SmoothDampAngle(_smoothedBearing, targetBearing, ref _bearingVelocity, _compassSmoothTime);
+            
+            // Calculate actual GPS distance for display purposes
             float gpsDistance = (float)playerLoc.DistanceTo(coinLoc);
             
-            // Clamp display distance (don't render too far or too close)
-            float displayDistance = Mathf.Clamp(gpsDistance, 2f, 10f);
+            // If coin is VERY close (< minimum billboard distance), hide it
+            // The user should use "Reveal Coin" to place it in AR
+            if (gpsDistance < _billboardMinDistance)
+            {
+                // Make coin semi-transparent when close (hint to use Reveal)
+                if (coinRenderer != null)
+                {
+                    Color c = coinRenderer.material.color;
+                    c.a = 0.3f;
+                    coinRenderer.material.color = c;
+                }
+                // Position right in front of camera so user knows it's close
+                transform.position = cameraTransform.position + cameraTransform.forward * 3f;
+            }
+            else
+            {
+                // Full opacity for distance viewing
+                if (coinRenderer != null)
+                {
+                    Color c = coinRenderer.material.color;
+                    c.a = 1f;
+                    coinRenderer.material.color = c;
+                }
+                
+                // Convert bearing to position around camera
+                float bearingRad = _smoothedBearing * Mathf.Deg2Rad;
+                
+                // Calculate position relative to camera
+                // Camera forward is +Z, right is +X
+                // We want coin at _billboardDistance meters away in the bearing direction
+                float x = Mathf.Sin(bearingRad) * _billboardDistance;
+                float z = Mathf.Cos(bearingRad) * _billboardDistance;
+                
+                // Height: slightly below eye level so coins appear on ground-ish
+                float y = -1f;
+                
+                // Position is camera position + offset in world space
+                // Note: We use camera's world position, not local, because we want
+                // the coin to stay in the correct WORLD direction
+                Vector3 offset = new Vector3(x, y, z);
+                Vector3 targetPosition = cameraTransform.position + offset;
+                
+                // Smoothly move to target position
+                transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * 8f);
+            }
             
-            // Convert bearing to position in front of camera
-            float bearingRad = relativeBearing * Mathf.Deg2Rad;
-            
-            // Calculate position relative to camera
-            // In Unity: +X is right, +Z is forward
-            float x = Mathf.Sin(bearingRad) * displayDistance;
-            float z = Mathf.Cos(bearingRad) * displayDistance;
-            float y = 0f; // Eye level relative to camera
-            
-            // Position coin relative to camera
-            Vector3 newPosition = cameraTransform.position + new Vector3(x, y, z);
-            
-            // Smoothly move to new position to reduce jitter
-            transform.position = Vector3.Lerp(transform.position, newPosition, Time.deltaTime * 5f);
+            // Always face the camera (billboard effect)
+            transform.LookAt(cameraTransform);
+            transform.Rotate(0, 180, 0); // Flip to face camera properly
         }
         
         #endregion
