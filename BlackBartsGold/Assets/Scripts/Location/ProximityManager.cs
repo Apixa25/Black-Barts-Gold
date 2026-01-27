@@ -67,7 +67,7 @@ namespace BlackBartsGold.Location
         
         [Header("Haptic Settings")]
         [SerializeField]
-        private bool enableHaptics = true;
+        private bool enableHaptics = false; // DISABLED BY DEFAULT - phone was vibrating off the table! 😅
         
         [SerializeField]
         [Tooltip("Only provide haptics for nearest coin")]

@@ -1314,30 +1314,150 @@ namespace BlackBartsGold.Core
                 return;
             }
             
-            Debug.Log($"[UIManager] Revealing coin {_coinToPlace.id} in AR...");
+            Debug.Log($"[UIManager] ═══════════════════════════════════════════════════");
+            Debug.Log($"[UIManager] 🪙 REVEAL COIN BUTTON CLICKED!");
+            Debug.Log($"[UIManager] Coin to reveal: {_coinToPlace.id}");
+            
+            // ================================================================
+            // DIAGNOSTIC: Also spawn a simple test sphere directly in front of camera
+            // This helps us verify that 3D rendering works at all!
+            // ================================================================
+            SpawnDiagnosticSphere();
             
             // Use proper AR anchor system
             var placer = ARCoinPlacer.Instance;
             if (placer != null)
             {
+                Debug.Log($"[UIManager] 📍 ARCoinPlacer found, calling PlaceCoinInAR...");
                 var placed = placer.PlaceCoinInAR(_coinToPlace);
                 if (placed != null)
                 {
                     Debug.Log($"[UIManager] ✅ Coin revealed successfully!");
+                    Debug.Log($"[UIManager]    Placed at: {placed.CoinObject?.transform.position}");
                     // Hide button after placing
                     _placeCoinButton?.SetActive(false);
                     _coinToPlace = null;
                 }
                 else
                 {
-                    Debug.LogWarning("[UIManager] Failed to reveal coin - point camera at ground!");
+                    Debug.LogWarning("[UIManager] ⚠️ Failed to reveal coin - PlaceCoinInAR returned null");
                     _placeCoinButtonText.text = "SCAN GROUND FIRST!";
                 }
             }
             else
             {
-                Debug.LogError("[UIManager] ARCoinPlacer not found!");
+                Debug.LogError("[UIManager] ❌ ARCoinPlacer not found!");
             }
+            
+            Debug.Log($"[UIManager] ═══════════════════════════════════════════════════");
+        }
+        
+        /// <summary>
+        /// DIAGNOSTIC: Spawn a simple bright sphere at a FIXED WORLD POSITION
+        /// This bypasses ALL coin systems to verify basic 3D rendering works
+        /// </summary>
+        private void SpawnDiagnosticSphere()
+        {
+            Debug.Log("[UIManager] ═══════════════════════════════════════════════════");
+            Debug.Log("[UIManager] 🔴 SPAWNING DIAGNOSTIC SPHERE...");
+            
+            Camera cam = Camera.main;
+            if (cam == null)
+            {
+                cam = FindFirstObjectByType<Camera>();
+            }
+            
+            if (cam == null)
+            {
+                Debug.LogError("[UIManager] ❌ No camera found for diagnostic sphere!");
+                return;
+            }
+            
+            // ================================================================
+            // DIAGNOSTIC: Log camera settings AND parent hierarchy
+            // ================================================================
+            Debug.Log($"[UIManager] 📷 CAMERA DIAGNOSTICS:");
+            Debug.Log($"[UIManager]    Name: {cam.name}");
+            Debug.Log($"[UIManager]    LOCAL Position: {cam.transform.localPosition}");
+            Debug.Log($"[UIManager]    WORLD Position: {cam.transform.position}");
+            Debug.Log($"[UIManager]    Forward: {cam.transform.forward}");
+            Debug.Log($"[UIManager]    Parent: {(cam.transform.parent != null ? cam.transform.parent.name : "NULL (root)")}");
+            if (cam.transform.parent != null)
+            {
+                Debug.Log($"[UIManager]    Parent WORLD pos: {cam.transform.parent.position}");
+            }
+            Debug.Log($"[UIManager]    Near Clip: {cam.nearClipPlane}");
+            Debug.Log($"[UIManager]    Far Clip: {cam.farClipPlane}");
+            Debug.Log($"[UIManager]    Culling Mask: {cam.cullingMask} (Everything = -1)");
+            
+            // ================================================================
+            // TEST: Place sphere at FIXED ABSOLUTE world position
+            // This should NOT follow the camera at all!
+            // ================================================================
+            GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere.name = "DIAGNOSTIC_SPHERE_FIXED";
+            sphere.layer = 0; // Default layer
+            
+            // FIXED WORLD POSITION - 2m ahead in Z, 1m high
+            // This is an ABSOLUTE position, NOT relative to camera!
+            Vector3 fixedWorldPos = new Vector3(0f, 1f, 2f);
+            sphere.transform.position = fixedWorldPos;
+            sphere.transform.SetParent(null); // Explicitly no parent - world space!
+            sphere.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+            
+            Debug.Log($"[UIManager] 🔴 Sphere placed at FIXED world position: {fixedWorldPos}");
+            Debug.Log($"[UIManager]    Sphere parent: {(sphere.transform.parent != null ? sphere.transform.parent.name : "NULL (world space)")}");
+            Debug.Log($"[UIManager]    Sphere actual position: {sphere.transform.position}");
+            
+            // ================================================================
+            // BRIGHT RED unlit material for maximum visibility
+            // Try multiple shader options for compatibility
+            // ================================================================
+            MeshRenderer renderer = sphere.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                // Try shaders in order of preference for mobile AR
+                Shader shader = Shader.Find("Unlit/Color");
+                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null) shader = Shader.Find("Mobile/Diffuse");
+                if (shader == null) shader = Shader.Find("Standard");
+                
+                if (shader != null)
+                {
+                    Material mat = new Material(shader);
+                    mat.color = Color.red; // BRIGHT RED
+                    
+                    // For URP Unlit, we need to set different property
+                    if (shader.name.Contains("Universal"))
+                    {
+                        mat.SetColor("_BaseColor", Color.red);
+                    }
+                    
+                    renderer.material = mat;
+                    Debug.Log($"[UIManager] 🔴 Diagnostic sphere shader: {shader.name}");
+                }
+                else
+                {
+                    Debug.LogError("[UIManager] ❌ No shader found!");
+                }
+            }
+            
+            // Remove collider (not needed for visual test)
+            Collider col = sphere.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+            
+            Debug.Log($"[UIManager] ✅ DIAGNOSTIC SPHERE spawned at {fixedWorldPos}");
+            Debug.Log($"[UIManager]    Distance from camera: {Vector3.Distance(cam.transform.position, fixedWorldPos)}m");
+            Debug.Log($"[UIManager] ═══════════════════════════════════════════════════");
+            Debug.Log($"[UIManager] 🔴🔴🔴 IF YOU DON'T SEE A RED SPHERE, CHECK:");
+            Debug.Log($"[UIManager]    1. Camera culling mask includes layer 0 (Default)");
+            Debug.Log($"[UIManager]    2. Near clip plane < 2m (current: {cam.nearClipPlane})");
+            Debug.Log($"[UIManager]    3. Far clip plane > 2m (current: {cam.farClipPlane})");
+            Debug.Log($"[UIManager]    4. Camera is actually rendering (not overridden)");
+            Debug.Log($"[UIManager] ═══════════════════════════════════════════════════");
+            
+            // Destroy after 30 seconds
+            Destroy(sphere, 30f);
         }
         
         /// <summary>

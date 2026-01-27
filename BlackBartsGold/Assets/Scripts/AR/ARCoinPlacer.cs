@@ -190,12 +190,15 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Place a coin in AR on a detected plane.
-        /// This is the proper way - anchored to physical reality!
+        /// Falls back to camera-relative placement if no plane is hit.
         /// </summary>
         public PlacedCoin PlaceCoinInAR(Coin coinData)
         {
-            if (!CanPlaceCoin(coinData))
+            // Skip strict CanPlaceCoin check - we want to always allow placing
+            // Just check basics
+            if (coinData == null)
             {
+                Log("Cannot place coin - coinData is null");
                 return null;
             }
             
@@ -211,27 +214,37 @@ namespace BlackBartsGold.AR
             
             if (TryGetPlacementPose(screenCenter, out Pose placementPose))
             {
+                Log($"Raycast hit plane at {placementPose.position}");
                 return PlaceCoinAtPose(coinData, placementPose);
             }
-            else
+            
+            // Fallback 1: Try to place on largest horizontal plane
+            ARPlane bestPlane = GetBestPlaneForPlacement();
+            if (bestPlane != null && _arCamera != null)
             {
-                // Fallback: Try to place on largest horizontal plane
-                ARPlane bestPlane = GetBestPlaneForPlacement();
-                if (bestPlane != null)
-                {
-                    // Place at plane center, adjusted toward camera
-                    Vector3 dirToCamera = (_arCamera.transform.position - bestPlane.center).normalized;
-                    dirToCamera.y = 0;
-                    Vector3 placementPos = bestPlane.center + dirToCamera * placementDistance * 0.5f;
-                    placementPos.y = bestPlane.center.y;
-                    
-                    Pose pose = new Pose(placementPos, Quaternion.identity);
-                    return PlaceCoinAtPose(coinData, pose);
-                }
+                // Place at plane center, adjusted toward camera
+                Vector3 dirToCamera = (_arCamera.transform.position - bestPlane.center).normalized;
+                dirToCamera.y = 0;
+                Vector3 placementPos = bestPlane.center + dirToCamera * placementDistance * 0.5f;
+                placementPos.y = bestPlane.center.y;
+                
+                Log($"Using best plane fallback at {placementPos}");
+                Pose planePose = new Pose(placementPos, Quaternion.identity);
+                return PlaceCoinAtPose(coinData, planePose);
             }
             
-            Log("Failed to place coin - no suitable surface found");
-            return null;
+            // ================================================================
+            // FALLBACK 2: Place at FIXED WORLD POSITION for testing
+            // This will tell us if world-space objects stay in place!
+            // ================================================================
+            
+            // Use a FIXED ABSOLUTE world position
+            // This should NOT follow the camera at all
+            Vector3 fixedWorldPos = new Vector3(0f, 0.5f, 1.5f); // 1.5m ahead, 0.5m high
+            
+            Log($"Using FIXED WORLD POSITION fallback - placing at {fixedWorldPos}");
+            Pose fallbackPose = new Pose(fixedWorldPos, Quaternion.identity);
+            return PlaceCoinAtPose(coinData, fallbackPose);
         }
         
         /// <summary>
@@ -240,7 +253,9 @@ namespace BlackBartsGold.AR
         /// </summary>
         public PlacedCoin PlaceCoinAtPose(Coin coinData, Pose pose)
         {
-            Log($"Revealing coin {coinData.id} at {pose.position}");
+            Debug.Log($"[ARCoinPlacer] ═══════════════════════════════════════════════════");
+            Debug.Log($"[ARCoinPlacer] 🪙 REVEALING COIN: {coinData.id}");
+            Debug.Log($"[ARCoinPlacer] 📍 Target pose position: {pose.position}");
             
             // Find the EXISTING coin controller for this coin
             CoinController existingCoin = null;
@@ -251,83 +266,92 @@ namespace BlackBartsGold.AR
                     if (controller != null && controller.CoinId == coinData.id)
                     {
                         existingCoin = controller;
+                        Debug.Log($"[ARCoinPlacer] ✅ Found existing coin: {controller.name}");
                         break;
                     }
                 }
             }
             
-            // Create anchor at this position
-            ARAnchor anchor = CreateAnchorAtPose(pose);
-            
             GameObject coinObject;
             
             if (existingCoin != null)
             {
-                // USE the existing coin - don't create a new one!
                 coinObject = existingCoin.gameObject;
-                Log($"Using existing coin object: {coinObject.name}");
-                Log($"  Current position: {coinObject.transform.position}");
-                Log($"  Current parent: {coinObject.transform.parent?.name ?? "none"}");
             }
             else
             {
-                // Fallback: create new coin visual if existing one not found
-                Log($"Warning: Existing coin not found, creating new visual");
+                Debug.LogWarning($"[ARCoinPlacer] ⚠️ Existing coin not found! Creating new visual...");
                 coinObject = CreateCoinVisual(coinData);
             }
             
-            if (anchor != null)
+            // ================================================================
+            // SIMPLIFIED WORLD-SPACE PLACEMENT (NO ANCHORS FOR NOW)
+            // ================================================================
+            // The anchor system may not be working correctly. Let's just place
+            // the coin at a fixed world position to verify it stays in place.
+            // ================================================================
+            
+            Camera cam = _arCamera ?? Camera.main ?? FindFirstObjectByType<Camera>();
+            Vector3 worldPosition;
+            
+            if (pose.position != Vector3.zero && pose.position.magnitude < 100f)
             {
-                // ================================================================
-                // PARENT TO ANCHOR FIRST, then switch mode
-                // Order matters! We want the coin positioned correctly before
-                // switching to Anchored mode.
-                // ================================================================
+                // Use the raycast pose position directly in world space
+                worldPosition = pose.position;
+                Debug.Log($"[ARCoinPlacer] 📍 Using raycast pose: {worldPosition}");
+            }
+            else if (cam != null)
+            {
+                // Fallback: Place 2 meters in front of camera
+                Vector3 camFwd = cam.transform.forward;
+                camFwd.y = 0;
+                if (camFwd.magnitude < 0.1f) camFwd = Vector3.forward;
+                camFwd.Normalize();
                 
-                // 1. Parent to anchor - coin will stay fixed in physical space!
-                coinObject.transform.SetParent(anchor.transform);
-                coinObject.transform.localPosition = Vector3.zero;
-                coinObject.transform.localRotation = Quaternion.identity;
-                
-                Log($"✅ Coin parented to anchor at: {anchor.transform.position}");
-                Log($"   Coin world pos is now: {coinObject.transform.position}");
-                
-                // 2. NOW switch to Anchored mode (stops compass-billboard positioning)
-                if (existingCoin != null)
-                {
-                    existingCoin.SetDisplayMode(CoinController.CoinDisplayMode.Anchored);
-                }
-                
-                Log($"Coin anchored to AR space - will stay stable!");
+                worldPosition = cam.transform.position + camFwd * 2f;
+                worldPosition.y = cam.transform.position.y - 0.3f;
+                Debug.Log($"[ARCoinPlacer] 📍 Using camera-relative fallback: {worldPosition}");
             }
             else
             {
-                // Fallback - just position in world (less stable but works)
-                coinObject.transform.position = pose.position;
-                coinObject.transform.rotation = pose.rotation;
-                
-                // Still switch to Anchored mode to stop billboard updates
-                if (existingCoin != null)
-                {
-                    existingCoin.SetDisplayMode(CoinController.CoinDisplayMode.Anchored);
-                }
-                
-                Log($"Warning: Could not create anchor, coin may drift");
+                worldPosition = new Vector3(0, 1, 2); // Absolute fallback
+                Debug.LogWarning("[ARCoinPlacer] ⚠️ No camera! Using absolute fallback position.");
             }
             
-            // Track placed coin
+            // ================================================================
+            // CRITICAL: Unparent from any previous parent and place in WORLD SPACE
+            // This ensures the coin doesn't follow the camera!
+            // ================================================================
+            coinObject.transform.SetParent(null); // WORLD SPACE - no parent!
+            coinObject.transform.position = worldPosition;
+            coinObject.transform.rotation = Quaternion.identity;
+            coinObject.transform.localScale = Vector3.one;
+            
+            Debug.Log($"[ARCoinPlacer] 🌍 Coin placed in WORLD SPACE at: {coinObject.transform.position}");
+            Debug.Log($"[ARCoinPlacer]    Parent is now: {(coinObject.transform.parent == null ? "NULL (world space)" : coinObject.transform.parent.name)}");
+            
+            // ================================================================
+            // Make the coin VISIBLE
+            // ================================================================
+            if (existingCoin != null)
+            {
+                existingCoin.SetDisplayMode(CoinController.CoinDisplayMode.Anchored);
+            }
+            
+            // Track placed coin (no anchor for now)
             PlacedCoin placed = new PlacedCoin
             {
                 CoinId = coinData.id,
                 CoinData = coinData,
                 CoinObject = coinObject,
-                Anchor = anchor,
+                Anchor = null, // Not using anchors for now
                 PlacedTime = Time.time
             };
             
             _placedCoins.Add(placed);
             
-            Log($"✅ Coin revealed successfully! Total revealed: {_placedCoins.Count}");
+            Debug.Log($"[ARCoinPlacer] ✅ COIN REVEAL COMPLETE at world position: {coinObject.transform.position}");
+            Debug.Log($"[ARCoinPlacer] ═══════════════════════════════════════════════════");
             
             return placed;
         }

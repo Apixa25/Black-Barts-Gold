@@ -278,25 +278,53 @@ namespace BlackBartsGold.AR
         /// </summary>
         private void SetVisualVisibility(bool visible)
         {
-            // Hide/show the coin model
-            if (coinModel != null)
-            {
-                coinModel.SetActive(visible);
-            }
+            Debug.Log($"[CoinController] 👁️ SetVisualVisibility({visible}) for coin {CoinId}");
+            Debug.Log($"[CoinController]    coinModel: {(coinModel != null ? coinModel.name : "NULL")}");
+            Debug.Log($"[CoinController]    transform.position: {transform.position}");
+            Debug.Log($"[CoinController]    transform.parent: {(transform.parent != null ? transform.parent.name : "NULL")}");
             
-            // Also handle the whole GameObject's renderer if no separate model
-            var renderers = GetComponentsInChildren<Renderer>();
+            // ================================================================
+            // CRITICAL FIX: Use includeInactive=true for GetComponentsInChildren
+            // The default GetComponentsInChildren does NOT find inactive children!
+            // When coinModel is SetActive(false), its renderer won't be found.
+            // ================================================================
+            
+            // STEP 1: First enable/disable all renderers (even inactive ones!)
+            var renderers = GetComponentsInChildren<Renderer>(true); // TRUE = include inactive!
+            Debug.Log($"[CoinController]    Found {renderers.Length} renderers (includeInactive=true)");
             foreach (var renderer in renderers)
             {
                 renderer.enabled = visible;
+                Debug.Log($"[CoinController]    → Renderer '{renderer.name}' enabled={visible}");
             }
             
-            // Handle collider for raycasting (only enabled when visible)
-            var colliders = GetComponentsInChildren<Collider>();
+            // STEP 2: Then activate/deactivate the coin model
+            if (coinModel != null)
+            {
+                coinModel.SetActive(visible);
+                Debug.Log($"[CoinController]    → coinModel.SetActive({visible})");
+            }
+            else
+            {
+                Debug.LogWarning($"[CoinController]    ⚠️ coinModel is NULL! Cannot set active state.");
+            }
+            
+            // STEP 3: Handle colliders (for raycasting - only enabled when visible)
+            var colliders = GetComponentsInChildren<Collider>(true); // TRUE = include inactive!
+            Debug.Log($"[CoinController]    Found {colliders.Length} colliders");
             foreach (var collider in colliders)
             {
                 collider.enabled = visible;
             }
+            
+            // STEP 4: If making visible, ensure the whole GameObject is active
+            if (visible && !gameObject.activeSelf)
+            {
+                Debug.LogWarning($"[CoinController]    ⚠️ Parent GameObject was inactive! Activating...");
+                gameObject.SetActive(true);
+            }
+            
+            Debug.Log($"[CoinController] ✅ SetVisualVisibility complete. Coin should now be {(visible ? "VISIBLE" : "HIDDEN")}");
         }
         
         /// <summary>

@@ -425,12 +425,23 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Update a single coin's AR position
+        /// NOTE: Does NOT update revealed/anchored coins - they stay in world space!
         /// </summary>
         public void UpdateCoinPosition(CoinController coin)
         {
             if (coin == null)
             {
                 Debug.LogWarning("[CoinSpawner] UpdateCoinPosition: coin is null");
+                return;
+            }
+            
+            // ================================================================
+            // CRITICAL: Never reposition revealed (anchored) coins!
+            // They are placed in world space and should stay there.
+            // ================================================================
+            if (coin.IsAnchored)
+            {
+                Debug.Log($"[CoinSpawner] Skipping position update for revealed coin: {coin.CoinId}");
                 return;
             }
             
@@ -466,7 +477,7 @@ namespace BlackBartsGold.AR
             Vector3 arPosition = GpsToArPosition(coinLocation);
             Debug.Log($"[CoinSpawner]   Calculated AR position: {arPosition}");
             
-            // Apply to coin
+            // Apply to coin (only for non-revealed coins)
             coin.transform.position = arPosition;
             
             // Store for debug

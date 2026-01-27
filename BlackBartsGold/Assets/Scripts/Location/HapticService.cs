@@ -52,8 +52,8 @@ namespace BlackBartsGold.Location
         
         [Header("Settings")]
         [SerializeField]
-        [Tooltip("Is haptic feedback enabled?")]
-        private bool isEnabled = true;
+        [Tooltip("Is haptic feedback enabled? (Disabled by default during development)")]
+        private bool isEnabled = false; // DISABLED BY DEFAULT - enable in Settings when ready!
         
         [SerializeField]
         [Tooltip("Minimum time between vibrations (seconds)")]
