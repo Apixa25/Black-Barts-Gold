@@ -212,6 +212,11 @@ namespace BlackBartsGold.AR
         private Material currentMaterial;
         private Transform cameraTransform;
         
+        // Camera finding
+        private bool _cameraSearchLogged = false; // Only log camera search once per coin
+        private float _lastCameraSearchTime = 0f;
+        private const float CAMERA_SEARCH_INTERVAL = 0.5f; // Don't spam FindObjectOfType
+        
         // Collection animation
         private Vector3 collectStartPos;
         private float collectTimer = 0f;
@@ -235,26 +240,45 @@ namespace BlackBartsGold.AR
         private CoinDisplayMode _displayMode = CoinDisplayMode.CompassBillboard;
         private float _billboardDistance = 12f; // Visual distance in front of camera (meters)
         private float _billboardMinDistance = 5f; // Don't show billboard if closer than this
-        private float _compassSmoothTime = 0.15f; // Smoothing for compass jitter
+        
+        // ================================================================
+        // COMPASS SMOOTHING - Phone compasses are VERY noisy!
+        // These values are tuned to reduce jitter while still being responsive
+        // ================================================================
+        private float _compassSmoothTime = 0.5f; // Increased from 0.15f - much smoother!
+        private float _positionSmoothSpeed = 3f;  // Position lerp speed (lower = smoother)
         private float _smoothedBearing = 0f;
         private float _bearingVelocity = 0f;
+        private Vector3 _smoothedPosition = Vector3.zero; // Extra position smoothing
+        private bool _hasInitialPosition = false;
         
         /// <summary>
         /// Set the display mode for this coin
         /// </summary>
         public void SetDisplayMode(CoinDisplayMode mode)
         {
+            CoinDisplayMode previousMode = _displayMode;
             _displayMode = mode;
-            Debug.Log($"[CoinController] Coin {CoinId} display mode: {mode}");
+            Debug.Log($"[CoinController] 🪙 Coin {CoinId} display mode: {previousMode} → {mode}");
             
-            // ================================================================
-            // When switching to Anchored mode, update initialPosition
-            // so the bob animation works correctly from the anchor position
-            // ================================================================
             if (mode == CoinDisplayMode.Anchored)
             {
-                initialPosition = transform.position;
-                Debug.Log($"[CoinController] Coin {CoinId} anchored at: {initialPosition}");
+                // ================================================================
+                // ANCHORED MODE: Let the AR anchor control positioning
+                // We don't need initialPosition anymore since we bob the model
+                // ================================================================
+                Debug.Log($"[CoinController] ✅ Coin {CoinId} ANCHORED at world pos: {transform.position}");
+                Debug.Log($"[CoinController]    Parent: {transform.parent?.name ?? "none"}");
+            }
+            else if (mode == CoinDisplayMode.CompassBillboard)
+            {
+                // ================================================================
+                // BILLBOARD MODE: Reset smoothing so coin doesn't jump
+                // ================================================================
+                _hasInitialPosition = false;
+                _smoothedBearing = 0f;
+                _bearingVelocity = 0f;
+                Debug.Log($"[CoinController] 🧭 Coin {CoinId} switched to BILLBOARD mode");
             }
         }
         
@@ -267,6 +291,95 @@ namespace BlackBartsGold.AR
         /// Is this coin anchored to AR space?
         /// </summary>
         public bool IsAnchored => _displayMode == CoinDisplayMode.Anchored;
+        
+        #endregion
+        
+        #region Camera Finding
+        
+        /// <summary>
+        /// Comprehensive camera finding that works with AR Foundation
+        /// Tries multiple approaches and only logs once per coin
+        /// </summary>
+        private void TryFindCamera()
+        {
+            // Don't spam search - only try every 0.5 seconds
+            if (Time.time - _lastCameraSearchTime < CAMERA_SEARCH_INTERVAL)
+            {
+                return;
+            }
+            _lastCameraSearchTime = Time.time;
+            
+            // 1. Try Camera.main (fastest)
+            mainCamera = Camera.main;
+            
+            if (mainCamera != null)
+            {
+                cameraTransform = mainCamera.transform;
+                if (!_cameraSearchLogged)
+                {
+                    Debug.Log($"[CoinController] ✅ Found Camera.main: {mainCamera.name}");
+                    _cameraSearchLogged = true;
+                }
+                return;
+            }
+            
+            // 2. Try to find AR camera via ARCameraManager component
+            var arCameraManager = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARCameraManager>();
+            if (arCameraManager != null)
+            {
+                mainCamera = arCameraManager.GetComponent<Camera>();
+                if (mainCamera != null)
+                {
+                    cameraTransform = mainCamera.transform;
+                    if (!_cameraSearchLogged)
+                    {
+                        Debug.Log($"[CoinController] ✅ Found AR camera via ARCameraManager: {mainCamera.name}");
+                        _cameraSearchLogged = true;
+                    }
+                    return;
+                }
+            }
+            
+            // 3. Try to find camera via XROrigin
+            var xrOrigin = FindFirstObjectByType<Unity.XR.CoreUtils.XROrigin>();
+            if (xrOrigin != null && xrOrigin.Camera != null)
+            {
+                mainCamera = xrOrigin.Camera;
+                cameraTransform = mainCamera.transform;
+                if (!_cameraSearchLogged)
+                {
+                    Debug.Log($"[CoinController] ✅ Found camera via XROrigin: {mainCamera.name}");
+                    _cameraSearchLogged = true;
+                }
+                return;
+            }
+            
+            // 4. Fallback: Find ANY camera
+            mainCamera = FindFirstObjectByType<Camera>();
+            if (mainCamera != null)
+            {
+                cameraTransform = mainCamera.transform;
+                if (!_cameraSearchLogged)
+                {
+                    Debug.Log($"[CoinController] ⚠️ Using fallback camera: {mainCamera.name}");
+                    _cameraSearchLogged = true;
+                }
+                return;
+            }
+            
+            // 5. Still no camera - log once
+            if (!_cameraSearchLogged)
+            {
+                Debug.LogWarning("[CoinController] ❌ No camera found! Will keep trying...");
+                _cameraSearchLogged = true; // We'll reset this below
+            }
+            
+            // Reset the logged flag after 5 seconds so we log again if still failing
+            if (Time.time > 5f && _cameraSearchLogged)
+            {
+                _cameraSearchLogged = false;
+            }
+        }
         
         #endregion
         
@@ -342,6 +455,12 @@ namespace BlackBartsGold.AR
             {
                 sparkleEffect.Play();
             }
+            
+            // Try to find camera early - don't wait for Update()
+            if (cameraTransform == null)
+            {
+                TryFindCamera();
+            }
         }
         
         private void Update()
@@ -359,29 +478,7 @@ namespace BlackBartsGold.AR
             // or if AR camera isn't tagged as "MainCamera"
             if (cameraTransform == null)
             {
-                // Try Camera.main first
-                mainCamera = Camera.main;
-                
-                // Fallback: Find ANY camera if Camera.main is null
-                // AR Foundation cameras aren't always tagged as MainCamera
-                if (mainCamera == null)
-                {
-                    mainCamera = FindFirstObjectByType<Camera>();
-                    if (mainCamera != null)
-                    {
-                        Debug.Log($"[CoinController] ⚠️ Camera.main was null! Found fallback camera: {mainCamera.name}");
-                    }
-                }
-                
-                if (mainCamera != null)
-                {
-                    cameraTransform = mainCamera.transform;
-                    Debug.Log($"[CoinController] ✅ Found camera: {mainCamera.name} at {cameraTransform.position}");
-                }
-                else
-                {
-                    Debug.LogWarning("[CoinController] ❌ No camera found in scene!");
-                }
+                TryFindCamera();
             }
             
             // ================================================================
@@ -421,23 +518,22 @@ namespace BlackBartsGold.AR
         /// </summary>
         private void UpdateCompassBillboard()
         {
+            // Skip if no data - don't log every frame
             if (CoinData == null) 
             {
-                Debug.LogWarning($"[CoinController] Billboard skip: CoinData is null");
                 return;
             }
             
+            // Skip if no camera - TryFindCamera handles logging
             if (cameraTransform == null) 
             {
-                Debug.LogWarning($"[CoinController] Billboard skip: cameraTransform is null");
                 return;
             }
             
-            // Get player's GPS location
+            // Get player's GPS location - skip silently if not available yet
             var gpsManager = BlackBartsGold.Location.GPSManager.Instance;
             if (gpsManager == null || gpsManager.CurrentLocation == null) 
             {
-                Debug.LogWarning($"[CoinController] Billboard skip: No GPS location");
                 return;
             }
             
@@ -511,8 +607,24 @@ namespace BlackBartsGold.AR
                 + right * horizontalOffset 
                 + up * verticalOffset;
             
-            // Smoothly move to target position
-            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * 15f);
+            // ================================================================
+            // DOUBLE SMOOTHING - Makes coins much more stable!
+            // 1. First smooth the target position itself
+            // 2. Then smooth the coin movement toward that target
+            // ================================================================
+            if (!_hasInitialPosition)
+            {
+                _smoothedPosition = targetPosition;
+                _hasInitialPosition = true;
+            }
+            else
+            {
+                // Smooth the target position (reduces compass jitter effect)
+                _smoothedPosition = Vector3.Lerp(_smoothedPosition, targetPosition, Time.deltaTime * _positionSmoothSpeed);
+            }
+            
+            // Smoothly move coin to the smoothed target (extra stability)
+            transform.position = Vector3.Lerp(transform.position, _smoothedPosition, Time.deltaTime * _positionSmoothSpeed);
             
             // Scale based on GPS distance - closer coins appear bigger!
             float scaleFactor = Mathf.Clamp(3f - gpsDistance * 0.2f, 0.5f, 3f);
@@ -1023,38 +1135,34 @@ namespace BlackBartsGold.AR
         /// <summary>
         /// Bob up and down
         /// ================================================================
-        /// FIX: In CompassBillboard mode, DO NOT use initialPosition!
-        /// The billboard mode sets the position, and bob should only
-        /// add a relative Y offset, NOT reset to the initial spawn position.
+        /// CRITICAL: Always bob the COIN MODEL, not the transform!
+        /// 
+        /// - In CompassBillboard mode: UpdateCompassBillboard handles transform.position
+        /// - In Anchored mode: AR Anchor handles transform.position
+        /// 
+        /// Setting transform.position here would override those systems!
+        /// Instead, we bob the coinModel's localPosition for a gentle float effect.
         /// ================================================================
         /// </summary>
         private void UpdateBobAnimation()
         {
             // ================================================================
-            // CRITICAL FIX: Skip bob animation in billboard mode!
-            // The UpdateCompassBillboard() method handles positioning.
-            // Using initialPosition here would reset the coin to (0,0,0).
+            // BOB THE MODEL, NOT THE TRANSFORM!
+            // This works for both Billboard and Anchored modes.
+            // The parent transform's position is controlled elsewhere:
+            // - Billboard: UpdateCompassBillboard() positions via compass
+            // - Anchored: ARAnchor parenting positions in world space
             // ================================================================
-            if (_displayMode == CoinDisplayMode.CompassBillboard)
+            if (coinModel != null)
             {
-                // In billboard mode, just apply a small vertical oscillation
-                // to the COIN MODEL, not the whole transform
-                if (coinModel != null)
-                {
-                    float bobY = Mathf.Sin((Time.time * bobSpeed * Mathf.PI * 2f) + bobOffset) * bobAmplitude;
-                    Vector3 localPos = coinModel.transform.localPosition;
-                    localPos.y = bobY;
-                    coinModel.transform.localPosition = localPos;
-                }
-                return;
+                float bobY = Mathf.Sin((Time.time * bobSpeed * Mathf.PI * 2f) + bobOffset) * bobAmplitude;
+                Vector3 localPos = coinModel.transform.localPosition;
+                localPos.y = bobY;
+                coinModel.transform.localPosition = localPos;
             }
             
-            // Only use initialPosition-based bob for Anchored coins
-            float bobYAnchored = Mathf.Sin((Time.time * bobSpeed * Mathf.PI * 2f) + bobOffset) * bobAmplitude;
-            
-            Vector3 pos = initialPosition;
-            pos.y += bobYAnchored;
-            transform.position = pos;
+            // DO NOT set transform.position here!
+            // That would override AR anchor positioning for revealed coins.
         }
         
         /// <summary>

@@ -266,9 +266,8 @@ namespace BlackBartsGold.AR
                 // USE the existing coin - don't create a new one!
                 coinObject = existingCoin.gameObject;
                 Log($"Using existing coin object: {coinObject.name}");
-                
-                // Switch to Anchored mode (stops compass-billboard positioning)
-                existingCoin.SetDisplayMode(CoinController.CoinDisplayMode.Anchored);
+                Log($"  Current position: {coinObject.transform.position}");
+                Log($"  Current parent: {coinObject.transform.parent?.name ?? "none"}");
             }
             else
             {
@@ -279,10 +278,26 @@ namespace BlackBartsGold.AR
             
             if (anchor != null)
             {
-                // Parent to anchor - coin will stay fixed in physical space!
+                // ================================================================
+                // PARENT TO ANCHOR FIRST, then switch mode
+                // Order matters! We want the coin positioned correctly before
+                // switching to Anchored mode.
+                // ================================================================
+                
+                // 1. Parent to anchor - coin will stay fixed in physical space!
                 coinObject.transform.SetParent(anchor.transform);
                 coinObject.transform.localPosition = Vector3.zero;
                 coinObject.transform.localRotation = Quaternion.identity;
+                
+                Log($"✅ Coin parented to anchor at: {anchor.transform.position}");
+                Log($"   Coin world pos is now: {coinObject.transform.position}");
+                
+                // 2. NOW switch to Anchored mode (stops compass-billboard positioning)
+                if (existingCoin != null)
+                {
+                    existingCoin.SetDisplayMode(CoinController.CoinDisplayMode.Anchored);
+                }
+                
                 Log($"Coin anchored to AR space - will stay stable!");
             }
             else
@@ -290,6 +305,13 @@ namespace BlackBartsGold.AR
                 // Fallback - just position in world (less stable but works)
                 coinObject.transform.position = pose.position;
                 coinObject.transform.rotation = pose.rotation;
+                
+                // Still switch to Anchored mode to stop billboard updates
+                if (existingCoin != null)
+                {
+                    existingCoin.SetDisplayMode(CoinController.CoinDisplayMode.Anchored);
+                }
+                
                 Log($"Warning: Could not create anchor, coin may drift");
             }
             
