@@ -174,12 +174,30 @@ namespace BlackBartsGold.AR
         
         private void Update()
         {
-            // Don't update if position is locked
-            if (IsPositionLocked) return;
-            
             // Throttle updates
             if (Time.time - lastUpdateTime < UPDATE_INTERVAL) return;
             lastUpdateTime = Time.time;
+            
+            // ================================================================
+            // ALWAYS update GPS distance - even when position is locked!
+            // We need to know if user moves away from a locked coin.
+            // ================================================================
+            UpdateGPSDistanceOnly();
+            
+            // If position is locked, don't update position - but we still updated distance above!
+            if (IsPositionLocked)
+            {
+                // Check if user moved away - unlock if GPS distance > 10m
+                if (GPSDistance > 10f)
+                {
+                    UnlockPosition();
+                    if (debugMode)
+                    {
+                        Debug.Log($"[ARCoinPositioner] Position UNLOCKED - user moved away, GPS distance: {GPSDistance:F1}m");
+                    }
+                }
+                return;
+            }
             
             // Update position from GPS
             UpdatePositionFromGPS();
@@ -237,22 +255,33 @@ namespace BlackBartsGold.AR
             GPSBearing = (float)playerLocation.BearingTo(coinLocation);
             
             // ================================================================
-            // COMPASS ALIGNMENT (AR World Space)
+            // COMPASS ALIGNMENT - Use CURRENT compass heading!
             // ================================================================
-            // GPS bearing is relative to true north (0° = North, 90° = East)
-            // AR's +Z axis points wherever the camera was facing when AR started.
-            // We use the INITIAL compass heading to align GPS with AR coordinates.
+            // Since AR camera tracking isn't updating rotation, we must use
+            // the device compass to determine where coins should appear.
             //
-            // This places coins in FIXED AR world positions. When you rotate
-            // your phone, the AR camera rotates, and coins appear to move
-            // across your screen - this is correct AR behavior!
+            // GPS bearing is relative to true north (0° = North, 90° = East)
+            // We subtract CURRENT compass heading so coins appear in the
+            // correct direction relative to where you're CURRENTLY facing.
+            //
+            // Example:
+            //   - Coin is at GPS bearing 90° (due east of you)
+            //   - You're facing north (compass = 0°)
+            //   - Adjusted bearing = 90° - 0° = 90°
+            //   - Coin appears to your RIGHT (which is east!)
+            //
+            // If you rotate to face east (compass = 90°):
+            //   - Adjusted bearing = 90° - 90° = 0°
+            //   - Coin now appears in FRONT (because you're facing it!)
             // ================================================================
             
-            float adjustedBearing = GPSBearing;
-            if (_hasInitialHeading)
+            float currentCompassHeading = 0f;
+            if (Input.compass.enabled)
             {
-                adjustedBearing = GPSBearing - _initialCompassHeading;
+                currentCompassHeading = Input.compass.trueHeading;
             }
+            
+            float adjustedBearing = GPSBearing - currentCompassHeading;
             
             // Convert bearing to radians
             float bearingRad = adjustedBearing * Mathf.Deg2Rad;
@@ -265,18 +294,14 @@ namespace BlackBartsGold.AR
             
             Vector3 newPosition = new Vector3(x, y, z);
             
-            // Only update if significantly different (reduces jitter)
-            if (Vector3.Distance(newPosition, lastCalculatedPosition) > minMovementThreshold)
+            // Always update position for compass-relative mode
+            // (previous jitter reduction was for world-locked mode which isn't working)
+            targetPosition = newPosition;
+            lastCalculatedPosition = newPosition;
+            
+            if (debugMode && Time.frameCount % 30 == 0) // Log every 0.5 seconds to avoid spam
             {
-                targetPosition = newPosition;
-                lastCalculatedPosition = newPosition;
-                
-                if (debugMode)
-                {
-                    Debug.Log($"[ARCoinPositioner] GPS update: dist={GPSDistance:F1}m, " +
-                              $"bearing={GPSBearing:F0}° (adj={adjustedBearing:F0}°) → " +
-                              $"AR pos=({x:F1}, {y:F1}, {z:F1})");
-                }
+                Debug.Log($"[ARCoinPositioner] Compass={currentCompassHeading:F0}°, GPS bearing={GPSBearing:F0}° → adj={adjustedBearing:F0}°, dist={GPSDistance:F1}m, pos=({x:F1}, {y:F1}, {z:F1})");
             }
         }
         
@@ -290,6 +315,22 @@ namespace BlackBartsGold.AR
                 return GPSManager.Instance.CurrentLocation;
             }
             return null;
+        }
+        
+        /// <summary>
+        /// Update only GPS distance and bearing WITHOUT updating position.
+        /// Called even when position is locked to track if user moves away.
+        /// </summary>
+        private void UpdateGPSDistanceOnly()
+        {
+            LocationData playerLocation = GetPlayerLocation();
+            if (playerLocation == null) return;
+            
+            LocationData coinLocation = new LocationData(latitude, longitude);
+            
+            // Update distance and bearing
+            GPSDistance = (float)playerLocation.DistanceTo(coinLocation);
+            GPSBearing = (float)playerLocation.BearingTo(coinLocation);
         }
         
         #endregion
