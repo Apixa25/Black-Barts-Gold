@@ -321,8 +321,8 @@ namespace BlackBartsGold.AR
             }
             
             // Update last known player position
-            lastPlayerLat = playerLocation.Latitude;
-            lastPlayerLng = playerLocation.Longitude;
+            lastPlayerLat = playerLocation.latitude;
+            lastPlayerLng = playerLocation.longitude;
             
             // Only recalculate coin position if this is initial placement or player moved significantly
             // This prevents constant position updates that would fight AR tracking
