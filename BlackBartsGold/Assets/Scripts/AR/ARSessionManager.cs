@@ -214,6 +214,17 @@ namespace BlackBartsGold.AR
             {
                 TimeSinceTracking = 0f;
                 Log("✅ AR Tracking established!");
+                
+                // ================================================================
+                // CAPTURE INITIAL COMPASS HEADING FOR WORLD-SPACE ANCHORING
+                // ================================================================
+                // This is the optimal time to capture compass heading:
+                // - AR is now tracking (camera position/rotation is known)
+                // - User is holding device steady (just started AR)
+                // - All coins will be positioned relative to this initial facing
+                // ================================================================
+                CaptureInitialCompassForWorldAnchoring();
+                
                 OnTrackingEstablished?.Invoke();
             }
             else if (CurrentState != ARSessionState.SessionTracking && 
@@ -364,6 +375,57 @@ namespace BlackBartsGold.AR
         {
             return CurrentState == ARSessionState.SessionInitializing && 
                    TimeSinceTracking < 5f;
+        }
+        
+        #endregion
+        
+        #region Compass & World Anchoring
+        
+        /// <summary>
+        /// Capture initial compass heading for world-space AR anchoring.
+        /// Called when AR tracking is first established.
+        /// This heading is used to convert GPS bearings to AR world positions.
+        /// </summary>
+        private void CaptureInitialCompassForWorldAnchoring()
+        {
+            // Enable compass if not already
+            Input.compass.enabled = true;
+            
+            // Wait a moment for compass to stabilize, then capture
+            StartCoroutine(CaptureCompassCoroutine());
+        }
+        
+        private System.Collections.IEnumerator CaptureCompassCoroutine()
+        {
+            // Wait for compass to stabilize
+            yield return new WaitForSeconds(0.3f);
+            
+            // Try to capture compass heading
+            for (int i = 0; i < 5; i++)
+            {
+                if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
+                {
+                    ARCoinPositioner.CaptureInitialCompassHeading();
+                    Log($"🧭 Compass captured for world anchoring: {Input.compass.trueHeading:F0}°");
+                    yield break;
+                }
+                yield return new WaitForSeconds(0.2f);
+            }
+            
+            // Fallback: capture anyway (will use 0° if compass unavailable)
+            ARCoinPositioner.CaptureInitialCompassHeading();
+            Log("🧭 Compass captured (fallback)");
+        }
+        
+        /// <summary>
+        /// Manually recapture compass heading.
+        /// Use this if user wants to reset their AR reference direction.
+        /// </summary>
+        public void RecaptureCompassHeading()
+        {
+            ARCoinPositioner.ResetCompassHeading();
+            CaptureInitialCompassForWorldAnchoring();
+            Log("🧭 Compass heading recaptured");
         }
         
         #endregion
