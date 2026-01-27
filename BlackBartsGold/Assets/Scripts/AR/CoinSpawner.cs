@@ -388,51 +388,39 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// DISABLED: Old GPS-to-AR positioning system.
+        /// POKEMON GO PATTERN: Coins are HIDDEN until revealed!
         /// 
-        /// Coins now use COMPASS-BILLBOARD mode by default (in CoinController).
-        /// This shows coins floating in the correct compass direction.
-        /// 
-        /// When player is close and taps "Reveal Coin", ARCoinPlacer anchors
-        /// the coin to a detected AR plane.
+        /// This method is now a no-op for positioning since coins are not visible.
+        /// Player navigates using UI indicators (radar, compass).
+        /// When close enough, player taps "Reveal Coin" to anchor to AR plane.
         /// </summary>
         public void RecalculateAllCoinPositions()
         {
-            Debug.Log($"[CoinSpawner] 🔄 RecalculateAllCoinPositions called");
-            Debug.Log($"[CoinSpawner] ⚠️ GPS-to-AR positioning is DISABLED");
-            Debug.Log($"[CoinSpawner] ℹ️ Coins use CompassBillboard mode (see CoinController)");
-            Debug.Log($"[CoinSpawner] ℹ️ Use 'Reveal Coin' button to anchor coins to AR planes");
+            Debug.Log($"[CoinSpawner] 🎮 POKEMON GO PATTERN - Coins are HIDDEN until revealed");
+            Debug.Log($"[CoinSpawner] ℹ️ Use radar/compass UI to navigate to coins");
+            Debug.Log($"[CoinSpawner] ℹ️ Tap 'Reveal Coin' when close to anchor in AR");
             
             // ================================================================
-            // ARCHITECTURE FIX: We no longer position coins using GPS-to-AR conversion!
-            // 
-            // Why this was broken:
-            // - AR world space and GPS are different coordinate systems
-            // - AR origin is arbitrary (where camera started)
-            // - GPS doesn't tell us which direction we're facing
-            // - Result: "yellow blob stuck to screen"
-            //
-            // New approach:
-            // - Coins spawn with CompassBillboard mode (default)
-            // - CoinController.UpdateCompassBillboard() positions them
-            // - Shows coins floating in correct compass direction
-            // - "Reveal Coin" button anchors them to AR planes
+            // POKEMON GO PATTERN:
+            // - Coins are NOT visible in 3D until revealed
+            // - Player uses UI (radar, compass) to navigate
+            // - When close, player taps "Reveal" to place on AR plane
+            // - THEN coin becomes visible and collectible
             // ================================================================
             
             if (CoinManager.Instance == null) return;
             
-            // Just ensure all coins are in billboard mode
+            // Ensure all coins are in Hidden mode (they should already be)
             foreach (var coin in CoinManager.Instance.ActiveCoins)
             {
-                if (coin != null)
+                if (coin != null && !coin.IsAnchored)
                 {
-                    // Coins start in CompassBillboard mode
-                    // They will be positioned by CoinController.UpdateCompassBillboard()
-                    coin.SetDisplayMode(CoinController.CoinDisplayMode.CompassBillboard);
+                    // Only set to Hidden if not already anchored/revealed
+                    coin.SetDisplayMode(CoinController.CoinDisplayMode.Hidden);
                 }
             }
             
-            Debug.Log($"[CoinSpawner] ✅ {CoinManager.Instance.ActiveCoinCount} coins set to CompassBillboard mode");
+            Debug.Log($"[CoinSpawner] ✅ {CoinManager.Instance.ActiveCoinCount} coins in Hidden mode (use UI to navigate)");
         }
         
         /// <summary>
