@@ -1,11 +1,11 @@
 // ============================================================================
 // CoinManager.cs
-// Black Bart's Gold - Coin Management System
+// Black Bart's Gold - Coin Management System (New Architecture)
 // Path: Assets/Scripts/AR/CoinManager.cs
 // ============================================================================
-// Singleton that manages all active coins in the scene. Handles spawning,
-// despawning, tracking, and coordination with the targeting system.
-// Reference: BUILD-GUIDE.md Prompt 3.3
+// Manages all active coins in the scene. Uses new ARCoinRenderer and
+// ARCoinPositioner components for distance-adaptive display.
+// Reference: Docs/AR-COIN-DISPLAY-SPEC.md
 // ============================================================================
 
 using UnityEngine;
@@ -26,9 +26,6 @@ namespace BlackBartsGold.AR
         
         private static CoinManager _instance;
         
-        /// <summary>
-        /// Singleton instance
-        /// </summary>
         public static CoinManager Instance
         {
             get
@@ -51,23 +48,19 @@ namespace BlackBartsGold.AR
         
         #region Inspector Fields
         
-        [Header("Prefabs")]
+        [Header("Prefab")]
         [SerializeField]
-        [Tooltip("Coin prefab to instantiate")]
+        [Tooltip("Coin prefab to instantiate (optional - creates default if null)")]
         private GameObject coinPrefab;
         
         [Header("Settings")]
         [SerializeField]
+        [Tooltip("Coin display settings (uses default if null)")]
+        private CoinDisplaySettings displaySettings;
+        
+        [SerializeField]
         [Tooltip("Maximum coins to render at once")]
         private int maxActiveCoins = 20;
-        
-        [SerializeField]
-        [Tooltip("Maximum render distance in meters")]
-        private float maxRenderDistance = 100f;
-        
-        [SerializeField]
-        [Tooltip("Update coin positions every X seconds")]
-        private float positionUpdateInterval = 1f;
         
         [SerializeField]
         [Tooltip("Parent transform for spawned coins")]
@@ -81,58 +74,32 @@ namespace BlackBartsGold.AR
         
         #region Properties
         
-        /// <summary>
-        /// All currently active coins
-        /// </summary>
+        /// <summary>All currently active coins</summary>
         public List<CoinController> ActiveCoins { get; private set; } = new List<CoinController>();
         
-        /// <summary>
-        /// Number of active coins
-        /// </summary>
+        /// <summary>Number of active coins</summary>
         public int ActiveCoinCount => ActiveCoins.Count;
         
-        /// <summary>
-        /// Currently selected/hovered coin
-        /// </summary>
+        /// <summary>Currently selected coin</summary>
         public CoinController SelectedCoin { get; private set; }
         
-        /// <summary>
-        /// Nearest coin to player
-        /// </summary>
+        /// <summary>Nearest coin to player</summary>
         public CoinController NearestCoin { get; private set; }
         
-        /// <summary>
-        /// Total value of all active coins
-        /// </summary>
+        /// <summary>Total value of all active coins</summary>
         public float TotalActiveValue { get; private set; } = 0f;
+        
+        /// <summary>Display settings in use</summary>
+        public CoinDisplaySettings DisplaySettings => displaySettings ?? CoinDisplaySettings.Default;
         
         #endregion
         
         #region Events
         
-        /// <summary>
-        /// Fired when a coin is spawned
-        /// </summary>
         public event Action<CoinController> OnCoinSpawned;
-        
-        /// <summary>
-        /// Fired when a coin is despawned
-        /// </summary>
         public event Action<CoinController> OnCoinDespawned;
-        
-        /// <summary>
-        /// Fired when a coin is collected
-        /// </summary>
         public event Action<CoinController, float> OnCoinCollected;
-        
-        /// <summary>
-        /// Fired when a coin selection changes
-        /// </summary>
         public event Action<CoinController> OnCoinSelectionChanged;
-        
-        /// <summary>
-        /// Fired when nearest coin changes
-        /// </summary>
         public event Action<CoinController> OnNearestCoinChanged;
         
         #endregion
@@ -140,9 +107,9 @@ namespace BlackBartsGold.AR
         #region Private Fields
         
         private Dictionary<string, CoinController> coinLookup = new Dictionary<string, CoinController>();
-        private float lastPositionUpdate = 0f;
-        private List<Coin> pendingCoins = new List<Coin>(); // Coins waiting to be spawned
-        private Queue<CoinController> coinPool = new Queue<CoinController>(); // Object pool
+        private Queue<CoinController> coinPool = new Queue<CoinController>();
+        private float lastNearestUpdate = 0f;
+        private const float NEAREST_UPDATE_INTERVAL = 0.5f;
         
         #endregion
         
@@ -150,7 +117,6 @@ namespace BlackBartsGold.AR
         
         private void Awake()
         {
-            // Singleton setup
             if (_instance != null && _instance != this)
             {
                 Destroy(gameObject);
@@ -158,42 +124,28 @@ namespace BlackBartsGold.AR
             }
             _instance = this;
             
-            // Create coins parent if needed
+            // Create coins parent
             if (coinsParent == null)
             {
                 GameObject parent = new GameObject("Coins");
                 coinsParent = parent.transform;
             }
+            
+            Log("CoinManager initialized with new architecture");
         }
         
         private void Start()
         {
-            // Subscribe to raycast events for selection
-            if (ARRaycastController.Instance != null)
-            {
-                ARRaycastController.Instance.OnCoinHovered += OnCoinHovered;
-                ARRaycastController.Instance.OnCoinUnhovered += OnCoinUnhovered;
-                ARRaycastController.Instance.OnCoinSelected += OnCoinSelectedByRaycast;
-            }
-        }
-        
-        private void OnDestroy()
-        {
-            if (ARRaycastController.Instance != null)
-            {
-                ARRaycastController.Instance.OnCoinHovered -= OnCoinHovered;
-                ARRaycastController.Instance.OnCoinUnhovered -= OnCoinUnhovered;
-                ARRaycastController.Instance.OnCoinSelected -= OnCoinSelectedByRaycast;
-            }
+            // Initialize compass heading for positioning
+            ARCoinPositioner.CaptureInitialCompassHeading();
         }
         
         private void Update()
         {
-            // Periodic position updates
-            if (Time.time - lastPositionUpdate >= positionUpdateInterval)
+            // Periodic nearest coin update
+            if (Time.time - lastNearestUpdate >= NEAREST_UPDATE_INTERVAL)
             {
-                lastPositionUpdate = Time.time;
-                UpdateCoinDistances();
+                lastNearestUpdate = Time.time;
                 UpdateNearestCoin();
             }
         }
@@ -207,21 +159,15 @@ namespace BlackBartsGold.AR
         /// </summary>
         public void SetNearbyCoins(List<Coin> coins)
         {
-            Debug.Log($"[CoinManager] 📥 SetNearbyCoins called with {coins?.Count ?? 0} coins");
+            Log($"SetNearbyCoins called with {coins?.Count ?? 0} coins");
             
-            if (coins == null)
+            if (coins == null || coins.Count == 0)
             {
-                Debug.LogWarning("[CoinManager] ⚠️ Coins list is null!");
+                Log("No coins to spawn");
                 return;
             }
             
-            if (coins.Count == 0)
-            {
-                Debug.Log("[CoinManager] ℹ️ No coins to spawn");
-                return;
-            }
-            
-            // Find coins to despawn (no longer in list)
+            // Find coins to despawn
             List<string> toRemove = new List<string>();
             foreach (var kvp in coinLookup)
             {
@@ -231,78 +177,72 @@ namespace BlackBartsGold.AR
                 }
             }
             
-            // Despawn removed coins
+            // Despawn removed
             foreach (string id in toRemove)
             {
                 DespawnCoin(id);
             }
             
-            // Spawn new coins
+            // Spawn new
             int spawnedCount = 0;
             foreach (var coin in coins)
             {
                 if (!coinLookup.ContainsKey(coin.id))
                 {
-                    Debug.Log($"[CoinManager] 🪙 Spawning coin: {coin.id}, Value: ${coin.value:F2}");
                     var spawned = SpawnCoin(coin);
                     if (spawned != null) spawnedCount++;
                 }
             }
             
-            Debug.Log($"[CoinManager] ✅ SetNearbyCoins complete: {spawnedCount} new coins spawned, {ActiveCoinCount} total active");
+            Log($"SetNearbyCoins complete: {spawnedCount} new, {ActiveCoinCount} total");
         }
         
         /// <summary>
-        /// Spawn a coin at its world position
+        /// Spawn a coin with the new architecture
         /// </summary>
         public CoinController SpawnCoin(Coin coinData)
         {
             if (coinData == null)
             {
-                Debug.LogWarning("[CoinManager] Cannot spawn null coin data");
+                Debug.LogWarning("[CoinManager] Cannot spawn null coin");
                 return null;
             }
             
-            // Check if already exists
+            // Check if exists
             if (coinLookup.ContainsKey(coinData.id))
             {
                 Log($"Coin {coinData.id} already exists");
                 return coinLookup[coinData.id];
             }
             
-            // Check max coins limit
+            // Check limit
             if (ActiveCoins.Count >= maxActiveCoins)
             {
-                Log($"Max coins reached ({maxActiveCoins}), cannot spawn more");
+                Log($"Max coins reached ({maxActiveCoins})");
                 return null;
             }
             
             // Get or create coin object
             CoinController coin = GetCoinFromPool();
-            
             if (coin == null)
             {
                 Debug.LogError("[CoinManager] Failed to get coin from pool");
                 return null;
             }
             
-            // Position will be set by CoinSpawner based on GPS
-            // For now, use a placeholder
+            // Configure
             coin.transform.SetParent(coinsParent);
             coin.gameObject.SetActive(true);
             
             // Initialize with data
             bool isLocked = CheckIfLocked(coinData);
-            bool isInRange = false; // Will be updated by distance check
-            coin.Initialize(coinData, isLocked, isInRange);
+            coin.Initialize(coinData, isLocked);
             
-            // Play appear animation
-            coin.PlayAppearAnimation();
-            
-            // Subscribe to coin events
+            // Subscribe to events
             coin.OnCollected += HandleCoinCollected;
             coin.OnLockedTap += HandleLockedCoinTap;
             coin.OnOutOfRangeTap += HandleOutOfRangeTap;
+            coin.OnEnteredRange += HandleCoinEnteredRange;
             
             // Track
             ActiveCoins.Add(coin);
@@ -317,21 +257,6 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Spawn a coin at a specific AR position (for testing)
-        /// </summary>
-        public CoinController SpawnCoinAtPosition(Coin coinData, Vector3 arPosition)
-        {
-            CoinController coin = SpawnCoin(coinData);
-            
-            if (coin != null)
-            {
-                coin.transform.position = arPosition;
-            }
-            
-            return coin;
-        }
-        
-        /// <summary>
         /// Despawn a coin by ID
         /// </summary>
         public void DespawnCoin(string coinId)
@@ -340,7 +265,6 @@ namespace BlackBartsGold.AR
             {
                 return;
             }
-            
             DespawnCoin(coin);
         }
         
@@ -357,6 +281,7 @@ namespace BlackBartsGold.AR
             coin.OnCollected -= HandleCoinCollected;
             coin.OnLockedTap -= HandleLockedCoinTap;
             coin.OnOutOfRangeTap -= HandleOutOfRangeTap;
+            coin.OnEnteredRange -= HandleCoinEnteredRange;
             
             // Remove from tracking
             ActiveCoins.Remove(coin);
@@ -366,7 +291,6 @@ namespace BlackBartsGold.AR
             ReturnCoinToPool(coin);
             
             UpdateTotalValue();
-            
             Log($"Despawned coin: {coinId}");
             
             OnCoinDespawned?.Invoke(coin);
@@ -378,12 +302,10 @@ namespace BlackBartsGold.AR
         public void DespawnAllCoins()
         {
             List<CoinController> toRemove = new List<CoinController>(ActiveCoins);
-            
             foreach (var coin in toRemove)
             {
                 DespawnCoin(coin);
             }
-            
             Log("All coins despawned");
         }
         
@@ -391,9 +313,6 @@ namespace BlackBartsGold.AR
         
         #region Object Pool
         
-        /// <summary>
-        /// Get a coin from the pool or create new
-        /// </summary>
         private CoinController GetCoinFromPool()
         {
             CoinController coin;
@@ -405,13 +324,7 @@ namespace BlackBartsGold.AR
             else
             {
                 // Create new
-                if (coinPrefab == null)
-                {
-                    // Create primitive if no prefab
-                    GameObject coinObj = CreateDefaultCoinObject();
-                    coin = coinObj.GetComponent<CoinController>();
-                }
-                else
+                if (coinPrefab != null)
                 {
                     GameObject coinObj = Instantiate(coinPrefab);
                     coin = coinObj.GetComponent<CoinController>();
@@ -421,14 +334,17 @@ namespace BlackBartsGold.AR
                         coin = coinObj.AddComponent<CoinController>();
                     }
                 }
+                else
+                {
+                    // Create default coin
+                    GameObject coinObj = CreateDefaultCoinObject();
+                    coin = coinObj.GetComponent<CoinController>();
+                }
             }
             
             return coin;
         }
         
-        /// <summary>
-        /// Return a coin to the pool
-        /// </summary>
         private void ReturnCoinToPool(CoinController coin)
         {
             coin.gameObject.SetActive(false);
@@ -437,58 +353,46 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Create a default coin object (no prefab)
+        /// Create a default coin object with new components
         /// </summary>
         private GameObject CreateDefaultCoinObject()
         {
             GameObject coin = new GameObject("Coin");
             
-            // ================================================================
-            // DEBUG: HUGE COINS FOR VISIBILITY TESTING
-            // TODO: Reduce size once we confirm coins are visible
-            // Normal size would be: 0.3f, 0.02f, 0.3f (30cm diameter)
-            // Debug size: 2.0f, 0.1f, 2.0f (2 METER diameter - impossible to miss!)
-            // ================================================================
-            
-            // Create visual - using SPHERE for better visibility (coins can be cylinders later)
+            // Create visual - gold sphere
             GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             visual.name = "CoinModel";
             visual.transform.SetParent(coin.transform);
-            visual.transform.localScale = new Vector3(2.0f, 2.0f, 2.0f); // 2 METER SPHERE!
+            visual.transform.localPosition = Vector3.zero;
+            visual.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f); // 30cm diameter
             
-            // Use UNLIT shader for mobile compatibility (Standard shader can fail on mobile)
+            // Gold unlit material (mobile compatible)
             MeshRenderer renderer = visual.GetComponent<MeshRenderer>();
             if (renderer != null)
             {
-                // Try mobile-friendly unlit shader first
-                Shader unlitShader = Shader.Find("Unlit/Color");
-                if (unlitShader == null)
-                {
-                    unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
-                }
-                if (unlitShader == null)
-                {
-                    unlitShader = Shader.Find("Standard"); // Fallback
-                }
+                Shader shader = Shader.Find("Unlit/Color");
+                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null) shader = Shader.Find("Standard");
                 
-                renderer.material = new Material(unlitShader);
-                renderer.material.color = new Color(1f, 0.84f, 0f); // Bright Gold
-                
-                Debug.Log($"[CoinManager] Created coin with shader: {renderer.material.shader.name}");
+                renderer.material = new Material(shader);
+                renderer.material.color = DisplaySettings.goldColor;
             }
             
-            // Remove collider from visual (we'll add our own)
+            // Remove visual's collider
             Collider visualCol = visual.GetComponent<Collider>();
             if (visualCol != null) Destroy(visualCol);
             
-            // Add sphere collider to parent (larger for easier tapping)
+            // Add collider to parent
             SphereCollider col = coin.AddComponent<SphereCollider>();
-            col.radius = 1.5f; // Large collider for 2m sphere
+            col.radius = 0.2f;
             
-            // Add CoinController
+            // Add new components (CoinController will add required components in Awake)
             coin.AddComponent<CoinController>();
             
-            Debug.Log("[CoinManager] 🪙 Created DEBUG coin: 2 METER GOLD SPHERE");
+            // Tag
+            coin.tag = "Coin";
+            
+            Log("Created default coin with new architecture");
             
             return coin;
         }
@@ -497,22 +401,17 @@ namespace BlackBartsGold.AR
         
         #region Coin Lookup
         
-        /// <summary>
-        /// Get coin by ID
-        /// </summary>
+        /// <summary>Get coin by ID</summary>
         public CoinController GetCoinById(string coinId)
         {
             coinLookup.TryGetValue(coinId, out CoinController coin);
             return coin;
         }
         
-        /// <summary>
-        /// Get coins within a certain distance
-        /// </summary>
+        /// <summary>Get coins within distance</summary>
         public List<CoinController> GetCoinsWithinDistance(float maxDistance)
         {
             List<CoinController> result = new List<CoinController>();
-            
             foreach (var coin in ActiveCoins)
             {
                 if (coin.DistanceFromPlayer <= maxDistance)
@@ -520,17 +419,13 @@ namespace BlackBartsGold.AR
                     result.Add(coin);
                 }
             }
-            
             return result;
         }
         
-        /// <summary>
-        /// Get collectible coins (in range and not locked)
-        /// </summary>
+        /// <summary>Get collectible coins</summary>
         public List<CoinController> GetCollectibleCoins()
         {
             List<CoinController> result = new List<CoinController>();
-            
             foreach (var coin in ActiveCoins)
             {
                 if (coin.IsInRange && !coin.IsLocked && !coin.IsCollected)
@@ -538,7 +433,6 @@ namespace BlackBartsGold.AR
                     result.Add(coin);
                 }
             }
-            
             return result;
         }
         
@@ -546,79 +440,44 @@ namespace BlackBartsGold.AR
         
         #region Selection
         
-        /// <summary>
-        /// Handle coin hover from raycast system
-        /// </summary>
-        private void OnCoinHovered(GameObject coinObj)
+        /// <summary>Select a coin</summary>
+        public void SelectCoin(CoinController coin)
         {
-            CoinController coin = coinObj.GetComponent<CoinController>();
-            if (coin == null) return;
-            
             if (SelectedCoin != coin)
             {
-                // Unhover previous
-                if (SelectedCoin != null)
-                {
-                    SelectedCoin.OnUnhover();
-                }
-                
-                // Hover new
                 SelectedCoin = coin;
-                coin.OnHover();
-                
                 OnCoinSelectionChanged?.Invoke(coin);
             }
         }
         
-        /// <summary>
-        /// Handle coin unhover
-        /// </summary>
-        private void OnCoinUnhovered()
+        /// <summary>Clear selection</summary>
+        public void ClearSelection()
         {
             if (SelectedCoin != null)
             {
-                SelectedCoin.OnUnhover();
                 SelectedCoin = null;
-                
                 OnCoinSelectionChanged?.Invoke(null);
             }
-        }
-        
-        /// <summary>
-        /// Handle coin selection (tap)
-        /// </summary>
-        private void OnCoinSelectedByRaycast(GameObject coinObj)
-        {
-            CoinController coin = coinObj.GetComponent<CoinController>();
-            if (coin == null) return;
-            
-            // Try to collect
-            coin.TryCollect();
         }
         
         #endregion
         
         #region Event Handlers
         
-        /// <summary>
-        /// Handle coin collected
-        /// </summary>
         private void HandleCoinCollected(CoinController coin)
         {
             float value = coin.CoinData?.value ?? 0f;
-            
             Log($"Coin collected! Value: ${value:F2}");
             
-            // Add to player wallet (pending)
+            // Add to wallet
             if (PlayerData.Exists)
             {
                 PlayerData.Instance.AddPendingCoins(value, coin.CoinId);
             }
             
-            // Notify listeners
             OnCoinCollected?.Invoke(coin, value);
             
-            // Remove from tracking (coin will be deactivated by controller)
+            // Remove from tracking
             ActiveCoins.Remove(coin);
             coinLookup.Remove(coin.CoinId);
             UpdateTotalValue();
@@ -633,47 +492,28 @@ namespace BlackBartsGold.AR
             ReturnCoinToPool(coin);
         }
         
-        /// <summary>
-        /// Handle locked coin tap
-        /// </summary>
         private void HandleLockedCoinTap(CoinController coin)
         {
             Log($"Locked coin tapped: {coin.CoinData?.GetDisplayValue()}");
-            
-            // TODO: Show locked coin popup
-            // UIManager.Instance.ShowLockedCoinPopup(coin);
+            // TODO: Show locked popup
         }
         
-        /// <summary>
-        /// Handle out of range tap
-        /// </summary>
         private void HandleOutOfRangeTap(CoinController coin)
         {
             Log($"Out of range tap: {coin.DistanceFromPlayer:F1}m away");
-            
             // TODO: Show distance message
-            // UIManager.Instance.ShowMessage($"Get closer! {coin.DistanceFromPlayer:F0}m away");
+        }
+        
+        private void HandleCoinEnteredRange(CoinController coin)
+        {
+            Log($"Coin entered range: {coin.CoinId}");
+            // Could trigger haptic feedback here
         }
         
         #endregion
         
-        #region Distance Updates
+        #region Updates
         
-        /// <summary>
-        /// Update distances for all coins
-        /// </summary>
-        private void UpdateCoinDistances()
-        {
-            foreach (var coin in ActiveCoins)
-            {
-                // Distance is updated in CoinController.Update()
-                // Here we can do batch operations if needed
-            }
-        }
-        
-        /// <summary>
-        /// Find and update nearest coin
-        /// </summary>
         private void UpdateNearestCoin()
         {
             CoinController nearest = null;
@@ -682,6 +522,7 @@ namespace BlackBartsGold.AR
             foreach (var coin in ActiveCoins)
             {
                 if (coin.IsCollected) continue;
+                if (!coin.IsVisible) continue;
                 
                 if (coin.DistanceFromPlayer < nearestDist)
                 {
@@ -701,20 +542,13 @@ namespace BlackBartsGold.AR
         
         #region Utility
         
-        /// <summary>
-        /// Check if coin should be locked for current player
-        /// </summary>
         private bool CheckIfLocked(Coin coinData)
         {
             if (coinData == null) return false;
-            
             float playerLimit = PlayerData.Exists ? PlayerData.Instance.FindLimit : 1.00f;
             return coinData.value > playerLimit;
         }
         
-        /// <summary>
-        /// Update total value of active coins
-        /// </summary>
         private void UpdateTotalValue()
         {
             float total = 0f;
@@ -740,43 +574,57 @@ namespace BlackBartsGold.AR
         
         #region Debug
         
-        /// <summary>
-        /// Debug: Print all active coins
-        /// </summary>
         [ContextMenu("Debug: Print Active Coins")]
         public void DebugPrintActiveCoins()
         {
             Debug.Log($"=== Active Coins ({ActiveCoinCount}) ===");
             foreach (var coin in ActiveCoins)
             {
-                Debug.Log($"  - {coin.CoinId}: {coin.CoinData?.GetDisplayValue()} @ {coin.DistanceFromPlayer:F1}m");
+                Debug.Log($"  - {coin.CoinId}: {coin.CoinData?.GetDisplayValue()} @ {coin.DistanceFromPlayer:F1}m ({coin.DisplayMode})");
             }
             Debug.Log($"Total Value: ${TotalActiveValue:F2}");
             Debug.Log("================================");
         }
         
-        /// <summary>
-        /// Debug: Spawn test coins
-        /// </summary>
         [ContextMenu("Debug: Spawn Test Coins")]
         public void DebugSpawnTestCoins()
         {
             Camera cam = Camera.main;
-            if (cam == null) return;
-            
-            // Spawn 5 test coins in front of camera
-            for (int i = 0; i < 5; i++)
+            if (cam == null)
             {
-                Coin testCoin = Coin.CreateTestCoin((i + 1) * 1.00f);
-                
-                Vector3 pos = cam.transform.position + cam.transform.forward * (3 + i);
-                pos += cam.transform.right * (i - 2) * 1.5f; // Spread horizontally
-                pos.y = cam.transform.position.y;
-                
-                SpawnCoinAtPosition(testCoin, pos);
+                cam = FindFirstObjectByType<Camera>();
+            }
+            if (cam == null)
+            {
+                Debug.LogWarning("No camera found");
+                return;
             }
             
-            Debug.Log("[CoinManager] Spawned 5 test coins");
+            // Spawn 5 test coins at various distances
+            float[] distances = { 5f, 10f, 20f, 35f, 50f };
+            float[] values = { 1f, 2f, 5f, 10f, 25f };
+            
+            for (int i = 0; i < 5; i++)
+            {
+                Coin testCoin = Coin.CreateTestCoin(values[i], distances[i]);
+                
+                // Position in front of camera
+                Vector3 dir = cam.transform.forward;
+                dir.y = 0;
+                dir.Normalize();
+                
+                Vector3 offset = Quaternion.Euler(0, (i - 2) * 20f, 0) * dir * distances[i];
+                Vector3 pos = cam.transform.position + offset;
+                pos.y = 1f;
+                
+                var controller = SpawnCoin(testCoin);
+                if (controller != null)
+                {
+                    controller.transform.position = pos;
+                }
+            }
+            
+            Debug.Log("[CoinManager] Spawned 5 test coins at 5m, 10m, 20m, 35m, 50m");
         }
         
         #endregion

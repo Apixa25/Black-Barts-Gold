@@ -494,33 +494,11 @@ namespace BlackBartsGold.Core
                 }
                 
                 // Pass coins to CoinManager for AR spawning
+                // NEW ARCHITECTURE: CoinManager uses ARCoinPositioner for GPS-to-AR conversion
                 if (CoinManager.Instance != null)
                 {
                     CoinManager.Instance.SetNearbyCoins(coins);
-                    
-                    // Immediately trigger position recalculation so coins appear at correct GPS positions
-                    if (CoinSpawner.Instance != null)
-                    {
-                        // CRITICAL: Set CoinSpawner's location from GPSManager before recalculating!
-                        // CoinSpawner has its own GPS tracking that may not be ready yet
-                        var gpsLocation = GPSManager.Instance.CurrentLocation ?? GPSManager.Instance.LastKnownLocation;
-                        if (gpsLocation != null)
-                        {
-                            Debug.Log($"[UIManager] 📍 Setting CoinSpawner location from GPSManager: ({gpsLocation.latitude:F6}, {gpsLocation.longitude:F6})");
-                            CoinSpawner.Instance.SetPlayerLocationManually(gpsLocation.latitude, gpsLocation.longitude);
-                        }
-                        else
-                        {
-                            Debug.LogWarning("[UIManager] ⚠️ No GPS location available for CoinSpawner!");
-                        }
-                        
-                        Debug.Log("[UIManager] 📍 Triggering immediate position recalculation");
-                        CoinSpawner.Instance.RecalculateAllCoinPositions();
-                    }
-                    else
-                    {
-                        Debug.LogWarning("[UIManager] ⚠️ CoinSpawner not found - coins may not be positioned correctly");
-                    }
+                    Debug.Log("[UIManager] ✅ Coins passed to CoinManager (new architecture)");
                 }
                 else
                 {
@@ -1304,7 +1282,9 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Handle Reveal Coin button click - anchors coin to AR plane
+        /// Handle Reveal Coin button click.
+        /// NEW ARCHITECTURE: Coins are ALWAYS visible via ARCoinRenderer.
+        /// This button now just highlights the coin for collection.
         /// </summary>
         private void OnPlaceCoinButtonClicked()
         {
@@ -1318,35 +1298,38 @@ namespace BlackBartsGold.Core
             Debug.Log($"[UIManager] 🪙 REVEAL COIN BUTTON CLICKED!");
             Debug.Log($"[UIManager] Coin to reveal: {_coinToPlace.id}");
             
-            // ================================================================
-            // DIAGNOSTIC: Also spawn a simple test sphere directly in front of camera
-            // This helps us verify that 3D rendering works at all!
-            // ================================================================
-            SpawnDiagnosticSphere();
-            
-            // Use proper AR anchor system
-            var placer = ARCoinPlacer.Instance;
-            if (placer != null)
+            // NEW ARCHITECTURE: Coins are always visible through ARCoinRenderer
+            // The "Reveal" button now focuses/selects the coin for collection
+            if (CoinManager.Instance != null)
             {
-                Debug.Log($"[UIManager] 📍 ARCoinPlacer found, calling PlaceCoinInAR...");
-                var placed = placer.PlaceCoinInAR(_coinToPlace);
-                if (placed != null)
+                var controller = CoinManager.Instance.GetCoinById(_coinToPlace.id);
+                if (controller != null)
                 {
-                    Debug.Log($"[UIManager] ✅ Coin revealed successfully!");
-                    Debug.Log($"[UIManager]    Placed at: {placed.CoinObject?.transform.position}");
-                    // Hide button after placing
+                    // Select the coin
+                    CoinManager.Instance.SelectCoin(controller);
+                    
+                    // If in range, try to collect
+                    if (controller.IsInRange && !controller.IsLocked)
+                    {
+                        Debug.Log($"[UIManager] 🪙 Attempting to collect coin: {_coinToPlace.id}");
+                        controller.TryCollect();
+                    }
+                    else
+                    {
+                        Debug.Log($"[UIManager] 🪙 Coin selected, but not in range or locked");
+                        Debug.Log($"[UIManager]    Distance: {controller.DistanceFromPlayer:F1}m");
+                        Debug.Log($"[UIManager]    InRange: {controller.IsInRange}");
+                        Debug.Log($"[UIManager]    Locked: {controller.IsLocked}");
+                    }
+                    
+                    // Hide button after action
                     _placeCoinButton?.SetActive(false);
                     _coinToPlace = null;
                 }
                 else
                 {
-                    Debug.LogWarning("[UIManager] ⚠️ Failed to reveal coin - PlaceCoinInAR returned null");
-                    _placeCoinButtonText.text = "SCAN GROUND FIRST!";
+                    Debug.LogWarning("[UIManager] ⚠️ Coin controller not found in CoinManager");
                 }
-            }
-            else
-            {
-                Debug.LogError("[UIManager] ❌ ARCoinPlacer not found!");
             }
             
             Debug.Log($"[UIManager] ═══════════════════════════════════════════════════");
@@ -1461,56 +1444,59 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Update the Place Coin button visibility based on proximity
+        /// Update the collect button visibility based on proximity.
+        /// NEW ARCHITECTURE: Shows when coin is in collection range.
         /// </summary>
         private void UpdatePlaceCoinButton()
         {
             if (_placeCoinButton == null) return;
-            if (GPSManager.Instance == null || CoinManager.Instance == null) return;
+            if (CoinManager.Instance == null) return;
             
-            var playerLoc = GPSManager.Instance.CurrentLocation;
-            if (playerLoc == null)
-            {
-                _placeCoinButton.SetActive(false);
-                return;
-            }
-            
-            // Find closest coin within placement range
-            Coin closestCoin = null;
-            float closestDist = 20f; // Max placement distance
+            // Find closest coin in collection range
+            CoinController closestController = null;
+            float closestDist = float.MaxValue;
             
             foreach (var controller in CoinManager.Instance.ActiveCoins)
             {
-                if (controller?.CoinData == null) continue;
+                if (controller == null || controller.IsCollected) continue;
+                if (!controller.IsVisible) continue;
                 
-                var coin = controller.CoinData;
-                
-                // Skip if already placed in AR
-                if (ARCoinPlacer.Instance != null && ARCoinPlacer.Instance.IsCoinPlaced(coin.id))
-                    continue;
-                
-                float distance = (float)playerLoc.DistanceTo(new LocationData(coin.latitude, coin.longitude));
+                float distance = controller.DistanceFromPlayer;
                 
                 if (distance < closestDist)
                 {
                     closestDist = distance;
-                    closestCoin = coin;
+                    closestController = controller;
                 }
             }
             
-            // Show/hide button based on proximity
-            if (closestCoin != null)
+            // Show button when near a coin (within 20m)
+            if (closestController != null && closestDist < 20f)
             {
-                _coinToPlace = closestCoin;
+                _coinToPlace = closestController.CoinData;
                 _placeCoinButton.SetActive(true);
-                _placeCoinButtonText.text = $"REVEAL COIN ({closestDist:F0}m)";
                 
-                // Change color based on distance
+                // Update button text and color based on collection readiness
                 var bgImage = _placeCoinButton.GetComponent<Image>();
-                if (closestDist < 10f)
-                    bgImage.color = new Color(0.2f, 0.8f, 0.3f, 0.9f); // Bright green - close!
+                
+                if (closestController.IsInRange && !closestController.IsLocked)
+                {
+                    // Can collect!
+                    _placeCoinButtonText.text = $"COLLECT! ({closestDist:F0}m)";
+                    bgImage.color = new Color(0.2f, 0.8f, 0.3f, 0.9f); // Bright green
+                }
+                else if (closestController.IsLocked)
+                {
+                    // Locked
+                    _placeCoinButtonText.text = $"LOCKED ({closestDist:F0}m)";
+                    bgImage.color = new Color(0.8f, 0.2f, 0.2f, 0.9f); // Red
+                }
                 else
-                    bgImage.color = new Color(0.8f, 0.6f, 0.2f, 0.9f); // Orange - getting closer
+                {
+                    // Getting closer
+                    _placeCoinButtonText.text = $"GET CLOSER ({closestDist:F0}m)";
+                    bgImage.color = new Color(0.8f, 0.6f, 0.2f, 0.9f); // Orange
+                }
             }
             else
             {

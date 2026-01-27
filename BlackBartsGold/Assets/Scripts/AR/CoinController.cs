@@ -1,16 +1,15 @@
 // ============================================================================
 // CoinController.cs
-// Black Bart's Gold - AR Coin Behavior Controller
+// Black Bart's Gold - AR Coin Controller (Simplified)
 // Path: Assets/Scripts/AR/CoinController.cs
 // ============================================================================
-// Controls individual coin behavior in AR: initialization from data model,
-// visual states (normal, locked, hovering), animations, and collection.
-// Reference: BUILD-GUIDE.md Prompt 3.2
+// Main controller for coin behavior. Coordinates ARCoinRenderer and 
+// ARCoinPositioner. Handles collection, locking, and state management.
+// Reference: Docs/AR-COIN-DISPLAY-SPEC.md
 // ============================================================================
 
 using UnityEngine;
 using System;
-using System.Collections;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Location;
@@ -18,109 +17,41 @@ using BlackBartsGold.Location;
 namespace BlackBartsGold.AR
 {
     /// <summary>
-    /// GPS accuracy requirements for different operations
+    /// GPS accuracy requirements for coin collection.
+    /// Prevents collection when GPS is inaccurate.
     /// </summary>
     public static class GPSAccuracyRequirements
     {
-        /// <summary>
-        /// Maximum GPS accuracy (in meters) required to collect a coin.
-        /// This prevents players from collecting coins when GPS is inaccurate.
-        /// Lower = more strict, Higher = more lenient
-        /// </summary>
+        /// <summary>Maximum GPS accuracy (meters) required to collect a coin</summary>
         public const float COLLECTION_ACCURACY = 25f;
         
-        /// <summary>
-        /// Minimum GPS accuracy to show coins on map (lenient)
-        /// </summary>
+        /// <summary>Minimum GPS accuracy to show coins on map</summary>
         public const float DISPLAY_ACCURACY = 200f;
     }
-
-    // CoinVisualState is now defined in Core/Enums.cs
+    
     /// <summary>
-    /// Controls an individual coin's behavior and appearance in AR.
-    /// Attach to coin prefab root GameObject.
+    /// Main controller for an AR coin.
+    /// Coordinates rendering (ARCoinRenderer) and positioning (ARCoinPositioner).
     /// </summary>
-    [RequireComponent(typeof(Collider))]
+    [RequireComponent(typeof(ARCoinRenderer))]
+    [RequireComponent(typeof(ARCoinPositioner))]
     public class CoinController : MonoBehaviour
     {
+        #region Components
+        
+        private ARCoinRenderer coinRenderer;
+        private ARCoinPositioner coinPositioner;
+        
+        #endregion
+        
         #region Inspector Fields
         
-        [Header("Visual References")]
+        [Header("Visual")]
         [SerializeField]
-        [Tooltip("The 3D coin mesh object")]
+        [Tooltip("The coin model/visual child object")]
         private GameObject coinModel;
         
-        [SerializeField]
-        [Tooltip("Mesh renderer for material changes")]
-        private MeshRenderer coinRenderer;
-        
-        [SerializeField]
-        [Tooltip("Text displaying coin value (billboard)")]
-        private TMPro.TMP_Text valueLabel;
-        
-        [SerializeField]
-        [Tooltip("Lock icon overlay for locked coins")]
-        private GameObject lockIcon;
-        
-        [Header("Materials")]
-        [SerializeField]
-        private Material goldMaterial;
-        
-        [SerializeField]
-        private Material silverMaterial;
-        
-        [SerializeField]
-        private Material bronzeMaterial;
-        
-        [SerializeField]
-        private Material platinumMaterial;
-        
-        [SerializeField]
-        private Material diamondMaterial;
-        
-        [SerializeField]
-        private Material lockedMaterial;
-        
-        [SerializeField]
-        private Material poolMaterial; // Unknown value (shows "?")
-        
-        [Header("Particle Effects")]
-        [SerializeField]
-        private ParticleSystem sparkleEffect;
-        
-        [SerializeField]
-        private ParticleSystem collectionEffect;
-        
-        [SerializeField]
-        private ParticleSystem lockedPulseEffect;
-        
-        [Header("Audio")]
-        [SerializeField]
-        private AudioSource audioSource;
-        
-        [SerializeField]
-        private AudioClip hoverSound;
-        
-        [SerializeField]
-        private AudioClip collectSound;
-        
-        [SerializeField]
-        private AudioClip lockedSound;
-        
-        [Header("Animation Settings")]
-        [SerializeField]
-        private float spinSpeed = 45f; // Degrees per second
-        
-        [SerializeField]
-        private float bobAmplitude = 0.1f; // Up/down distance
-        
-        [SerializeField]
-        private float bobSpeed = 1.5f; // Bobs per second
-        
-        [SerializeField]
-        private float collectAnimDuration = 0.8f;
-        
-        [Header("State")]
+        [Header("Debug")]
         [SerializeField]
         private bool debugMode = false;
         
@@ -128,303 +59,57 @@ namespace BlackBartsGold.AR
         
         #region Properties
         
-        /// <summary>
-        /// Coin data model
-        /// </summary>
+        /// <summary>Coin data model</summary>
         public Coin CoinData { get; private set; }
         
-        /// <summary>
-        /// Unique ID of this coin
-        /// </summary>
+        /// <summary>Unique ID of this coin</summary>
         public string CoinId => CoinData?.id ?? "";
         
-        /// <summary>
-        /// Is this coin locked (above player's find limit)?
-        /// </summary>
+        /// <summary>Is this coin locked (above player's find limit)?</summary>
         public bool IsLocked { get; private set; } = false;
         
-        /// <summary>
-        /// Is this coin within collection range?
-        /// </summary>
-        public bool IsInRange { get; private set; } = false;
+        /// <summary>Is this coin within collection range?</summary>
+        public bool IsInRange => coinRenderer?.IsInCollectionRange ?? false;
         
-        /// <summary>
-        /// Is player currently hovering over this coin?
-        /// </summary>
-        public bool IsHovered { get; private set; } = false;
-        
-        /// <summary>
-        /// Is collection animation playing?
-        /// </summary>
+        /// <summary>Is collection in progress?</summary>
         public bool IsCollecting { get; private set; } = false;
         
-        /// <summary>
-        /// Has this coin been collected?
-        /// </summary>
+        /// <summary>Has this coin been collected?</summary>
         public bool IsCollected { get; private set; } = false;
         
-        /// <summary>
-        /// Current visual state
-        /// </summary>
-        public CoinVisualState CurrentState { get; private set; } = CoinVisualState.Normal;
+        /// <summary>Distance from player (meters) - uses GPS distance for accuracy</summary>
+        public float DistanceFromPlayer => coinPositioner?.GPSDistance ?? float.MaxValue;
         
-        /// <summary>
-        /// Distance from player (meters)
-        /// </summary>
-        public float DistanceFromPlayer { get; private set; } = float.MaxValue;
+        /// <summary>AR distance from camera (for visual purposes only)</summary>
+        public float ARDistanceFromCamera => coinRenderer?.DistanceToCamera ?? float.MaxValue;
+        
+        /// <summary>Current display mode</summary>
+        public CoinDisplayMode DisplayMode => coinRenderer?.CurrentMode ?? CoinDisplayMode.Hidden;
+        
+        /// <summary>Is coin currently visible?</summary>
+        public bool IsVisible => coinRenderer?.IsVisible ?? false;
         
         #endregion
         
         #region Events
         
-        /// <summary>
-        /// Fired when coin is collected
-        /// </summary>
+        /// <summary>Fired when coin is collected</summary>
         public event Action<CoinController> OnCollected;
         
-        /// <summary>
-        /// Fired when coin is tapped but locked
-        /// </summary>
+        /// <summary>Fired when locked coin is tapped</summary>
         public event Action<CoinController> OnLockedTap;
         
-        /// <summary>
-        /// Fired when coin is tapped but out of range
-        /// </summary>
+        /// <summary>Fired when out-of-range coin is tapped</summary>
         public event Action<CoinController> OnOutOfRangeTap;
         
-        /// <summary>
-        /// Fired when hover starts
-        /// </summary>
-        public event Action<CoinController> OnHoverStart;
+        /// <summary>Fired when coin enters collection range</summary>
+        public event Action<CoinController> OnEnteredRange;
         
-        /// <summary>
-        /// Fired when hover ends
-        /// </summary>
-        public event Action<CoinController> OnHoverEnd;
+        /// <summary>Fired when coin exits collection range</summary>
+        public event Action<CoinController> OnExitedRange;
         
-        #endregion
-        
-        #region Private Fields
-        
-        private Vector3 initialPosition;
-        private float bobOffset = 0f;
-        private Camera mainCamera;
-        private Material currentMaterial;
-        private Transform cameraTransform;
-        
-        // Camera finding
-        private bool _cameraSearchLogged = false; // Only log camera search once per coin
-        private float _lastCameraSearchTime = 0f;
-        private const float CAMERA_SEARCH_INTERVAL = 0.5f; // Don't spam FindObjectOfType
-        
-        // Collection animation
-        private Vector3 collectStartPos;
-        private float collectTimer = 0f;
-        
-        // ================================================================
-        // COIN DISPLAY MODES - POKEMON GO PATTERN
-        // ================================================================
-        // Hidden: Coin is NOT visible in 3D (default - use UI indicators instead)
-        // Anchored: Coin is fixed on AR plane (after "Reveal" - the ONLY way to see coins!)
-        // 
-        // WHY: Pokemon Go doesn't show floating 3D billboards for distant objects.
-        // Instead, they use 2D UI (map, compass, arrows) for navigation, and only
-        // show AR objects when the player is close and taps to reveal/catch.
-        // ================================================================
-        
-        /// <summary>
-        /// Display mode for this coin (Pokemon Go Pattern)
-        /// </summary>
-        public enum CoinDisplayMode
-        {
-            Hidden,    // NOT visible in 3D - use UI indicators (radar, compass)
-            Anchored   // Visible - fixed on AR plane after "Reveal"
-        }
-        
-        private CoinDisplayMode _displayMode = CoinDisplayMode.Hidden; // Default: HIDDEN!
-        
-        /// <summary>
-        /// Set the display mode for this coin (Pokemon Go Pattern)
-        /// </summary>
-        public void SetDisplayMode(CoinDisplayMode mode)
-        {
-            CoinDisplayMode previousMode = _displayMode;
-            _displayMode = mode;
-            Debug.Log($"[CoinController] 🪙 Coin {CoinId} display mode: {previousMode} → {mode}");
-            
-            if (mode == CoinDisplayMode.Anchored)
-            {
-                // ================================================================
-                // ANCHORED MODE (REVEALED): Coin becomes VISIBLE!
-                // AR anchor controls positioning - coin is on a real surface
-                // ================================================================
-                SetVisualVisibility(true);
-                Debug.Log($"[CoinController] ✅ Coin {CoinId} REVEALED at world pos: {transform.position}");
-                Debug.Log($"[CoinController]    Parent: {transform.parent?.name ?? "none"}");
-            }
-            else if (mode == CoinDisplayMode.Hidden)
-            {
-                // ================================================================
-                // HIDDEN MODE: Coin is NOT visible in 3D
-                // Player uses UI indicators (radar, compass) to navigate
-                // ================================================================
-                SetVisualVisibility(false);
-                Debug.Log($"[CoinController] 👁️ Coin {CoinId} is now HIDDEN (use UI indicators)");
-            }
-        }
-        
-        /// <summary>
-        /// Show or hide the coin's visual representation
-        /// </summary>
-        private void SetVisualVisibility(bool visible)
-        {
-            Debug.Log($"[CoinController] 👁️ SetVisualVisibility({visible}) for coin {CoinId}");
-            Debug.Log($"[CoinController]    coinModel: {(coinModel != null ? coinModel.name : "NULL")}");
-            Debug.Log($"[CoinController]    transform.position: {transform.position}");
-            Debug.Log($"[CoinController]    transform.parent: {(transform.parent != null ? transform.parent.name : "NULL")}");
-            
-            // ================================================================
-            // CRITICAL FIX: Use includeInactive=true for GetComponentsInChildren
-            // The default GetComponentsInChildren does NOT find inactive children!
-            // When coinModel is SetActive(false), its renderer won't be found.
-            // ================================================================
-            
-            // STEP 1: First enable/disable all renderers (even inactive ones!)
-            var renderers = GetComponentsInChildren<Renderer>(true); // TRUE = include inactive!
-            Debug.Log($"[CoinController]    Found {renderers.Length} renderers (includeInactive=true)");
-            foreach (var renderer in renderers)
-            {
-                renderer.enabled = visible;
-                Debug.Log($"[CoinController]    → Renderer '{renderer.name}' enabled={visible}");
-            }
-            
-            // STEP 2: Then activate/deactivate the coin model
-            if (coinModel != null)
-            {
-                coinModel.SetActive(visible);
-                Debug.Log($"[CoinController]    → coinModel.SetActive({visible})");
-            }
-            else
-            {
-                Debug.LogWarning($"[CoinController]    ⚠️ coinModel is NULL! Cannot set active state.");
-            }
-            
-            // STEP 3: Handle colliders (for raycasting - only enabled when visible)
-            var colliders = GetComponentsInChildren<Collider>(true); // TRUE = include inactive!
-            Debug.Log($"[CoinController]    Found {colliders.Length} colliders");
-            foreach (var collider in colliders)
-            {
-                collider.enabled = visible;
-            }
-            
-            // STEP 4: If making visible, ensure the whole GameObject is active
-            if (visible && !gameObject.activeSelf)
-            {
-                Debug.LogWarning($"[CoinController]    ⚠️ Parent GameObject was inactive! Activating...");
-                gameObject.SetActive(true);
-            }
-            
-            Debug.Log($"[CoinController] ✅ SetVisualVisibility complete. Coin should now be {(visible ? "VISIBLE" : "HIDDEN")}");
-        }
-        
-        /// <summary>
-        /// Is this coin currently hidden (not visible in 3D)?
-        /// </summary>
-        public bool IsHidden => _displayMode == CoinDisplayMode.Hidden;
-        
-        /// <summary>
-        /// Is this coin anchored and visible in AR space?
-        /// </summary>
-        public bool IsAnchored => _displayMode == CoinDisplayMode.Anchored;
-        
-        #endregion
-        
-        #region Camera Finding
-        
-        /// <summary>
-        /// Comprehensive camera finding that works with AR Foundation
-        /// Tries multiple approaches and only logs once per coin
-        /// </summary>
-        private void TryFindCamera()
-        {
-            // Don't spam search - only try every 0.5 seconds
-            if (Time.time - _lastCameraSearchTime < CAMERA_SEARCH_INTERVAL)
-            {
-                return;
-            }
-            _lastCameraSearchTime = Time.time;
-            
-            // 1. Try Camera.main (fastest)
-            mainCamera = Camera.main;
-            
-            if (mainCamera != null)
-            {
-                cameraTransform = mainCamera.transform;
-                if (!_cameraSearchLogged)
-                {
-                    Debug.Log($"[CoinController] ✅ Found Camera.main: {mainCamera.name}");
-                    _cameraSearchLogged = true;
-                }
-                return;
-            }
-            
-            // 2. Try to find AR camera via ARCameraManager component
-            var arCameraManager = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARCameraManager>();
-            if (arCameraManager != null)
-            {
-                mainCamera = arCameraManager.GetComponent<Camera>();
-                if (mainCamera != null)
-                {
-                    cameraTransform = mainCamera.transform;
-                    if (!_cameraSearchLogged)
-                    {
-                        Debug.Log($"[CoinController] ✅ Found AR camera via ARCameraManager: {mainCamera.name}");
-                        _cameraSearchLogged = true;
-                    }
-                    return;
-                }
-            }
-            
-            // 3. Try to find camera via XROrigin
-            var xrOrigin = FindFirstObjectByType<Unity.XR.CoreUtils.XROrigin>();
-            if (xrOrigin != null && xrOrigin.Camera != null)
-            {
-                mainCamera = xrOrigin.Camera;
-                cameraTransform = mainCamera.transform;
-                if (!_cameraSearchLogged)
-                {
-                    Debug.Log($"[CoinController] ✅ Found camera via XROrigin: {mainCamera.name}");
-                    _cameraSearchLogged = true;
-                }
-                return;
-            }
-            
-            // 4. Fallback: Find ANY camera
-            mainCamera = FindFirstObjectByType<Camera>();
-            if (mainCamera != null)
-            {
-                cameraTransform = mainCamera.transform;
-                if (!_cameraSearchLogged)
-                {
-                    Debug.Log($"[CoinController] ⚠️ Using fallback camera: {mainCamera.name}");
-                    _cameraSearchLogged = true;
-                }
-                return;
-            }
-            
-            // 5. Still no camera - log once
-            if (!_cameraSearchLogged)
-            {
-                Debug.LogWarning("[CoinController] ❌ No camera found! Will keep trying...");
-                _cameraSearchLogged = true; // We'll reset this below
-            }
-            
-            // Reset the logged flag after 5 seconds so we log again if still failing
-            if (Time.time > 5f && _cameraSearchLogged)
-            {
-                _cameraSearchLogged = false;
-            }
-        }
+        /// <summary>Fired when display mode changes</summary>
+        public event Action<CoinController, CoinDisplayMode> OnDisplayModeChanged;
         
         #endregion
         
@@ -432,134 +117,72 @@ namespace BlackBartsGold.AR
         
         private void Awake()
         {
-            mainCamera = Camera.main;
-            if (mainCamera != null)
+            // Get or add required components
+            coinRenderer = GetComponent<ARCoinRenderer>();
+            if (coinRenderer == null)
             {
-                cameraTransform = mainCamera.transform;
+                coinRenderer = gameObject.AddComponent<ARCoinRenderer>();
             }
             
-            // Ensure we have a collider for raycasting
-            Collider col = GetComponent<Collider>();
-            if (col == null)
+            coinPositioner = GetComponent<ARCoinPositioner>();
+            if (coinPositioner == null)
             {
-                // Add sphere collider if none exists
-                SphereCollider sphere = gameObject.AddComponent<SphereCollider>();
-                sphere.radius = 0.2f;
+                coinPositioner = gameObject.AddComponent<ARCoinPositioner>();
             }
             
-            // Set layer for coin detection
-            gameObject.layer = LayerMask.NameToLayer("Coin");
-            if (gameObject.layer == -1)
-            {
-                // Coin layer doesn't exist, use default
-                gameObject.layer = 0;
-            }
-            
-            // Tag for identification
-            gameObject.tag = "Coin";
-            
-            // ================================================================
-            // AUTO-FIND coinModel if not set in Inspector
-            // The CoinManager creates a "CoinModel" child for default coins
-            // ================================================================
+            // Auto-find coin model
             if (coinModel == null)
             {
                 Transform modelTransform = transform.Find("CoinModel");
                 if (modelTransform != null)
                 {
                     coinModel = modelTransform.gameObject;
-                    Debug.Log($"[CoinController] Auto-found CoinModel child object");
                 }
-                else
+                else if (transform.childCount > 0)
                 {
-                    // Fallback: use first child if exists
-                    if (transform.childCount > 0)
-                    {
-                        coinModel = transform.GetChild(0).gameObject;
-                        Debug.Log($"[CoinController] Using first child as CoinModel: {coinModel.name}");
-                    }
+                    coinModel = transform.GetChild(0).gameObject;
                 }
             }
             
-            // Auto-find renderer on coin model
-            if (coinRenderer == null && coinModel != null)
+            // Set up collider
+            EnsureCollider();
+            
+            // Set layer and tag
+            gameObject.tag = "Coin";
+            int coinLayer = LayerMask.NameToLayer("Coin");
+            if (coinLayer >= 0)
             {
-                coinRenderer = coinModel.GetComponent<MeshRenderer>();
+                gameObject.layer = coinLayer;
             }
         }
         
         private void Start()
         {
-            initialPosition = transform.position;
-            
-            // Random bob phase so coins don't all bob in sync
-            bobOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
-            
-            // ================================================================
-            // POKEMON GO PATTERN: Coins start HIDDEN!
-            // They only become visible when player is close and taps "Reveal"
-            // Player uses UI (radar, compass) to navigate to coins
-            // ================================================================
-            SetDisplayMode(CoinDisplayMode.Hidden);
-            
-            // Try to find camera early - needed for collection animation
-            if (cameraTransform == null)
+            // Subscribe to renderer events
+            if (coinRenderer != null)
             {
-                TryFindCamera();
+                coinRenderer.OnEnteredCollectionRange += HandleEnteredRange;
+                coinRenderer.OnExitedCollectionRange += HandleExitedRange;
+                coinRenderer.OnModeChanged += HandleModeChanged;
+            }
+        }
+        
+        private void OnDestroy()
+        {
+            // Unsubscribe
+            if (coinRenderer != null)
+            {
+                coinRenderer.OnEnteredCollectionRange -= HandleEnteredRange;
+                coinRenderer.OnExitedCollectionRange -= HandleExitedRange;
+                coinRenderer.OnModeChanged -= HandleModeChanged;
             }
         }
         
         private void Update()
         {
-            if (IsCollecting)
-            {
-                UpdateCollectAnimation();
-                return;
-            }
-            
-            if (IsCollected) return;
-            
-            // ================================================================
-            // POKEMON GO PATTERN: If coin is HIDDEN, skip all 3D updates!
-            // Coin doesn't exist in 3D space until revealed.
-            // ================================================================
-            if (_displayMode == CoinDisplayMode.Hidden)
-            {
-                // Still track distance for UI indicators and reveal eligibility
-                UpdateDistanceFromPlayer();
-                return;
-            }
-            
-            // Find camera if needed (for anchored coins)
-            if (cameraTransform == null)
-            {
-                TryFindCamera();
-            }
-            
-            // ================================================================
-            // ANCHORED MODE: Coin is visible and attached to AR plane
-            // Only run animations for visible coins
-            // ================================================================
-            
-            // Spin animation (anchored coins spin)
-            UpdateSpinAnimation();
-            
-            // Bob animation (gentle float)
-            UpdateBobAnimation();
-            
-            // Billboard value label to camera
-            UpdateValueLabelBillboard();
-            
-            // Update distance from player
-            UpdateDistanceFromPlayer();
+            // Update visual states based on locked/in-range
+            UpdateVisualState();
         }
-        
-        // ================================================================
-        // REMOVED: UpdateCompassBillboard() - POKEMON GO PATTERN
-        // We no longer use floating 3D billboards for distant coins.
-        // Instead, use UI indicators (radar, compass) for navigation.
-        // Coins only become visible in AR when "Revealed" (anchored to plane).
-        // ================================================================
         
         #endregion
         
@@ -568,314 +191,104 @@ namespace BlackBartsGold.AR
         /// <summary>
         /// Initialize coin from data model
         /// </summary>
-        public void Initialize(Coin coinData, bool locked, bool inRange)
+        public void Initialize(Coin coinData, bool locked = false, bool inRange = false)
         {
             CoinData = coinData;
             IsLocked = locked;
-            IsInRange = inRange;
             
             if (debugMode)
             {
-                Debug.Log($"[CoinController] Initialized: {coinData.id}, Value: {coinData.GetDisplayValue()}, Locked: {locked}, InRange: {inRange}");
+                Debug.Log($"[CoinController] Initialized: {coinData.id}, Value: {coinData.GetDisplayValue()}, Locked: {locked}");
             }
             
-            // Set visual appearance
-            UpdateVisuals();
-            
-            // Set value label
-            UpdateValueLabel();
-            
-            // Set initial state
-            if (locked)
+            // Initialize positioner with GPS coordinates
+            if (coinPositioner != null)
             {
-                SetState(CoinVisualState.Locked);
+                coinPositioner.Initialize(coinData);
             }
-            else
-            {
-                SetState(CoinVisualState.Normal);
-            }
+            
+            // Update visuals
+            UpdateVisualState();
         }
         
         /// <summary>
         /// Initialize with just basic values (for testing)
         /// </summary>
-        public void InitializeSimple(float value, bool locked = false, bool inRange = true)
+        public void InitializeSimple(float value, bool locked = false)
         {
             var testCoin = Coin.CreateTestCoin(value);
-            Initialize(testCoin, locked, inRange);
+            Initialize(testCoin, locked);
         }
         
         #endregion
         
-        #region Visual Updates
+        #region Visual State
         
-        /// <summary>
-        /// Update visual appearance based on coin data
-        /// </summary>
-        private void UpdateVisuals()
+        private void UpdateVisualState()
         {
-            if (CoinData == null) return;
+            if (coinRenderer == null) return;
             
-            // Apply material based on tier and locked state
-            Material targetMaterial = GetMaterialForCoin();
-            
-            if (coinRenderer != null && targetMaterial != null)
-            {
-                coinRenderer.material = targetMaterial;
-                currentMaterial = targetMaterial;
-            }
-            
-            // Show/hide lock icon
-            if (lockIcon != null)
-            {
-                lockIcon.SetActive(IsLocked);
-            }
-            
-            // Adjust effects
-            if (sparkleEffect != null)
-            {
-                if (IsLocked)
-                {
-                    sparkleEffect.Stop();
-                }
-                else
-                {
-                    sparkleEffect.Play();
-                }
-            }
-            
-            if (lockedPulseEffect != null)
-            {
-                if (IsLocked)
-                {
-                    lockedPulseEffect.Play();
-                }
-                else
-                {
-                    lockedPulseEffect.Stop();
-                }
-            }
-        }
-        
-        /// <summary>
-        /// Get appropriate material for this coin
-        /// </summary>
-        private Material GetMaterialForCoin()
-        {
-            if (IsLocked && lockedMaterial != null)
-            {
-                return lockedMaterial;
-            }
-            
-            if (CoinData == null) return goldMaterial;
-            
-            // Pool coins show unknown (silver/mystery)
-            if (CoinData.coinType == CoinType.Pool && poolMaterial != null)
-            {
-                return poolMaterial;
-            }
-            
-            // Material based on tier
-            return CoinData.currentTier switch
-            {
-                CoinTier.Bronze => bronzeMaterial ?? goldMaterial,
-                CoinTier.Silver => silverMaterial ?? goldMaterial,
-                CoinTier.Gold => goldMaterial,
-                CoinTier.Platinum => platinumMaterial ?? goldMaterial,
-                CoinTier.Diamond => diamondMaterial ?? goldMaterial,
-                _ => goldMaterial
-            };
-        }
-        
-        /// <summary>
-        /// Update value label text
-        /// </summary>
-        private void UpdateValueLabel()
-        {
-            if (valueLabel == null) return;
-            
-            if (CoinData == null)
-            {
-                valueLabel.text = "?";
-                return;
-            }
-            
-            valueLabel.text = CoinData.GetDisplayValue();
-            
-            // Color based on tier/state
-            if (IsLocked)
-            {
-                valueLabel.color = new Color(0.94f, 0.27f, 0.27f); // Red
-            }
-            else
-            {
-                valueLabel.color = GetColorForTier(CoinData.currentTier);
-            }
-        }
-        
-        /// <summary>
-        /// Get color for coin tier
-        /// </summary>
-        private Color GetColorForTier(CoinTier tier)
-        {
-            return tier switch
-            {
-                CoinTier.Bronze => new Color(0.8f, 0.5f, 0.2f),
-                CoinTier.Silver => new Color(0.75f, 0.75f, 0.75f),
-                CoinTier.Gold => new Color(1f, 0.84f, 0f),
-                CoinTier.Platinum => new Color(0.9f, 0.9f, 0.95f),
-                CoinTier.Diamond => new Color(0.5f, 0.8f, 1f),
-                _ => Color.white
-            };
-        }
-        
-        #endregion
-        
-        #region State Management
-        
-        /// <summary>
-        /// Set visual state
-        /// </summary>
-        public void SetState(CoinVisualState newState)
-        {
-            if (CurrentState == newState) return;
-            
-            CurrentState = newState;
-            
-            switch (newState)
-            {
-                case CoinVisualState.Normal:
-                    // Reset to normal appearance
-                    if (coinModel != null)
-                    {
-                        coinModel.transform.localScale = Vector3.one;
-                    }
-                    break;
-                    
-                case CoinVisualState.Hovering:
-                    // Slight scale up
-                    if (coinModel != null)
-                    {
-                        coinModel.transform.localScale = Vector3.one * 1.2f;
-                    }
-                    break;
-                    
-                case CoinVisualState.InRange:
-                    // Glow effect
-                    if (coinModel != null)
-                    {
-                        coinModel.transform.localScale = Vector3.one * 1.3f;
-                    }
-                    break;
-                    
-                case CoinVisualState.Locked:
-                    // Locked appearance
-                    if (coinModel != null)
-                    {
-                        coinModel.transform.localScale = Vector3.one * 0.9f;
-                    }
-                    break;
-                    
-                case CoinVisualState.Collecting:
-                    // Start collection animation
-                    break;
-            }
-        }
-        
-        /// <summary>
-        /// Update locked status
-        /// </summary>
-        public void SetLocked(bool locked)
-        {
-            if (IsLocked == locked) return;
-            
-            IsLocked = locked;
-            UpdateVisuals();
-            
-            if (locked)
-            {
-                SetState(CoinVisualState.Locked);
-            }
-            else
-            {
-                SetState(CoinVisualState.Normal);
-            }
-        }
-        
-        /// <summary>
-        /// Update in-range status
-        /// </summary>
-        public void SetInRange(bool inRange)
-        {
-            IsInRange = inRange;
-            
-            if (CoinData != null)
-            {
-                CoinData.isInRange = inRange;
-            }
-        }
-        
-        #endregion
-        
-        #region Hover Handling
-        
-        /// <summary>
-        /// Called when player starts hovering over this coin
-        /// </summary>
-        public void OnHover()
-        {
-            if (IsCollecting || IsCollected) return;
-            
-            IsHovered = true;
+            // Update color based on state
+            var settings = coinRenderer.Settings;
             
             if (IsLocked)
             {
-                SetState(CoinVisualState.Locked);
+                coinRenderer.SetColor(settings.lockedColor);
             }
             else if (IsInRange)
             {
-                SetState(CoinVisualState.InRange);
+                coinRenderer.SetColor(settings.inRangeColor);
             }
             else
             {
-                SetState(CoinVisualState.Hovering);
-            }
-            
-            // Play hover sound
-            PlaySound(hoverSound);
-            
-            OnHoverStart?.Invoke(this);
-            
-            if (debugMode)
-            {
-                Debug.Log($"[CoinController] Hover start: {CoinId}");
+                coinRenderer.SetColor(settings.goldColor);
             }
         }
         
-        /// <summary>
-        /// Called when player stops hovering over this coin
-        /// </summary>
-        public void OnUnhover()
+        #endregion
+        
+        #region Event Handlers
+        
+        private void HandleEnteredRange()
         {
-            if (IsCollecting || IsCollected) return;
-            
-            IsHovered = false;
-            
-            if (IsLocked)
-            {
-                SetState(CoinVisualState.Locked);
-            }
-            else
-            {
-                SetState(CoinVisualState.Normal);
-            }
-            
-            OnHoverEnd?.Invoke(this);
-            
             if (debugMode)
             {
-                Debug.Log($"[CoinController] Hover end: {CoinId}");
+                Debug.Log($"[CoinController] {CoinId} entered collection range");
             }
+            
+            // Update coin data
+            if (CoinData != null)
+            {
+                CoinData.isInRange = true;
+            }
+            
+            OnEnteredRange?.Invoke(this);
+        }
+        
+        private void HandleExitedRange()
+        {
+            if (debugMode)
+            {
+                Debug.Log($"[CoinController] {CoinId} exited collection range");
+            }
+            
+            // Update coin data
+            if (CoinData != null)
+            {
+                CoinData.isInRange = false;
+            }
+            
+            OnExitedRange?.Invoke(this);
+        }
+        
+        private void HandleModeChanged(CoinDisplayMode oldMode, CoinDisplayMode newMode)
+        {
+            if (debugMode)
+            {
+                Debug.Log($"[CoinController] {CoinId} mode changed: {oldMode} → {newMode}");
+            }
+            
+            OnDisplayModeChanged?.Invoke(this, newMode);
         }
         
         #endregion
@@ -892,18 +305,19 @@ namespace BlackBartsGold.AR
                 return false;
             }
             
+            // Check locked
             if (IsLocked)
             {
-                PlaySound(lockedSound);
                 OnLockedTap?.Invoke(this);
                 
                 if (debugMode)
                 {
-                    Debug.Log($"[CoinController] Collection blocked - coin is locked: {CoinId}");
+                    Debug.Log($"[CoinController] Collection blocked - locked: {CoinId}");
                 }
                 return false;
             }
             
+            // Check range
             if (!IsInRange)
             {
                 OnOutOfRangeTap?.Invoke(this);
@@ -915,95 +329,73 @@ namespace BlackBartsGold.AR
                 return false;
             }
             
-            // CHECK GPS ACCURACY - Prevent collection with poor GPS
-            // This prevents cheating by collecting coins when GPS is inaccurate
+            // Check GPS accuracy
             if (GPSManager.Exists && GPSManager.Instance.CurrentLocation != null)
             {
-                float currentAccuracy = GPSManager.Instance.CurrentLocation.horizontalAccuracy;
-                if (currentAccuracy > GPSAccuracyRequirements.COLLECTION_ACCURACY)
+                float accuracy = GPSManager.Instance.CurrentLocation.horizontalAccuracy;
+                if (accuracy > GPSAccuracyRequirements.COLLECTION_ACCURACY)
                 {
-                    Debug.LogWarning($"[CoinController] Collection blocked - GPS accuracy too low: {currentAccuracy:F0}m (need < {GPSAccuracyRequirements.COLLECTION_ACCURACY}m)");
-                    // TODO: Show user feedback "GPS signal too weak to collect"
+                    Debug.LogWarning($"[CoinController] Collection blocked - GPS accuracy: {accuracy:F0}m");
                     return false;
                 }
             }
             
-            // Start collection!
-            StartCollectAnimation();
+            // Collect!
+            StartCollection();
             return true;
         }
         
-        /// <summary>
-        /// Start the collection animation
-        /// </summary>
-        private void StartCollectAnimation()
+        private void StartCollection()
         {
             IsCollecting = true;
-            SetState(CoinVisualState.Collecting);
-            
-            collectStartPos = transform.position;
-            collectTimer = 0f;
-            
-            // Play collection effect
-            if (collectionEffect != null)
-            {
-                collectionEffect.Play();
-            }
-            
-            // Stop sparkle
-            if (sparkleEffect != null)
-            {
-                sparkleEffect.Stop();
-            }
-            
-            // Play sound
-            PlaySound(collectSound);
             
             if (debugMode)
             {
                 Debug.Log($"[CoinController] Collection started: {CoinId}");
             }
+            
+            // Play collection animation
+            StartCoroutine(CollectionAnimation());
         }
         
-        /// <summary>
-        /// Update collection animation
-        /// </summary>
-        private void UpdateCollectAnimation()
+        private System.Collections.IEnumerator CollectionAnimation()
         {
-            collectTimer += Time.deltaTime;
-            float t = collectTimer / collectAnimDuration;
+            float duration = 0.8f;
+            float timer = 0f;
             
-            if (t >= 1f)
+            Vector3 startPos = transform.position;
+            Vector3 startScale = transform.localScale;
+            
+            Camera cam = Camera.main ?? FindFirstObjectByType<Camera>();
+            Vector3 targetPos = cam != null 
+                ? cam.transform.position + cam.transform.forward * 0.5f 
+                : startPos + Vector3.up;
+            
+            while (timer < duration)
             {
-                // Animation complete
-                FinishCollection();
-                return;
+                timer += Time.deltaTime;
+                float t = timer / duration;
+                float easeT = 1f - Mathf.Pow(1f - t, 3f); // Ease out cubic
+                
+                // Move toward camera
+                transform.position = Vector3.Lerp(startPos, targetPos, easeT);
+                
+                // Scale down
+                transform.localScale = Vector3.Lerp(startScale, Vector3.zero, easeT);
+                
+                // Spin faster
+                if (coinModel != null)
+                {
+                    coinModel.transform.Rotate(0, 720f * Time.deltaTime, 0);
+                }
+                
+                yield return null;
             }
             
-            // Ease out curve
-            float easeT = 1f - Mathf.Pow(1f - t, 3f);
-            
-            // Move toward camera
-            if (cameraTransform != null)
-            {
-                Vector3 targetPos = cameraTransform.position + cameraTransform.forward * 0.5f;
-                transform.position = Vector3.Lerp(collectStartPos, targetPos, easeT);
-            }
-            
-            // Spin faster
-            if (coinModel != null)
-            {
-                coinModel.transform.Rotate(0, spinSpeed * 5f * Time.deltaTime, 0);
-            }
-            
-            // Scale down
-            float scale = Mathf.Lerp(1f, 0f, easeT);
-            transform.localScale = Vector3.one * scale;
+            // Complete
+            FinishCollection();
         }
         
-        /// <summary>
-        /// Complete the collection
-        /// </summary>
         private void FinishCollection()
         {
             IsCollecting = false;
@@ -1014,132 +406,45 @@ namespace BlackBartsGold.AR
                 Debug.Log($"[CoinController] Collection complete: {CoinId}, Value: {CoinData?.value ?? 0}");
             }
             
-            // Notify listeners
+            // Notify
             OnCollected?.Invoke(this);
             
-            // Deactivate (CoinManager will handle cleanup)
+            // Deactivate
             gameObject.SetActive(false);
         }
         
         #endregion
         
-        #region Animations
+        #region State Management
         
         /// <summary>
-        /// Spin the coin around Y axis
+        /// Set locked status
         /// </summary>
-        private void UpdateSpinAnimation()
+        public void SetLocked(bool locked)
         {
-            if (coinModel == null) return;
+            if (IsLocked == locked) return;
             
-            float speed = spinSpeed;
+            IsLocked = locked;
             
-            // Spin faster when hovered
-            if (IsHovered)
+            if (CoinData != null)
             {
-                speed *= 2f;
+                CoinData.isLocked = locked;
             }
             
-            // Spin slower when locked
-            if (IsLocked)
-            {
-                speed *= 0.5f;
-            }
-            
-            coinModel.transform.Rotate(0, speed * Time.deltaTime, 0);
-        }
-        
-        /// <summary>
-        /// Bob up and down (gentle floating animation)
-        /// ================================================================
-        /// POKEMON GO PATTERN: Only runs when coin is VISIBLE (Anchored mode)
-        /// 
-        /// We bob the COIN MODEL's local position, not the transform.
-        /// The transform is controlled by the AR Anchor for stable positioning.
-        /// ================================================================
-        /// </summary>
-        private void UpdateBobAnimation()
-        {
-            // Only bob visible (anchored) coins
-            if (coinModel != null)
-            {
-                float bobY = Mathf.Sin((Time.time * bobSpeed * Mathf.PI * 2f) + bobOffset) * bobAmplitude;
-                Vector3 localPos = coinModel.transform.localPosition;
-                localPos.y = bobY;
-                coinModel.transform.localPosition = localPos;
-            }
-        }
-        
-        /// <summary>
-        /// Keep value label facing camera
-        /// </summary>
-        private void UpdateValueLabelBillboard()
-        {
-            if (valueLabel == null || cameraTransform == null) return;
-            
-            // Face camera
-            valueLabel.transform.LookAt(
-                valueLabel.transform.position + cameraTransform.forward
-            );
-        }
-        
-        /// <summary>
-        /// Play appear animation (scale up from 0)
-        /// </summary>
-        public void PlayAppearAnimation(float duration = 0.3f)
-        {
-            StartCoroutine(AppearAnimationCoroutine(duration));
-        }
-        
-        private System.Collections.IEnumerator AppearAnimationCoroutine(float duration)
-        {
-            transform.localScale = Vector3.zero;
-            float timer = 0f;
-            
-            while (timer < duration)
-            {
-                timer += Time.deltaTime;
-                float t = timer / duration;
-                
-                // Overshoot ease
-                float scale = 1f + (Mathf.Sin(t * Mathf.PI) * 0.2f);
-                if (t >= 1f) scale = 1f;
-                
-                transform.localScale = Vector3.one * Mathf.Lerp(0, scale, t);
-                yield return null;
-            }
-            
-            transform.localScale = Vector3.one;
+            UpdateVisualState();
         }
         
         #endregion
         
-        #region Distance Tracking
+        #region Helpers
         
-        /// <summary>
-        /// Update distance from player camera
-        /// </summary>
-        private void UpdateDistanceFromPlayer()
+        private void EnsureCollider()
         {
-            if (cameraTransform == null) return;
-            
-            DistanceFromPlayer = Vector3.Distance(transform.position, cameraTransform.position);
-            
-            // Update in-range status based on distance
-            // Collection range is 5 meters (from docs)
-            bool wasInRange = IsInRange;
-            IsInRange = DistanceFromPlayer <= 5f;
-            
-            if (CoinData != null)
+            Collider col = GetComponent<Collider>();
+            if (col == null)
             {
-                CoinData.distanceFromPlayer = DistanceFromPlayer;
-                CoinData.isInRange = IsInRange;
-            }
-            
-            // State change on range change
-            if (wasInRange != IsInRange && IsHovered && !IsLocked)
-            {
-                SetState(IsInRange ? CoinVisualState.InRange : CoinVisualState.Hovering);
+                SphereCollider sphere = gameObject.AddComponent<SphereCollider>();
+                sphere.radius = 0.3f;
             }
         }
         
@@ -1148,69 +453,53 @@ namespace BlackBartsGold.AR
         /// </summary>
         public ProximityZone GetProximityZone()
         {
-            if (DistanceFromPlayer <= 5f) return ProximityZone.Collectible;
-            if (DistanceFromPlayer <= 15f) return ProximityZone.Near;
-            if (DistanceFromPlayer <= 30f) return ProximityZone.Medium;
-            if (DistanceFromPlayer <= 50f) return ProximityZone.Far;
-            return ProximityZone.OutOfRange;
-        }
-        
-        #endregion
-        
-        #region Audio
-        
-        /// <summary>
-        /// Play a sound effect
-        /// </summary>
-        private void PlaySound(AudioClip clip)
-        {
-            if (clip == null || audioSource == null) return;
+            float distance = DistanceFromPlayer;
             
-            audioSource.PlayOneShot(clip);
+            if (distance <= 5f) return ProximityZone.Collectible;
+            if (distance <= 15f) return ProximityZone.Near;
+            if (distance <= 30f) return ProximityZone.Medium;
+            if (distance <= 50f) return ProximityZone.Far;
+            return ProximityZone.OutOfRange;
         }
         
         #endregion
         
         #region Debug
         
-        /// <summary>
-        /// Debug: Force collect this coin
-        /// </summary>
+        /// <summary>Force collect this coin</summary>
         [ContextMenu("Debug: Force Collect")]
         public void DebugForceCollect()
         {
             IsLocked = false;
-            IsInRange = true;
-            TryCollect();
+            if (coinRenderer != null)
+            {
+                coinRenderer.ForceMode(CoinDisplayMode.WorldLocked);
+            }
+            StartCollection();
         }
         
-        /// <summary>
-        /// Debug: Toggle locked state
-        /// </summary>
+        /// <summary>Toggle locked state</summary>
         [ContextMenu("Debug: Toggle Locked")]
         public void DebugToggleLocked()
         {
             SetLocked(!IsLocked);
         }
         
-        /// <summary>
-        /// Debug: Print state
-        /// </summary>
+        /// <summary>Print current state</summary>
         [ContextMenu("Debug: Print State")]
         public void DebugPrintState()
         {
             Debug.Log($"=== Coin {CoinId} ===");
             Debug.Log($"Value: {CoinData?.GetDisplayValue() ?? "null"}");
-            Debug.Log($"Tier: {CoinData?.currentTier}");
+            Debug.Log($"Display Mode: {DisplayMode}");
+            Debug.Log($"Distance: {DistanceFromPlayer:F1}m");
             Debug.Log($"Locked: {IsLocked}");
             Debug.Log($"InRange: {IsInRange}");
-            Debug.Log($"Hovered: {IsHovered}");
-            Debug.Log($"Distance: {DistanceFromPlayer:F1}m");
-            Debug.Log($"State: {CurrentState}");
+            Debug.Log($"Visible: {IsVisible}");
+            Debug.Log($"Collected: {IsCollected}");
             Debug.Log("==================");
         }
         
         #endregion
     }
-    
 }
