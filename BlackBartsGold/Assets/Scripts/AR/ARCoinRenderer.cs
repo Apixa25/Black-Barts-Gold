@@ -185,7 +185,15 @@ namespace BlackBartsGold.AR
             if (!cameraFound)
             {
                 TryFindCamera();
-                if (!cameraFound) return;
+                if (!cameraFound)
+                {
+                    // Log only occasionally to avoid spam
+                    if (Time.frameCount % 60 == 0)
+                    {
+                        Debug.LogWarning($"[ARCoinRenderer] Camera not found! Frame {Time.frameCount}");
+                    }
+                    return;
+                }
             }
             
             // Try to find positioner if not found yet
@@ -198,6 +206,16 @@ namespace BlackBartsGold.AR
             float updateInterval = Settings.GetUpdateInterval(CurrentMode);
             if (Time.time - lastUpdateTime < updateInterval) return;
             lastUpdateTime = Time.time;
+            
+            // Log status periodically (every 3 seconds)
+            if (debugMode && Time.frameCount % 90 == 0)
+            {
+                float gpsDistance = coinPositioner != null ? coinPositioner.GPSDistance : -1f;
+                Vector3 camPos = cameraTransform != null ? cameraTransform.position : Vector3.zero;
+                Vector3 camRot = cameraTransform != null ? cameraTransform.eulerAngles : Vector3.zero;
+                string parentName = transform.parent != null ? transform.parent.name : "NULL";
+                Debug.Log($"[ARCoinRenderer] Mode={CurrentMode}, GPS={gpsDistance:F1}m, AR={DistanceToCamera:F1}m | CoinPos={transform.position} | CamPos={camPos} | CamRotY={camRot.y:F0}° | Parent={parentName}");
+            }
             
             // Core update loop
             UpdateDistance();

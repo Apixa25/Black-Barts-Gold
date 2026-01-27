@@ -53,7 +53,7 @@ namespace BlackBartsGold.AR
         
         [Header("Debug")]
         [SerializeField]
-        private bool debugMode = false;
+        private bool debugMode = true;  // Enable for diagnostics
         
         #endregion
         
@@ -182,6 +182,14 @@ namespace BlackBartsGold.AR
         {
             // Update visual states based on locked/in-range
             UpdateVisualState();
+            
+            // Debug: Log distance periodically
+            if (debugMode && Time.frameCount % 180 == 0) // Every 3 seconds at 60fps
+            {
+                float gpsFromPositioner = coinPositioner?.GPSDistance ?? -1f;
+                float arFromRenderer = coinRenderer?.DistanceToCamera ?? -1f;
+                Debug.Log($"[CoinController] {CoinId} GPS={gpsFromPositioner:F1}m, AR={arFromRenderer:F1}m, InRange={IsInRange}, Mode={DisplayMode}");
+            }
         }
         
         #endregion

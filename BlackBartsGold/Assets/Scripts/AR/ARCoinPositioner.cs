@@ -237,17 +237,15 @@ namespace BlackBartsGold.AR
             GPSBearing = (float)playerLocation.BearingTo(coinLocation);
             
             // ================================================================
-            // COMPASS ALIGNMENT (Pokémon GO pattern)
+            // COMPASS ALIGNMENT (AR World Space)
             // ================================================================
             // GPS bearing is relative to true north (0° = North, 90° = East)
-            // AR's +Z axis points wherever the camera was facing when AR started
-            // We adjust bearing by initial compass heading to align
+            // AR's +Z axis points wherever the camera was facing when AR started.
+            // We use the INITIAL compass heading to align GPS with AR coordinates.
             //
-            // Example:
-            //   - Coin is at GPS bearing 90° (due east)
-            //   - User was facing 45° (northeast) when AR started
-            //   - Adjusted bearing = 90° - 45° = 45°
-            //   - Coin appears 45° to the right of AR forward
+            // This places coins in FIXED AR world positions. When you rotate
+            // your phone, the AR camera rotates, and coins appear to move
+            // across your screen - this is correct AR behavior!
             // ================================================================
             
             float adjustedBearing = GPSBearing;
@@ -259,7 +257,7 @@ namespace BlackBartsGold.AR
             // Convert bearing to radians
             float bearingRad = adjustedBearing * Mathf.Deg2Rad;
             
-            // Calculate AR position
+            // Calculate AR world position
             // In Unity: +X is right, +Z is forward
             float x = GPSDistance * Mathf.Sin(bearingRad);
             float z = GPSDistance * Mathf.Cos(bearingRad);
