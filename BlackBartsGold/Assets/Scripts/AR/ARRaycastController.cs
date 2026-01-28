@@ -359,7 +359,9 @@ namespace BlackBartsGold.AR
         #region Tap Detection
         
         /// <summary>
-        /// Check for tap input
+        /// Check for tap input.
+        /// IMPORTANT: Skip processing if touch is over UI elements!
+        /// This allows radar, buttons, etc. to receive their clicks.
         /// </summary>
         private void CheckForTap()
         {
@@ -372,6 +374,19 @@ namespace BlackBartsGold.AR
                 Touch touch = Input.GetTouch(0);
                 if (touch.phase == TouchPhase.Began)
                 {
+                    // ============================================================
+                    // FIX: Check if touch is over UI BEFORE processing as AR tap!
+                    // This allows RadarUI, buttons, etc. to receive clicks properly.
+                    // ============================================================
+                    if (IsPointerOverUI(touch.position))
+                    {
+                        if (debugMode)
+                        {
+                            Debug.Log($"[ARRaycast] Touch over UI at {touch.position} - letting UI handle it");
+                        }
+                        return; // Let the EventSystem handle this touch
+                    }
+                    
                     tapped = true;
                     tapPosition = touch.position;
                 }
@@ -379,6 +394,16 @@ namespace BlackBartsGold.AR
             // Check for mouse (editor testing)
             else if (Input.GetMouseButtonDown(0))
             {
+                // Also check for UI in editor
+                if (IsPointerOverUI(Input.mousePosition))
+                {
+                    if (debugMode)
+                    {
+                        Debug.Log($"[ARRaycast] Mouse over UI - letting UI handle it");
+                    }
+                    return;
+                }
+                
                 tapped = true;
                 tapPosition = Input.mousePosition;
             }
@@ -387,6 +412,54 @@ namespace BlackBartsGold.AR
             
             // Process tap
             ProcessTap(tapPosition);
+        }
+        
+        /// <summary>
+        /// Check if a screen position is over any UI element.
+        /// Uses EventSystem's IsPointerOverGameObject for touch,
+        /// and falls back to raycast check for reliability.
+        /// </summary>
+        private bool IsPointerOverUI(Vector2 screenPosition)
+        {
+            // Method 1: Use EventSystem (most reliable for UI)
+            if (UnityEngine.EventSystems.EventSystem.current != null)
+            {
+                // For touch input
+                if (Input.touchCount > 0)
+                {
+                    if (UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId))
+                    {
+                        return true;
+                    }
+                }
+                // For mouse input
+                else if (UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+                {
+                    return true;
+                }
+            }
+            
+            // Method 2: Raycast against UI (fallback)
+            var eventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
+            eventData.position = screenPosition;
+            
+            var results = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            UnityEngine.EventSystems.EventSystem.current?.RaycastAll(eventData, results);
+            
+            // Check if any hit is a UI element
+            foreach (var result in results)
+            {
+                if (result.gameObject != null)
+                {
+                    // Check if it's on a Canvas (UI layer is usually 5, but check by component)
+                    if (result.gameObject.GetComponentInParent<Canvas>() != null)
+                    {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
         }
         
         /// <summary>

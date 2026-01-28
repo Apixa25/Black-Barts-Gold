@@ -156,6 +156,11 @@ namespace BlackBartsGold.UI
                 AutoFindReferences();
                 Debug.Log("[RadarUI] AutoFindReferences done");
                 
+                // ============================================================
+                // CRITICAL: Ensure Canvas has GraphicRaycaster for UI clicks!
+                // ============================================================
+                EnsureGraphicRaycaster();
+                
                 // Subscribe to GPS events
                 if (GPSManager.Exists)
                 {
@@ -189,6 +194,53 @@ namespace BlackBartsGold.UI
         }
         
         /// <summary>
+        /// Ensure the parent Canvas has a GraphicRaycaster for UI click detection.
+        /// Also check for EventSystem in scene.
+        /// </summary>
+        private void EnsureGraphicRaycaster()
+        {
+            // Find parent Canvas
+            Canvas canvas = GetComponentInParent<Canvas>();
+            if (canvas == null)
+            {
+                Debug.LogError("[RadarUI] No parent Canvas found! UI clicks won't work.");
+                return;
+            }
+            
+            // Ensure GraphicRaycaster exists
+            UnityEngine.UI.GraphicRaycaster raycaster = canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>();
+            if (raycaster == null)
+            {
+                raycaster = canvas.gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+                Debug.LogWarning("[RadarUI] Added GraphicRaycaster to Canvas - was missing!");
+            }
+            else
+            {
+                Debug.Log("[RadarUI] Canvas has GraphicRaycaster OK");
+            }
+            
+            // Check for EventSystem
+            if (UnityEngine.EventSystems.EventSystem.current == null)
+            {
+                Debug.LogError("[RadarUI] No EventSystem in scene! UI clicks won't work.");
+                
+                // Try to find one
+                var eventSystem = FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
+                if (eventSystem == null)
+                {
+                    Debug.LogError("[RadarUI] Creating EventSystem...");
+                    GameObject esGO = new GameObject("EventSystem");
+                    esGO.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                    esGO.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+                }
+            }
+            else
+            {
+                Debug.Log("[RadarUI] EventSystem found OK");
+            }
+        }
+        
+        /// <summary>
         /// Auto-find references if not assigned in Inspector
         /// </summary>
         private void AutoFindReferences()
@@ -199,13 +251,33 @@ namespace BlackBartsGold.UI
                 radarContainer = GetComponent<RectTransform>();
             }
             
+            // ============================================================
+            // CRITICAL: Ensure we have an Image with raycastTarget = true
+            // Without this, IPointerClickHandler won't receive events!
+            // ============================================================
+            Image radarImage = GetComponent<Image>();
+            if (radarImage == null)
+            {
+                radarImage = gameObject.AddComponent<Image>();
+                // Make it invisible but still catch raycasts
+                radarImage.color = new Color(0, 0, 0, 0.01f); // Nearly invisible
+                Debug.Log("[RadarUI] Added invisible Image for raycast detection");
+            }
+            
+            // CRITICAL: Enable raycastTarget!
+            if (!radarImage.raycastTarget)
+            {
+                radarImage.raycastTarget = true;
+                Debug.Log("[RadarUI] Enabled raycastTarget on Image");
+            }
+            
             // Get or create button on this object
             if (radarButton == null)
             {
                 radarButton = GetComponent<Button>();
             }
             
-            Debug.Log($"[RadarUI] AutoFindReferences - container:{radarContainer != null}, button:{radarButton != null}");
+            Debug.Log($"[RadarUI] AutoFindReferences - container:{radarContainer != null}, button:{radarButton != null}, image:{radarImage != null}, raycastTarget:{radarImage?.raycastTarget}");
         }
         
         /// <summary>
