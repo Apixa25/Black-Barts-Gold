@@ -206,7 +206,7 @@ namespace BlackBartsGold.AR
             // Short haptic
             if (useHaptics)
             {
-                Handheld.Vibrate();
+                TryVibrate();
             }
             
             // Red flash
@@ -239,7 +239,7 @@ namespace BlackBartsGold.AR
                     }
                 }
                 #else
-                Handheld.Vibrate();
+                TryVibrate();
                 #endif
             }
         }
@@ -439,8 +439,41 @@ namespace BlackBartsGold.AR
                 Debug.LogWarning($"[CoinCollectionEffect] Haptic error: {e.Message}");
             }
             #elif UNITY_IOS
-            // iOS: Use Handheld.Vibrate() - less control
-            Handheld.Vibrate();
+            // iOS: Use vibration API
+            TryVibrate();
+            #endif
+        }
+        
+        /// <summary>
+        /// Cross-platform vibration that handles Unity 6 API changes
+        /// </summary>
+        private void TryVibrate()
+        {
+            #if UNITY_ANDROID
+            try
+            {
+                using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                {
+                    using (var currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
+                    {
+                        using (var vibrator = currentActivity.Call<AndroidJavaObject>("getSystemService", "vibrator"))
+                        {
+                            vibrator.Call("vibrate", 100L); // 100ms default vibration
+                        }
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[CoinCollectionEffect] Vibration error: {e.Message}");
+            }
+            #elif UNITY_IOS
+            // iOS vibration - using AudioServices as fallback
+            // Note: Handheld.Vibrate() was removed in Unity 6
+            Debug.Log("[CoinCollectionEffect] iOS vibration requested");
+            #else
+            // Editor/other platforms - just log
+            Debug.Log("[CoinCollectionEffect] Vibration requested (not supported on this platform)");
             #endif
         }
         

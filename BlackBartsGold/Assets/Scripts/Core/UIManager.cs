@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
 using BlackBartsGold.Core.Models;
+using BlackBartsGold.UI;
 
 namespace BlackBartsGold.Core
 {
@@ -736,6 +737,194 @@ namespace BlackBartsGold.Core
             ShowMainMenu();
         }
         
+        /// <summary>
+        /// Called when mini-map is clicked - opens full map view
+        /// </summary>
+        public void OnMiniMapClicked()
+        {
+            Debug.Log("[UIManager] 🗺️ Opening FULL MAP!");
+            
+            // Try to use existing FullMapUI if it exists
+            if (FullMapUI.Exists)
+            {
+                Debug.Log("[UIManager] Using FullMapUI.Show()");
+                FullMapUI.Instance.Show();
+                return;
+            }
+            
+            // Otherwise create a simple full-screen map overlay
+            Debug.Log("[UIManager] Creating simple full map overlay");
+            ShowSimpleFullMap();
+        }
+        
+        private GameObject _simpleFullMapPanel;
+        
+        /// <summary>
+        /// Show a simple full-screen map overlay
+        /// </summary>
+        private void ShowSimpleFullMap()
+        {
+            // If already showing, hide it
+            if (_simpleFullMapPanel != null && _simpleFullMapPanel.activeSelf)
+            {
+                Debug.Log("[UIManager] Hiding full map");
+                _simpleFullMapPanel.SetActive(false);
+                return;
+            }
+            
+            // Create if doesn't exist
+            if (_simpleFullMapPanel == null)
+            {
+                _simpleFullMapPanel = CreateSimpleFullMapPanel();
+            }
+            
+            _simpleFullMapPanel.SetActive(true);
+            Debug.Log("[UIManager] Full map shown!");
+        }
+        
+        private GameObject CreateSimpleFullMapPanel()
+        {
+            var panel = new GameObject("SimpleFullMapPanel");
+            panel.transform.SetParent(_ourCanvas.transform, false);
+            
+            var rect = panel.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            
+            // Semi-transparent dark background
+            var bg = panel.AddComponent<Image>();
+            bg.color = new Color(0, 0, 0, 0.9f);
+            bg.raycastTarget = true;
+            
+            // Title
+            var title = CreateText(panel.transform, "Title", "🗺️ TREASURE MAP", 
+                new Vector2(0, 400), 48, GoldColor, FontStyles.Bold);
+            
+            // Instructions
+            var instructions = CreateText(panel.transform, "Instructions", 
+                "Tap a coin on the map to select it as your target.\nThen hunt it down in AR mode!", 
+                new Vector2(0, 300), 24, Color.white, FontStyles.Normal);
+            
+            // Coin list (simple version - shows nearby coins)
+            CreateCoinListInFullMap(panel.transform);
+            
+            // Close button
+            var closeBtn = CreateButton(panel.transform, "CloseButton", "✕ CLOSE MAP", 
+                new Vector2(0, -400), new Vector2(300, 80), new Color(0.8f, 0.2f, 0.2f),
+                () => {
+                    Debug.Log("[UIManager] Closing full map");
+                    _simpleFullMapPanel.SetActive(false);
+                });
+            
+            return panel;
+        }
+        
+        private void CreateCoinListInFullMap(Transform parent)
+        {
+            // Create a scrollable area with coin entries
+            var listContainer = new GameObject("CoinList");
+            listContainer.transform.SetParent(parent, false);
+            
+            var listRect = listContainer.AddComponent<RectTransform>();
+            listRect.anchorMin = new Vector2(0.1f, 0.3f);
+            listRect.anchorMax = new Vector2(0.9f, 0.7f);
+            listRect.offsetMin = Vector2.zero;
+            listRect.offsetMax = Vector2.zero;
+            
+            // Background
+            var listBg = listContainer.AddComponent<Image>();
+            listBg.color = new Color(0.1f, 0.1f, 0.1f, 0.8f);
+            
+            // Header
+            var header = CreateText(listContainer.transform, "Header", "NEARBY COINS:", 
+                Vector2.zero, 28, GoldColor, FontStyles.Bold);
+            var headerRect = header.GetComponent<RectTransform>();
+            headerRect.anchorMin = new Vector2(0, 1);
+            headerRect.anchorMax = new Vector2(1, 1);
+            headerRect.pivot = new Vector2(0.5f, 1);
+            headerRect.anchoredPosition = new Vector2(0, -10);
+            headerRect.sizeDelta = new Vector2(0, 40);
+            
+            // Populate with coins (will update when map is shown)
+            StartCoroutine(PopulateCoinList(listContainer.transform));
+        }
+        
+        private IEnumerator PopulateCoinList(Transform container)
+        {
+            yield return null; // Wait a frame for layout
+            
+            if (CoinManager.Instance == null) yield break;
+            
+            var coins = CoinManager.Instance.KnownCoins;
+            if (coins == null || coins.Count == 0)
+            {
+                CreateText(container, "NoCoins", "No coins nearby. Keep exploring!", 
+                    new Vector2(0, -60), 20, Color.gray, FontStyles.Italic);
+                yield break;
+            }
+            
+            float yOffset = -60;
+            int count = 0;
+            
+            foreach (var coin in coins)
+            {
+                if (count >= 5) break; // Max 5 coins shown
+                
+                // Calculate distance if GPS available
+                string distText = "";
+                if (GPSManager.Instance != null && GPSManager.Instance.IsTracking)
+                {
+                    var playerLoc = GPSManager.Instance.CurrentLocation;
+                    if (playerLoc != null)
+                    {
+                        float dist = (float)playerLoc.DistanceTo(new LocationData(coin.latitude, coin.longitude));
+                        distText = $" ({dist:F0}m away)";
+                    }
+                }
+                
+                var coinText = $"💰 ${coin.value:F2}{distText}";
+                
+                // Capture coin reference for closure
+                var capturedCoin = coin;
+                
+                // Create coin button
+                var coinBtn = CreateButton(container, $"Coin_{coin.id}", coinText,
+                    new Vector2(0, yOffset), new Vector2(400, 50), GoldColor,
+                    () => {
+                        Debug.Log($"[UIManager] Selected coin: {capturedCoin.id}");
+                        SelectCoinAsTarget(capturedCoin);
+                    });
+                
+                var btnRect = coinBtn.GetComponent<RectTransform>();
+                btnRect.anchorMin = new Vector2(0.5f, 1);
+                btnRect.anchorMax = new Vector2(0.5f, 1);
+                btnRect.pivot = new Vector2(0.5f, 1);
+                
+                yOffset -= 60;
+                count++;
+            }
+        }
+        
+        private void SelectCoinAsTarget(Coin coin)
+        {
+            Debug.Log($"[UIManager] 🎯 Setting target coin: {coin.id} (${coin.value})");
+            
+            if (CoinManager.Instance != null)
+            {
+                CoinManager.Instance.SetTargetCoin(coin);
+            }
+            
+            // Close the map
+            if (_simpleFullMapPanel != null)
+            {
+                _simpleFullMapPanel.SetActive(false);
+            }
+            
+            Debug.Log("[UIManager] Target set! Hunt it down in AR!");
+        }
+        
         private void HideAllPanels()
         {
             if (loginPanel != null) loginPanel.SetActive(false);
@@ -1054,10 +1243,20 @@ namespace BlackBartsGold.Core
             _miniMapContainer = containerRect;
             _miniMapRadius = 180f; // DOUBLED from 100
             
-            // Circular background
+            // Circular background - CLICKABLE to open full map!
             var bgImage = mapContainer.AddComponent<Image>();
             bgImage.color = new Color(0, 0, 0, 0.7f);
-            bgImage.raycastTarget = false;
+            bgImage.raycastTarget = true; // ENABLED for click detection!
+            
+            // Add Button component to make mini-map clickable
+            var miniMapButton = mapContainer.AddComponent<Button>();
+            miniMapButton.transition = Selectable.Transition.None; // No visual change on click
+            miniMapButton.onClick.AddListener(() => {
+                Debug.Log("[UIManager] 🗺️ Mini-map CLICKED! Opening full map...");
+                OnMiniMapClicked();
+            });
+            
+            Debug.Log("[UIManager] 🗺️ Mini-map click handler registered!");
             
             // Range ring (50m indicator)
             var rangeRing = new GameObject("RangeRing");
