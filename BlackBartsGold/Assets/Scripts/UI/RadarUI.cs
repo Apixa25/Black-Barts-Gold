@@ -99,6 +99,18 @@ namespace BlackBartsGold.UI
         
         #endregion
         
+        #region Awake - Very Early Init
+        
+        private void Awake()
+        {
+            Debug.Log("========================================");
+            Debug.Log("[RadarUI] AWAKE - RadarUI component initializing!");
+            Debug.Log($"[RadarUI] On GameObject: {gameObject.name}");
+            Debug.Log("========================================");
+        }
+        
+        #endregion
+        
         #region Properties
         
         /// <summary>
@@ -131,33 +143,48 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
-            // Enable compass
-            Input.compass.enabled = true;
+            Debug.Log("[RadarUI] Start() BEGIN");
             
-            // Auto-find references if not assigned
-            AutoFindReferences();
-            
-            // Subscribe to GPS events
-            if (GPSManager.Exists)
+            try
             {
-                GPSManager.Instance.OnLocationUpdated += OnLocationUpdated;
+                // Enable compass
+                Input.compass.enabled = true;
+                Debug.Log("[RadarUI] Compass enabled");
+                
+                // Auto-find references if not assigned
+                AutoFindReferences();
+                Debug.Log("[RadarUI] AutoFindReferences done");
+                
+                // Subscribe to GPS events
+                if (GPSManager.Exists)
+                {
+                    GPSManager.Instance.OnLocationUpdated += OnLocationUpdated;
+                    Debug.Log("[RadarUI] Subscribed to GPS");
+                }
+                
+                // Subscribe to CoinManager events (single-target mode)
+                if (CoinManager.Exists)
+                {
+                    CoinManager.Instance.OnTargetSet += OnTargetSet;
+                    CoinManager.Instance.OnTargetCleared += OnTargetCleared;
+                    CoinManager.Instance.OnHuntModeChanged += OnHuntModeChanged;
+                    Debug.Log("[RadarUI] Subscribed to CoinManager");
+                }
+                
+                // Setup radar tap to open full map
+                SetupRadarTap();
+                Debug.Log("[RadarUI] SetupRadarTap done");
+                
+                // Initial update
+                UpdateRadar();
+                Debug.Log("[RadarUI] UpdateRadar done");
+                
+                Debug.Log($"[RadarUI] Start() COMPLETE - radarButton:{radarButton != null}, radarContainer:{radarContainer != null}");
             }
-            
-            // Subscribe to CoinManager events (single-target mode)
-            if (CoinManager.Exists)
+            catch (System.Exception e)
             {
-                CoinManager.Instance.OnTargetSet += OnTargetSet;
-                CoinManager.Instance.OnTargetCleared += OnTargetCleared;
-                CoinManager.Instance.OnHuntModeChanged += OnHuntModeChanged;
+                Debug.LogError($"[RadarUI] Start() EXCEPTION: {e.Message}\n{e.StackTrace}");
             }
-            
-            // Setup radar tap to open full map
-            SetupRadarTap();
-            
-            // Initial update
-            UpdateRadar();
-            
-            Debug.Log($"[RadarUI] Started - radarButton:{radarButton != null}, radarContainer:{radarContainer != null}");
         }
         
         /// <summary>
