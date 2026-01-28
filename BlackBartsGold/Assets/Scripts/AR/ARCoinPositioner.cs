@@ -348,6 +348,25 @@ namespace BlackBartsGold.AR
             
             Vector3 newPosition = new Vector3(x, y, z);
             
+            // ================================================================
+            // LIGHTSHIP ENHANCEMENT: Place on real surfaces if available
+            // Uses Niantic meshing to find real-world surfaces
+            // ================================================================
+            if (LightshipManager.Exists && LightshipManager.Instance.IsMeshReady)
+            {
+                // Try to find a real surface at this position
+                if (LightshipManager.Instance.IsPositionOnSurface(newPosition, out Vector3 surfacePosition))
+                {
+                    // Place coin on the detected surface + small offset
+                    newPosition = surfacePosition + Vector3.up * 0.1f; // 10cm above surface
+                    
+                    if (debugMode)
+                    {
+                        Debug.Log($"[ARCoinPositioner] LIGHTSHIP: Placed on surface at {newPosition}");
+                    }
+                }
+            }
+            
             targetPosition = newPosition;
             lastCalculatedPosition = newPosition;
             

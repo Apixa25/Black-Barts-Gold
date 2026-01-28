@@ -2,12 +2,14 @@
 // ARHuntSceneSetup.cs
 // Black Bart's Gold - ARHunt Scene Setup
 // Path: Assets/Scripts/UI/ARHuntSceneSetup.cs
+// Last Modified: 2026-01-27 20:30 - Added radar setup and diagnostics
 // ============================================================================
 // Sets up the AR Hunt scene HUD overlay at runtime.
 // ============================================================================
 
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 
 namespace BlackBartsGold.UI
@@ -17,15 +19,71 @@ namespace BlackBartsGold.UI
         private readonly Color GoldColor = new Color(1f, 0.84f, 0f);
         private readonly Color SemiTransparentBlack = new Color(0, 0, 0, 0.5f);
 
+        private RectTransform radarRect;
+        private int touchLogCount = 0;
+        
         private void Start()
         {
-            Debug.Log("[ARHuntSceneSetup] Setting up AR HUD...");
+            Debug.Log("========================================");
+            Debug.Log("[ARHuntSceneSetup] START - Setting up AR HUD...");
+            Debug.Log($"[ARHuntSceneSetup] GameObject: {gameObject.name}");
+            Debug.Log("========================================");
             
             SetupCanvas();
             SetupBackButton();
             SetupCrosshairs();
+            SetupRadarPanel();
+            VerifyEventSystem();
+            SetupDirectTouchHandler();
+            SetupEmergencyButton();
+            SetupLightship(); // Pokemon GO technology!
             
             Debug.Log("[ARHuntSceneSetup] AR HUD setup complete!");
+        }
+        
+        private void Update()
+        {
+            // Debug: Log touches every frame (first 20 touches only to avoid spam)
+            if (Input.touchCount > 0 && touchLogCount < 20)
+            {
+                Touch touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                {
+                    touchLogCount++;
+                    Debug.Log($"[ARHuntSceneSetup] TOUCH #{touchLogCount} at {touch.position}");
+                    
+                    // Check if touch is over radar
+                    if (radarRect != null)
+                    {
+                        Vector2 localPoint;
+                        bool isInside = RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                            radarRect, touch.position, null, out localPoint);
+                        bool contains = radarRect.rect.Contains(localPoint);
+                        Debug.Log($"[ARHuntSceneSetup] Radar check: localPoint={localPoint}, contains={contains}, rect={radarRect.rect}");
+                        
+                        // Manual click if touch is on radar
+                        if (contains)
+                        {
+                            Debug.Log("[ARHuntSceneSetup] Touch IS on radar - manually triggering click!");
+                            OnRadarClicked();
+                        }
+                    }
+                    
+                    // Log EventSystem info
+                    if (EventSystem.current != null)
+                    {
+                        var eventData = new PointerEventData(EventSystem.current);
+                        eventData.position = touch.position;
+                        var results = new System.Collections.Generic.List<RaycastResult>();
+                        EventSystem.current.RaycastAll(eventData, results);
+                        Debug.Log($"[ARHuntSceneSetup] EventSystem raycast hit {results.Count} objects");
+                        foreach (var r in results)
+                        {
+                            Debug.Log($"[ARHuntSceneSetup]   - Hit: {r.gameObject.name}");
+                        }
+                    }
+                }
+            }
         }
 
         private void SetupCanvas()
@@ -142,6 +200,217 @@ namespace BlackBartsGold.UI
             
             // Hide the background image, just show crosshair symbol
             image.color = new Color(0, 0, 0, 0);
+        }
+        
+        /// <summary>
+        /// Setup RadarPanel for click detection.
+        /// This ensures the radar can be tapped to open the full map.
+        /// </summary>
+        private void SetupRadarPanel()
+        {
+            Debug.Log("[ARHuntSceneSetup] Setting up RadarPanel...");
+            
+            var radar = transform.Find("RadarPanel");
+            if (radar == null)
+            {
+                Debug.LogWarning("[ARHuntSceneSetup] RadarPanel not found!");
+                return;
+            }
+            
+            Debug.Log($"[ARHuntSceneSetup] Found RadarPanel: {radar.name}");
+            
+            // Get or add RectTransform and store for touch detection
+            var rect = radar.GetComponent<RectTransform>();
+            radarRect = rect; // Store for Update() touch detection
+            if (rect != null)
+            {
+                // Position in bottom-right corner with safe margin
+                rect.anchorMin = new Vector2(1, 0);
+                rect.anchorMax = new Vector2(1, 0);
+                rect.pivot = new Vector2(1, 0);
+                rect.anchoredPosition = new Vector2(-20, 20);
+                rect.sizeDelta = new Vector2(180, 180);
+                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor BR, pos (-20, 20), size 180x180");
+            }
+            
+            // CRITICAL: Ensure there's an Image with raycastTarget = true
+            var image = radar.GetComponent<Image>();
+            if (image == null)
+            {
+                image = radar.gameObject.AddComponent<Image>();
+                Debug.Log("[ARHuntSceneSetup] Added Image to RadarPanel");
+            }
+            image.raycastTarget = true;
+            Debug.Log($"[ARHuntSceneSetup] RadarPanel Image raycastTarget: {image.raycastTarget}");
+            
+            // CRITICAL: Ensure there's a Button component
+            var button = radar.GetComponent<Button>();
+            if (button == null)
+            {
+                button = radar.gameObject.AddComponent<Button>();
+                button.transition = Selectable.Transition.ColorTint;
+                Debug.Log("[ARHuntSceneSetup] Added Button to RadarPanel");
+            }
+            
+            // Wire up button to open full map
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(OnRadarClicked);
+            Debug.Log("[ARHuntSceneSetup] RadarPanel button click handler registered");
+            
+            // Ensure RadarUI component exists
+            var radarUI = radar.GetComponent<RadarUI>();
+            if (radarUI != null)
+            {
+                Debug.Log("[ARHuntSceneSetup] RadarUI component found");
+            }
+            else
+            {
+                Debug.LogWarning("[ARHuntSceneSetup] RadarUI component NOT found on RadarPanel!");
+            }
+        }
+        
+        /// <summary>
+        /// Called when radar is clicked - opens full map.
+        /// This is a backup handler in case RadarUI's handler isn't working.
+        /// </summary>
+        private void OnRadarClicked()
+        {
+            Debug.Log("[ARHuntSceneSetup] RADAR CLICKED! Opening full map...");
+            
+            // Try FullMapUI first
+            if (FullMapUI.Exists)
+            {
+                Debug.Log("[ARHuntSceneSetup] Calling FullMapUI.Show()");
+                FullMapUI.Instance.Show();
+            }
+            // Then try ARHUD
+            else if (ARHUD.Instance != null)
+            {
+                Debug.Log("[ARHuntSceneSetup] Calling ARHUD.OnRadarTapped()");
+                ARHUD.Instance.OnRadarTapped();
+            }
+            else
+            {
+                Debug.LogError("[ARHuntSceneSetup] Neither FullMapUI nor ARHUD found!");
+            }
+        }
+        
+        /// <summary>
+        /// Setup the emergency map button - guaranteed to work if scripts are running.
+        /// This uses OnGUI which bypasses Canvas/EventSystem entirely.
+        /// </summary>
+        private void SetupEmergencyButton()
+        {
+            Debug.Log("[ARHuntSceneSetup] Creating EmergencyMapButton...");
+            EmergencyMapButton.EnsureExists();
+            Debug.Log("[ARHuntSceneSetup] EmergencyMapButton created!");
+        }
+        
+        /// <summary>
+        /// Setup Niantic Lightship for Pokemon GO-style AR features.
+        /// Enables occlusion, meshing, semantics, and depth.
+        /// </summary>
+        private void SetupLightship()
+        {
+            Debug.Log("[ARHuntSceneSetup] Setting up Niantic Lightship (Pokemon GO technology)...");
+            
+            // Check if LightshipManager already exists
+            var existing = FindFirstObjectByType<BlackBartsGold.AR.LightshipManager>();
+            if (existing != null)
+            {
+                Debug.Log("[ARHuntSceneSetup] LightshipManager already exists");
+                return;
+            }
+            
+            // Create LightshipManager
+            var lightshipGO = new GameObject("LightshipManager");
+            lightshipGO.AddComponent<BlackBartsGold.AR.LightshipManager>();
+            
+            Debug.Log("[ARHuntSceneSetup] LightshipManager created - Pokemon GO features enabled!");
+            Debug.Log("  - Occlusion: Coins hide behind real objects");
+            Debug.Log("  - Meshing: Coins sit on real surfaces");
+            Debug.Log("  - Semantics: Sky/ground detection");
+            Debug.Log("  - Depth: Better AR placement");
+        }
+        
+        /// <summary>
+        /// Setup the DirectTouchHandler for Pokemon GO style touch detection.
+        /// This bypasses Unity's EventSystem entirely for maximum reliability.
+        /// </summary>
+        private void SetupDirectTouchHandler()
+        {
+            Debug.Log("[ARHuntSceneSetup] Setting up DirectTouchHandler...");
+            
+            // Check if already exists
+            var existing = GetComponent<DirectTouchHandler>();
+            if (existing != null)
+            {
+                Debug.Log("[ARHuntSceneSetup] DirectTouchHandler already exists");
+                return;
+            }
+            
+            // Add the component
+            var handler = gameObject.AddComponent<DirectTouchHandler>();
+            Debug.Log("[ARHuntSceneSetup] Added DirectTouchHandler component!");
+        }
+        
+        /// <summary>
+        /// Verify the EventSystem is properly set up for UI input.
+        /// </summary>
+        private void VerifyEventSystem()
+        {
+            Debug.Log("[ARHuntSceneSetup] Verifying EventSystem...");
+            
+            // Check for EventSystem
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                eventSystem = FindFirstObjectByType<EventSystem>();
+                if (eventSystem == null)
+                {
+                    Debug.LogError("[ARHuntSceneSetup] NO EventSystem found! Creating one...");
+                    var esGO = new GameObject("EventSystem_Runtime");
+                    eventSystem = esGO.AddComponent<EventSystem>();
+                    esGO.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+                    Debug.Log("[ARHuntSceneSetup] Created EventSystem at runtime");
+                }
+            }
+            Debug.Log($"[ARHuntSceneSetup] EventSystem: {eventSystem.name}, enabled: {eventSystem.enabled}");
+            
+            // Check for InputModule
+            var inputModule = eventSystem.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            if (inputModule != null)
+            {
+                Debug.Log($"[ARHuntSceneSetup] InputSystemUIInputModule found, enabled: {inputModule.enabled}");
+            }
+            else
+            {
+                var standaloneInput = eventSystem.GetComponent<StandaloneInputModule>();
+                if (standaloneInput != null)
+                {
+                    Debug.Log($"[ARHuntSceneSetup] StandaloneInputModule found, enabled: {standaloneInput.enabled}");
+                }
+                else
+                {
+                    Debug.LogWarning("[ARHuntSceneSetup] No input module found! Adding InputSystemUIInputModule...");
+                    eventSystem.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+                }
+            }
+            
+            // Check for GraphicRaycaster on this canvas
+            var canvas = GetComponent<Canvas>();
+            if (canvas != null)
+            {
+                Debug.Log($"[ARHuntSceneSetup] Canvas render mode: {canvas.renderMode}");
+                
+                var raycaster = canvas.GetComponent<GraphicRaycaster>();
+                if (raycaster == null)
+                {
+                    raycaster = canvas.gameObject.AddComponent<GraphicRaycaster>();
+                    Debug.LogWarning("[ARHuntSceneSetup] Added GraphicRaycaster to Canvas");
+                }
+                Debug.Log($"[ARHuntSceneSetup] GraphicRaycaster enabled: {raycaster.enabled}");
+            }
         }
     }
 }
