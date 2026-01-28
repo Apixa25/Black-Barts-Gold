@@ -377,7 +377,7 @@ namespace BlackBartsGold.UI
             }
             Debug.Log($"[ARHuntSceneSetup] EventSystem: {eventSystem.name}, enabled: {eventSystem.enabled}");
             
-            // Check for InputModule
+            // Check for InputModule (using new Input System)
             var inputModule = eventSystem.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
             if (inputModule != null)
             {
@@ -385,10 +385,11 @@ namespace BlackBartsGold.UI
             }
             else
             {
-                var standaloneInput = eventSystem.GetComponent<StandaloneInputModule>();
-                if (standaloneInput != null)
+                // Check if any BaseInputModule exists
+                var baseInputModule = eventSystem.GetComponent<BaseInputModule>();
+                if (baseInputModule != null)
                 {
-                    Debug.Log($"[ARHuntSceneSetup] StandaloneInputModule found, enabled: {standaloneInput.enabled}");
+                    Debug.Log($"[ARHuntSceneSetup] BaseInputModule found: {baseInputModule.GetType().Name}");
                 }
                 else
                 {
