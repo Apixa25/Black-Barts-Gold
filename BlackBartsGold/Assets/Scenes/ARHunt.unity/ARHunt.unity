@@ -148,15 +148,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 953813096db0d2249adb01df80ea92e6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.AR.ARCoinPlacer
-  raycastManager: {fileID: 0}
-  anchorManager: {fileID: 0}
-  planeManager: {fileID: 0}
-  placementDistance: 3
-  gpsProximityThreshold: 20
-  minPlaneArea: 0.5
-  coinPrefab: {fileID: 0}
-  debugMode: 1
-  _arCamera: {fileID: 0}
 --- !u!4 &150545112
 Transform:
   m_ObjectHideFlags: 0

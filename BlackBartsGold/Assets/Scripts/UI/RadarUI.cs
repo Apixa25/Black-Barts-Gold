@@ -2,6 +2,7 @@
 // RadarUI.cs
 // Black Bart's Gold - Mini Radar/Map UI Component (Single-Target Mode)
 // Path: Assets/Scripts/UI/RadarUI.cs
+// Last Modified: 2026-01-27 17:30 - Force recompile for tap fix
 // ============================================================================
 // Displays a radar-style mini-map showing the TARGET COIN only.
 // In single-target architecture, only shows the coin being actively hunted.
