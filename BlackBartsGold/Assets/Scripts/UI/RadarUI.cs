@@ -1,15 +1,16 @@
 // ============================================================================
 // RadarUI.cs
-// Black Bart's Gold - Mini Radar/Map UI Component
+// Black Bart's Gold - Mini Radar/Map UI Component (Single-Target Mode)
 // Path: Assets/Scripts/UI/RadarUI.cs
 // ============================================================================
-// Displays a radar-style mini-map showing nearby coins as dots around
-// the player's position. Updates based on GPS and coin positions.
+// Displays a radar-style mini-map showing the TARGET COIN only.
+// In single-target architecture, only shows the coin being actively hunted.
 // Reference: BUILD-GUIDE.md Prompt 5.1
 // ============================================================================
 
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
@@ -19,10 +20,12 @@ using BlackBartsGold.AR;
 namespace BlackBartsGold.UI
 {
     /// <summary>
-    /// Mini radar display showing nearby coins.
-    /// Player is at center, coins appear as dots.
+    /// Mini radar display showing the TARGET coin only (single-target mode).
+    /// Player is at center, target coin appears as a dot.
+    /// Tap radar to open full map and select a different coin.
+    /// Implements IPointerClickHandler for reliable tap detection.
     /// </summary>
-    public class RadarUI : MonoBehaviour
+    public class RadarUI : MonoBehaviour, IPointerClickHandler
     {
         #region Inspector Fields
         
@@ -85,6 +88,11 @@ namespace BlackBartsGold.UI
         [SerializeField]
         private Color poolCoinColor = new Color(0.5f, 0.8f, 1f); // Light blue
         
+        [Header("Tap to Open Map")]
+        [SerializeField]
+        [Tooltip("Button component on radar for tap detection")]
+        private Button radarButton;
+        
         [Header("Debug")]
         [SerializeField]
         private bool debugMode = false;
@@ -126,14 +134,108 @@ namespace BlackBartsGold.UI
             // Enable compass
             Input.compass.enabled = true;
             
-            // Subscribe to events
+            // Auto-find references if not assigned
+            AutoFindReferences();
+            
+            // Subscribe to GPS events
             if (GPSManager.Exists)
             {
                 GPSManager.Instance.OnLocationUpdated += OnLocationUpdated;
             }
             
+            // Subscribe to CoinManager events (single-target mode)
+            if (CoinManager.Exists)
+            {
+                CoinManager.Instance.OnTargetSet += OnTargetSet;
+                CoinManager.Instance.OnTargetCleared += OnTargetCleared;
+                CoinManager.Instance.OnHuntModeChanged += OnHuntModeChanged;
+            }
+            
+            // Setup radar tap to open full map
+            SetupRadarTap();
+            
             // Initial update
             UpdateRadar();
+            
+            Debug.Log($"[RadarUI] Started - radarButton:{radarButton != null}, radarContainer:{radarContainer != null}");
+        }
+        
+        /// <summary>
+        /// Auto-find references if not assigned in Inspector
+        /// </summary>
+        private void AutoFindReferences()
+        {
+            // Use this object as the radar container if not assigned
+            if (radarContainer == null)
+            {
+                radarContainer = GetComponent<RectTransform>();
+            }
+            
+            // Get or create button on this object
+            if (radarButton == null)
+            {
+                radarButton = GetComponent<Button>();
+            }
+            
+            Debug.Log($"[RadarUI] AutoFindReferences - container:{radarContainer != null}, button:{radarButton != null}");
+        }
+        
+        /// <summary>
+        /// Setup tap handler to open full map
+        /// </summary>
+        private void SetupRadarTap()
+        {
+            // If still no button, try to add one
+            if (radarButton == null)
+            {
+                radarButton = gameObject.AddComponent<Button>();
+                radarButton.transition = Selectable.Transition.None;
+                Debug.Log("[RadarUI] Added Button component dynamically");
+            }
+            
+            if (radarButton != null)
+            {
+                radarButton.onClick.RemoveAllListeners(); // Clear any existing
+                radarButton.onClick.AddListener(OnRadarTapped);
+                Debug.Log("[RadarUI] Radar tap handler configured successfully");
+            }
+            else
+            {
+                Debug.LogError("[RadarUI] Failed to setup radar tap - no button!");
+            }
+        }
+        
+        /// <summary>
+        /// Handle radar tap - opens full map
+        /// </summary>
+        private void OnRadarTapped()
+        {
+            Debug.Log("[RadarUI] RADAR TAPPED! Opening full map...");
+            
+            // Open full map UI
+            if (FullMapUI.Exists)
+            {
+                Debug.Log("[RadarUI] FullMapUI exists, calling Show()");
+                FullMapUI.Instance.Show();
+            }
+            else
+            {
+                Debug.LogWarning("[RadarUI] FullMapUI not found in scene!");
+                if (ARHUD.Instance != null)
+                {
+                    ARHUD.Instance.OnRadarTapped();
+                }
+            }
+        }
+        
+        /// <summary>
+        /// IPointerClickHandler implementation - called when radar is tapped.
+        /// This is more reliable than Button.onClick for UI elements.
+        /// </summary>
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            Debug.Log("[RadarUI] OnPointerClick triggered!");
+            OnRadarTapped();
         }
         
         private void OnDestroy()
@@ -141,6 +243,13 @@ namespace BlackBartsGold.UI
             if (GPSManager.Exists)
             {
                 GPSManager.Instance.OnLocationUpdated -= OnLocationUpdated;
+            }
+            
+            if (CoinManager.Exists)
+            {
+                CoinManager.Instance.OnTargetSet -= OnTargetSet;
+                CoinManager.Instance.OnTargetCleared -= OnTargetCleared;
+                CoinManager.Instance.OnHuntModeChanged -= OnHuntModeChanged;
             }
         }
         
@@ -158,6 +267,30 @@ namespace BlackBartsGold.UI
                 lastUpdateTime = Time.time;
                 UpdateRadar();
             }
+            
+            // Debug: Check for any touch input
+            if (Input.touchCount > 0)
+            {
+                Touch touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Began)
+                {
+                    Debug.Log($"[RadarUI] Touch detected at screen position: {touch.position}");
+                    
+                    // Check if touch is within radar bounds
+                    if (radarContainer != null)
+                    {
+                        Vector2 localPoint;
+                        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                            radarContainer, touch.position, null, out localPoint);
+                        Debug.Log($"[RadarUI] Local point in radar: {localPoint}, Radar size: {radarContainer.rect.size}");
+                        
+                        if (radarContainer.rect.Contains(localPoint))
+                        {
+                            Debug.Log("[RadarUI] Touch IS inside radar bounds - should trigger click!");
+                        }
+                    }
+                }
+            }
         }
         
         #endregion
@@ -172,12 +305,50 @@ namespace BlackBartsGold.UI
             UpdateRadar();
         }
         
+        /// <summary>
+        /// Handle target coin set
+        /// </summary>
+        private void OnTargetSet(Coin coin)
+        {
+            Log($"Target set: {coin.id}");
+            UpdateRadar();
+        }
+        
+        /// <summary>
+        /// Handle target cleared
+        /// </summary>
+        private void OnTargetCleared()
+        {
+            Log("Target cleared");
+            ClearAllDots();
+        }
+        
+        /// <summary>
+        /// Handle hunt mode changed
+        /// </summary>
+        private void OnHuntModeChanged(HuntMode mode)
+        {
+            Log($"Hunt mode: {mode}");
+            
+            if (mode == HuntMode.MapView)
+            {
+                // In map view, radar shows nothing (user views full map)
+                ClearAllDots();
+            }
+            else
+            {
+                // In hunting mode, show target
+                UpdateRadar();
+            }
+        }
+        
         #endregion
         
         #region Radar Updates
         
         /// <summary>
-        /// Update radar display
+        /// Update radar display (single-target mode).
+        /// Only shows the TARGET coin, not all coins.
         /// </summary>
         public void UpdateRadar()
         {
@@ -186,47 +357,46 @@ namespace BlackBartsGold.UI
             LocationData playerLocation = GetPlayerLocation();
             if (playerLocation == null) return;
             
-            // Get coins from CoinManager
-            if (CoinManager.Instance == null) return;
-            
-            // Track which coins we've updated
-            HashSet<string> updatedCoins = new HashSet<string>();
-            
-            foreach (var controller in CoinManager.Instance.ActiveCoins)
+            // In single-target mode, only show the target coin
+            if (!CoinManager.Exists || !CoinManager.Instance.HasTarget)
             {
-                if (controller.CoinData == null) continue;
-                
-                Coin coin = controller.CoinData;
-                
-                // Calculate distance
-                float distance = GeoUtils.CalculateDistance(
-                    playerLocation.latitude, playerLocation.longitude,
-                    coin.latitude, coin.longitude
-                );
-                
-                // Skip if out of radar range
-                if (distance > radarRange)
-                {
-                    RemoveCoinDot(coin.id);
-                    continue;
-                }
-                
-                // Calculate bearing
-                float bearing = GeoUtils.CalculateBearing(
-                    playerLocation.latitude, playerLocation.longitude,
-                    coin.latitude, coin.longitude
-                );
-                
-                // Update or create dot
-                UpdateCoinDot(coin, distance, bearing, controller.IsLocked, controller.IsInRange);
-                updatedCoins.Add(coin.id);
+                ClearAllDots();
+                return;
             }
             
-            // Remove dots for coins no longer tracked
+            // Only show radar content when in hunting mode
+            if (CoinManager.Instance.CurrentMode != HuntMode.Hunting)
+            {
+                ClearAllDots();
+                return;
+            }
+            
+            var targetCoin = CoinManager.Instance.TargetCoin;
+            var targetData = CoinManager.Instance.TargetCoinData;
+            
+            if (targetCoin == null || targetData == null)
+            {
+                ClearAllDots();
+                return;
+            }
+            
+            // Calculate distance to target
+            float distance = GeoUtils.CalculateDistance(
+                playerLocation.latitude, playerLocation.longitude,
+                targetData.latitude, targetData.longitude
+            );
+            
+            // Calculate bearing to target
+            float bearing = GeoUtils.CalculateBearing(
+                playerLocation.latitude, playerLocation.longitude,
+                targetData.latitude, targetData.longitude
+            );
+            
+            // Clear any old dots (shouldn't be any, but just in case)
             List<string> toRemove = new List<string>();
             foreach (var id in activeDots.Keys)
             {
-                if (!updatedCoins.Contains(id))
+                if (id != targetData.id)
                 {
                     toRemove.Add(id);
                 }
@@ -235,6 +405,11 @@ namespace BlackBartsGold.UI
             {
                 RemoveCoinDot(id);
             }
+            
+            // Update or create the target dot
+            // For radar, we can show it even if beyond radar range (just at the edge)
+            float displayDistance = Mathf.Min(distance, radarRange * 0.95f);
+            UpdateCoinDot(targetData, displayDistance, bearing, targetCoin.IsLocked, targetCoin.IsInRange);
         }
         
         /// <summary>

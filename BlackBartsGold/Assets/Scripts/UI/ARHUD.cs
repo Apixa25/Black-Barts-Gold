@@ -226,11 +226,15 @@ namespace BlackBartsGold.UI
                 PlayerData.Instance.OnFindLimitChanged += OnFindLimitChanged;
             }
             
-            // Coin manager events
+            // Coin manager events (single-target architecture)
             if (CoinManager.Instance != null)
             {
                 CoinManager.Instance.OnCoinCollected += OnCoinCollected;
                 CoinManager.Instance.OnCoinSelectionChanged += OnCoinSelectionChanged;
+                CoinManager.Instance.OnHuntModeChanged += OnHuntModeChanged;
+                CoinManager.Instance.OnTargetSet += OnTargetSet;
+                CoinManager.Instance.OnTargetCleared += OnTargetCleared;
+                CoinManager.Instance.OnTargetCollected += OnTargetCollected;
             }
             
             // Proximity events
@@ -256,6 +260,10 @@ namespace BlackBartsGold.UI
             {
                 CoinManager.Instance.OnCoinCollected -= OnCoinCollected;
                 CoinManager.Instance.OnCoinSelectionChanged -= OnCoinSelectionChanged;
+                CoinManager.Instance.OnHuntModeChanged -= OnHuntModeChanged;
+                CoinManager.Instance.OnTargetSet -= OnTargetSet;
+                CoinManager.Instance.OnTargetCleared -= OnTargetCleared;
+                CoinManager.Instance.OnTargetCollected -= OnTargetCollected;
             }
             
             if (ProximityManager.Instance != null)
@@ -325,6 +333,64 @@ namespace BlackBartsGold.UI
                         break;
                 }
             }
+        }
+        
+        /// <summary>
+        /// Handle hunt mode changed (single-target architecture)
+        /// </summary>
+        private void OnHuntModeChanged(HuntMode mode)
+        {
+            Log($"Hunt mode changed: {mode}");
+            
+            switch (mode)
+            {
+                case HuntMode.MapView:
+                    // In map view - show "tap radar to select coin" hint
+                    ShowMessage("Tap the mini-map to select a treasure to hunt!");
+                    HideCoinInfo();
+                    break;
+                    
+                case HuntMode.Hunting:
+                    // Hunting - show target coin info
+                    if (CoinManager.Instance?.TargetCoinData != null)
+                    {
+                        ShowCoinInfo(CoinManager.Instance.TargetCoinData, 
+                                     CoinManager.Instance.TargetCoin?.IsLocked ?? false);
+                    }
+                    break;
+                    
+                case HuntMode.Collecting:
+                    // Collecting - handled by collection popup
+                    break;
+            }
+        }
+        
+        /// <summary>
+        /// Handle target coin set
+        /// </summary>
+        private void OnTargetSet(Coin coin)
+        {
+            Log($"Target set: {coin.GetDisplayValue()}");
+            ShowCoinInfo(coin, coin.isLocked);
+            ShowMessage($"Hunting: {coin.GetDisplayValue()} treasure!");
+        }
+        
+        /// <summary>
+        /// Handle target cleared
+        /// </summary>
+        private void OnTargetCleared()
+        {
+            Log("Target cleared");
+            HideCoinInfo();
+        }
+        
+        /// <summary>
+        /// Handle target collected (single-target architecture)
+        /// </summary>
+        private void OnTargetCollected(Coin coin, float value)
+        {
+            Log($"Target collected! Value: ${value:F2}");
+            ShowCollectionPopup(value);
         }
         
         #endregion
@@ -705,6 +771,47 @@ namespace BlackBartsGold.UI
                 // Fade out in last second
                 messageCanvasGroup.alpha = messageTimer;
             }
+        }
+        
+        #endregion
+        
+        #region Full Map Integration
+        
+        /// <summary>
+        /// Open the full map view to select a coin
+        /// </summary>
+        public void OpenFullMap()
+        {
+            if (FullMapUI.Exists)
+            {
+                FullMapUI.Instance.Show();
+            }
+            else
+            {
+                Log("FullMapUI not found in scene");
+                ShowMessage("Map not available");
+            }
+        }
+        
+        /// <summary>
+        /// Called when radar/mini-map is tapped
+        /// </summary>
+        public void OnRadarTapped()
+        {
+            Log("Radar tapped - opening full map");
+            OpenFullMap();
+        }
+        
+        /// <summary>
+        /// Return to map view (abandon current hunt)
+        /// </summary>
+        public void ReturnToMapView()
+        {
+            if (CoinManager.Instance != null)
+            {
+                CoinManager.Instance.EnterMapView();
+            }
+            OpenFullMap();
         }
         
         #endregion
