@@ -4,45 +4,48 @@
 // Path: Assets/Scripts/UI/FullMapPinchZoom.cs
 // Created: 2026-01-27 - Two-finger zoom support
 // ============================================================================
-// Handles pinch gestures to zoom the full map in and out.
-// Also supports mouse scroll wheel for editor testing.
-// ============================================================================
 
 using UnityEngine;
 using BlackBartsGold.Core;
 
 namespace BlackBartsGold.UI
 {
-    /// <summary>
-    /// Handles pinch-to-zoom gestures for the full map view.
-    /// Attach to the full map panel.
-    /// </summary>
     public class FullMapPinchZoom : MonoBehaviour
     {
-        [Header("Settings")]
-        [SerializeField] private float pinchThreshold = 30f; // Pixels of movement before zoom
-        [SerializeField] private float scrollZoomSpeed = 0.1f;
-        
         private UIManager _uiManager;
         private bool _isPinching = false;
-        private float _lastPinchDistance = 0f;
-        private float _accumulatedPinch = 0f;
+        private float _initialPinchDistance = 0f;
+        private float _lastZoomTriggerDistance = 0f;
+        private float _zoomCooldown = 0f;
+        
+        // Pinch settings - tuned for responsiveness
+        private const float PINCH_ZOOM_THRESHOLD = 80f; // Pixels of pinch change per zoom level
+        private const float ZOOM_COOLDOWN_TIME = 0.3f;  // Seconds between zoom triggers
         
         public void Initialize(UIManager manager)
         {
             _uiManager = manager;
-            Debug.Log("[PinchZoom] Initialized for full map");
+            Debug.Log("[PinchZoom] Initialized!");
         }
         
         private void Update()
         {
-            if (_uiManager == null) return;
+            if (_uiManager == null)
+            {
+                // Try to find UIManager if not set
+                _uiManager = FindFirstObjectByType<UIManager>();
+                if (_uiManager == null) return;
+            }
+            
             if (!gameObject.activeInHierarchy) return;
             
-            // Handle touch pinch zoom
-            HandleTouchPinch();
+            // Update cooldown
+            if (_zoomCooldown > 0f)
+            {
+                _zoomCooldown -= Time.deltaTime;
+            }
             
-            // Handle mouse scroll wheel (for editor testing)
+            HandleTouchPinch();
             HandleMouseScroll();
         }
         
@@ -52,62 +55,59 @@ namespace BlackBartsGold.UI
             {
                 Touch touch0 = Input.GetTouch(0);
                 Touch touch1 = Input.GetTouch(1);
-                
-                // Calculate current distance between touches
                 float currentDistance = Vector2.Distance(touch0.position, touch1.position);
                 
                 if (!_isPinching)
                 {
-                    // Start pinching
+                    // Start new pinch gesture
                     _isPinching = true;
-                    _lastPinchDistance = currentDistance;
-                    _accumulatedPinch = 0f;
-                    Debug.Log("[PinchZoom] Pinch started");
+                    _initialPinchDistance = currentDistance;
+                    _lastZoomTriggerDistance = currentDistance;
+                    Debug.Log($"[PinchZoom] START - distance: {currentDistance:F0}px");
                 }
                 else
                 {
-                    // Continue pinching - accumulate distance change
-                    float delta = currentDistance - _lastPinchDistance;
-                    _accumulatedPinch += delta;
-                    _lastPinchDistance = currentDistance;
+                    // Continue pinching - check for zoom trigger
+                    float deltaFromLast = currentDistance - _lastZoomTriggerDistance;
                     
-                    // Check if we've accumulated enough to trigger zoom
-                    if (Mathf.Abs(_accumulatedPinch) > pinchThreshold)
+                    if (Mathf.Abs(deltaFromLast) >= PINCH_ZOOM_THRESHOLD && _zoomCooldown <= 0f)
                     {
-                        int zoomDelta = _accumulatedPinch > 0 ? 1 : -1;
+                        int zoomDelta = deltaFromLast > 0 ? 1 : -1;
+                        Debug.Log($"[PinchZoom] ZOOM {(zoomDelta > 0 ? "IN" : "OUT")} - delta: {deltaFromLast:F0}px");
+                        
                         _uiManager.ChangeMapZoom(zoomDelta);
-                        _accumulatedPinch = 0f; // Reset accumulator
-                        Debug.Log($"[PinchZoom] Zoom triggered: {zoomDelta}");
+                        _lastZoomTriggerDistance = currentDistance;
+                        _zoomCooldown = ZOOM_COOLDOWN_TIME;
                     }
                 }
             }
-            else
+            else if (_isPinching)
             {
-                // No longer pinching
-                if (_isPinching)
+                // Pinch ended
+                float totalDelta = 0f;
+                if (Input.touchCount == 0)
                 {
-                    _isPinching = false;
-                    Debug.Log("[PinchZoom] Pinch ended");
+                    Debug.Log("[PinchZoom] END");
                 }
+                _isPinching = false;
             }
         }
         
         private void HandleMouseScroll()
         {
-            // Only in editor or when using mouse
             float scroll = Input.mouseScrollDelta.y;
-            if (Mathf.Abs(scroll) > 0.01f)
+            if (Mathf.Abs(scroll) > 0.01f && _zoomCooldown <= 0f)
             {
                 int zoomDelta = scroll > 0 ? 1 : -1;
+                Debug.Log($"[PinchZoom] Mouse scroll: {zoomDelta}");
                 _uiManager.ChangeMapZoom(zoomDelta);
-                Debug.Log($"[PinchZoom] Mouse scroll zoom: {zoomDelta}");
+                _zoomCooldown = ZOOM_COOLDOWN_TIME;
             }
         }
         
         private void OnDisable()
         {
             _isPinching = false;
-            _accumulatedPinch = 0f;
         }
     }
 }

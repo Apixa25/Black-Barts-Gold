@@ -992,23 +992,38 @@ namespace BlackBartsGold.Core
         /// </summary>
         public void ChangeMapZoom(int delta)
         {
+            Debug.Log($"[UIManager] ChangeMapZoom called with delta={delta}, current={_fullMapZoom}, pending={_mapLoadPending}");
+            
             int newZoom = Mathf.Clamp(_fullMapZoom + delta, MIN_ZOOM, MAX_ZOOM);
-            if (newZoom == _fullMapZoom) return; // No change
+            if (newZoom == _fullMapZoom)
+            {
+                Debug.Log($"[UIManager] Zoom at limit ({newZoom}), no change");
+                return;
+            }
             
             _fullMapZoom = newZoom;
-            Debug.Log($"[UIManager] Map zoom changed to {_fullMapZoom}");
+            Debug.Log($"[UIManager] ZOOM CHANGED to {_fullMapZoom}x");
             
-            // Update zoom level display
+            // Update zoom level display immediately
             if (_zoomLevelText != null)
             {
                 _zoomLevelText.text = $"{_fullMapZoom}x";
+                Debug.Log($"[UIManager] Zoom text updated to {_fullMapZoom}x");
+            }
+            else
+            {
+                Debug.LogWarning("[UIManager] _zoomLevelText is null!");
+            }
+            
+            // Force reset pending flag if stuck (safety)
+            if (_mapLoadPending)
+            {
+                Debug.LogWarning("[UIManager] Map load was pending - forcing reset");
+                _mapLoadPending = false;
             }
             
             // Reload the map at new zoom level
-            if (!_mapLoadPending)
-            {
-                StartCoroutine(LoadFullMapTile());
-            }
+            StartCoroutine(LoadFullMapTile());
         }
         
         private GameObject _playerMarkerFullMap;
@@ -1052,11 +1067,13 @@ namespace BlackBartsGold.Core
         
         private IEnumerator LoadFullMapTile()
         {
+            Debug.Log($"[UIManager] LoadFullMapTile STARTED - zoom={_fullMapZoom}");
             _mapLoadPending = true;
             yield return null; // Wait a frame
             
             if (!MapboxService.Exists)
             {
+                Debug.Log("[UIManager] MapboxService doesn't exist, creating...");
                 EnsureMapboxService();
                 yield return new WaitForSeconds(0.5f);
             }
@@ -1068,6 +1085,9 @@ namespace BlackBartsGold.Core
             }
             
             var loc = GPSManager.Instance?.CurrentLocation;
+            Debug.Log($"[UIManager] GPS Location: {(loc != null ? $"{loc.latitude}, {loc.longitude}" : "NULL")}");
+            Debug.Log($"[UIManager] MapboxService.Exists: {MapboxService.Exists}");
+            
             if (loc != null && MapboxService.Exists)
             {
                 // Store center for coin positioning
@@ -1079,12 +1099,15 @@ namespace BlackBartsGold.Core
                 // Formula: meters/pixel = 156543.03392 * cos(lat) / 2^zoom
                 _fullMapMetersPerPixel = (float)(156543.03392 * Mathf.Cos((float)loc.latitude * Mathf.Deg2Rad) / Mathf.Pow(2, _fullMapZoom));
                 
-                Debug.Log($"[UIManager] Loading full map tile at {loc.latitude}, {loc.longitude}, zoom {_fullMapZoom}");
+                Debug.Log($"[UIManager] REQUESTING map tile: zoom={_fullMapZoom}, lat={loc.latitude}, lng={loc.longitude}");
                 Debug.Log($"[UIManager] Meters per pixel: {_fullMapMetersPerPixel}");
                 
                 MapboxService.Instance.GetFullMapTile(loc.latitude, loc.longitude, _fullMapZoom, (texture) => {
+                    Debug.Log($"[UIManager] MAP TILE CALLBACK - texture={(texture != null ? "received" : "NULL")}, zoom={_fullMapZoom}");
+                    
                     if (texture != null && _fullMapImage != null)
                     {
+                        Debug.Log($"[UIManager] Applying new texture at zoom {_fullMapZoom}");
                         if (_fullMapTile != null)
                         {
                             Destroy(_fullMapTile);
