@@ -12,11 +12,14 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
 using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
 {
@@ -338,8 +341,15 @@ namespace BlackBartsGold.UI
             OnRadarTapped();
         }
         
+        private void OnEnable()
+        {
+            EnhancedTouchSupport.Enable();
+        }
+        
         private void OnDestroy()
         {
+            EnhancedTouchSupport.Disable();
+            
             if (GPSManager.Exists)
             {
                 GPSManager.Instance.OnLocationUpdated -= OnLocationUpdated;
@@ -368,20 +378,21 @@ namespace BlackBartsGold.UI
                 UpdateRadar();
             }
             
-            // Debug: Check for any touch input
-            if (Input.touchCount > 0)
+            // Debug: Check for any touch input (new Input System)
+            var activeTouches = Touch.activeTouches;
+            if (activeTouches.Count > 0)
             {
-                Touch touch = Input.GetTouch(0);
-                if (touch.phase == TouchPhase.Began)
+                var touch = activeTouches[0];
+                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
                 {
-                    Debug.Log($"[RadarUI] Touch detected at screen position: {touch.position}");
+                    Debug.Log($"[RadarUI] Touch detected at screen position: {touch.screenPosition}");
                     
                     // Check if touch is within radar bounds
                     if (radarContainer != null)
                     {
                         Vector2 localPoint;
                         RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                            radarContainer, touch.position, null, out localPoint);
+                            radarContainer, touch.screenPosition, null, out localPoint);
                         Debug.Log($"[RadarUI] Local point in radar: {localPoint}, Radar size: {radarContainer.rect.size}");
                         
                         if (radarContainer.rect.Contains(localPoint))

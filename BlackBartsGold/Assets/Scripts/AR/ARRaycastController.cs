@@ -11,9 +11,12 @@
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
 using System.Collections.Generic;
 using System;
 using BlackBartsGold.Core;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.AR
 {
@@ -211,6 +214,16 @@ namespace BlackBartsGold.AR
             }
         }
         
+        private void OnEnable()
+        {
+            EnhancedTouchSupport.Enable();
+        }
+        
+        private void OnDisable()
+        {
+            EnhancedTouchSupport.Disable();
+        }
+        
         private void Update()
         {
             // Perform raycasts
@@ -359,7 +372,7 @@ namespace BlackBartsGold.AR
         #region Tap Detection
         
         /// <summary>
-        /// Check for tap input.
+        /// Check for tap input using new Input System.
         /// IMPORTANT: Skip processing if touch is over UI elements!
         /// This allows radar, buttons, etc. to receive their clicks.
         /// </summary>
@@ -368,44 +381,51 @@ namespace BlackBartsGold.AR
             bool tapped = false;
             Vector2 tapPosition = Vector2.zero;
             
-            // Check for touch
-            if (Input.touchCount > 0)
+            // Check for touch (new Input System)
+            var activeTouches = Touch.activeTouches;
+            if (activeTouches.Count > 0)
             {
-                Touch touch = Input.GetTouch(0);
-                if (touch.phase == TouchPhase.Began)
+                var touch = activeTouches[0];
+                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
                 {
                     // ============================================================
                     // FIX: Check if touch is over UI BEFORE processing as AR tap!
                     // This allows RadarUI, buttons, etc. to receive clicks properly.
                     // ============================================================
-                    if (IsPointerOverUI(touch.position))
+                    if (IsPointerOverUI(touch.screenPosition))
                     {
                         if (debugMode)
                         {
-                            Debug.Log($"[ARRaycast] Touch over UI at {touch.position} - letting UI handle it");
+                            Debug.Log($"[ARRaycast] Touch over UI at {touch.screenPosition} - letting UI handle it");
                         }
                         return; // Let the EventSystem handle this touch
                     }
                     
                     tapped = true;
-                    tapPosition = touch.position;
+                    tapPosition = touch.screenPosition;
                 }
             }
-            // Check for mouse (editor testing)
-            else if (Input.GetMouseButtonDown(0))
+            // Check for mouse (editor testing) - new Input System
+            else
             {
-                // Also check for UI in editor
-                if (IsPointerOverUI(Input.mousePosition))
+                var mouse = Mouse.current;
+                if (mouse != null && mouse.leftButton.wasPressedThisFrame)
                 {
-                    if (debugMode)
+                    Vector2 mousePos = mouse.position.ReadValue();
+                    
+                    // Also check for UI in editor
+                    if (IsPointerOverUI(mousePos))
                     {
-                        Debug.Log($"[ARRaycast] Mouse over UI - letting UI handle it");
+                        if (debugMode)
+                        {
+                            Debug.Log($"[ARRaycast] Mouse over UI - letting UI handle it");
+                        }
+                        return;
                     }
-                    return;
+                    
+                    tapped = true;
+                    tapPosition = mousePos;
                 }
-                
-                tapped = true;
-                tapPosition = Input.mousePosition;
             }
             
             if (!tapped) return;
@@ -416,35 +436,38 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Check if a screen position is over any UI element.
-        /// Uses EventSystem's IsPointerOverGameObject for touch,
-        /// and falls back to raycast check for reliability.
+        /// Uses raycast against UI for reliability with new Input System.
         /// </summary>
         private bool IsPointerOverUI(Vector2 screenPosition)
         {
-            // Method 1: Use EventSystem (most reliable for UI)
+            // Method 1: Use EventSystem pointer check
             if (UnityEngine.EventSystems.EventSystem.current != null)
             {
-                // For touch input
-                if (Input.touchCount > 0)
+                // For touch input (new Input System)
+                var activeTouches = Touch.activeTouches;
+                if (activeTouches.Count > 0)
                 {
-                    if (UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId))
+                    // Use touch ID for pointer check
+                    if (UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(activeTouches[0].touchId))
                     {
                         return true;
                     }
                 }
                 // For mouse input
-                else if (UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+                else if (UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(-1))
                 {
                     return true;
                 }
             }
             
             // Method 2: Raycast against UI (fallback)
+            if (UnityEngine.EventSystems.EventSystem.current == null) return false;
+            
             var eventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
             eventData.position = screenPosition;
             
             var results = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
-            UnityEngine.EventSystems.EventSystem.current?.RaycastAll(eventData, results);
+            UnityEngine.EventSystems.EventSystem.current.RaycastAll(eventData, results);
             
             // Check if any hit is a UI element
             foreach (var result in results)

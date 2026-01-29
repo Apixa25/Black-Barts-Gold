@@ -10,7 +10,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
 using TMPro;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
 {
@@ -41,23 +44,34 @@ namespace BlackBartsGold.UI
             Debug.Log("[ARHuntSceneSetup] AR HUD setup complete!");
         }
         
+        private void OnEnable()
+        {
+            EnhancedTouchSupport.Enable();
+        }
+        
+        private void OnDisable()
+        {
+            EnhancedTouchSupport.Disable();
+        }
+        
         private void Update()
         {
             // Debug: Log touches every frame (first 20 touches only to avoid spam)
-            if (Input.touchCount > 0 && touchLogCount < 20)
+            var activeTouches = Touch.activeTouches;
+            if (activeTouches.Count > 0 && touchLogCount < 20)
             {
-                Touch touch = Input.GetTouch(0);
-                if (touch.phase == TouchPhase.Began)
+                var touch = activeTouches[0];
+                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
                 {
                     touchLogCount++;
-                    Debug.Log($"[ARHuntSceneSetup] TOUCH #{touchLogCount} at {touch.position}");
+                    Debug.Log($"[ARHuntSceneSetup] TOUCH #{touchLogCount} at {touch.screenPosition}");
                     
                     // Check if touch is over radar
                     if (radarRect != null)
                     {
                         Vector2 localPoint;
                         bool isInside = RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                            radarRect, touch.position, null, out localPoint);
+                            radarRect, touch.screenPosition, null, out localPoint);
                         bool contains = radarRect.rect.Contains(localPoint);
                         Debug.Log($"[ARHuntSceneSetup] Radar check: localPoint={localPoint}, contains={contains}, rect={radarRect.rect}");
                         
@@ -73,7 +87,7 @@ namespace BlackBartsGold.UI
                     if (EventSystem.current != null)
                     {
                         var eventData = new PointerEventData(EventSystem.current);
-                        eventData.position = touch.position;
+                        eventData.position = touch.screenPosition;
                         var results = new System.Collections.Generic.List<RaycastResult>();
                         EventSystem.current.RaycastAll(eventData, results);
                         Debug.Log($"[ARHuntSceneSetup] EventSystem raycast hit {results.Count} objects");

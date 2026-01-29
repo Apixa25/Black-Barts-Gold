@@ -211,6 +211,42 @@ namespace BlackBartsGold.Location
             Log("GPSManager initialized");
         }
         
+        private void Start()
+        {
+            // In Editor with simulation enabled, auto-start with simulated location
+            #if UNITY_EDITOR
+            if (useSimulatedLocation)
+            {
+                Log("Editor mode - using simulated location");
+                StartCoroutine(EditorSimulationCoroutine());
+            }
+            #endif
+        }
+        
+        #if UNITY_EDITOR
+        /// <summary>
+        /// Coroutine that simulates location updates in the Editor
+        /// </summary>
+        private IEnumerator EditorSimulationCoroutine()
+        {
+            // Wait a frame for everything to initialize
+            yield return null;
+            
+            SetState(GPSServiceState.Running);
+            HasPermission = true;
+            
+            // Send initial location
+            SetSimulatedLocation(simulatedLocation.x, simulatedLocation.y);
+            Log($"Editor simulation started at {simulatedLocation.x:F6}, {simulatedLocation.y:F6}");
+            
+            // Keep state running (location updates come from SetSimulatedLocation or LocationSimulator)
+            while (useSimulatedLocation)
+            {
+                yield return new WaitForSeconds(1f);
+            }
+        }
+        #endif
+        
         private void OnDestroy()
         {
             StopLocationService();

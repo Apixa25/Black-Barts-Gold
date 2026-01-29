@@ -3,10 +3,14 @@
 // Black Bart's Gold - Pinch-to-Zoom Handler for Full Map
 // Path: Assets/Scripts/UI/FullMapPinchZoom.cs
 // Created: 2026-01-27 - Two-finger zoom support
+// Updated: 2026-01-29 - Fixed for new Input System
 // ============================================================================
 
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
 using BlackBartsGold.Core;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
 {
@@ -25,6 +29,18 @@ namespace BlackBartsGold.UI
         {
             _uiManager = manager;
             Debug.Log("[PinchZoom] Initialized - threshold=35px, cooldown=0.12s");
+        }
+        
+        private void OnEnable()
+        {
+            // Enable Enhanced Touch for new Input System
+            EnhancedTouchSupport.Enable();
+        }
+        
+        private void OnDisable()
+        {
+            _isPinching = false;
+            EnhancedTouchSupport.Disable();
         }
         
         private void Update()
@@ -48,11 +64,14 @@ namespace BlackBartsGold.UI
         
         private void HandleTouchPinch()
         {
-            if (Input.touchCount == 2)
+            // Use new Input System's EnhancedTouch
+            var activeTouches = Touch.activeTouches;
+            
+            if (activeTouches.Count == 2)
             {
-                Touch touch0 = Input.GetTouch(0);
-                Touch touch1 = Input.GetTouch(1);
-                float currentDistance = Vector2.Distance(touch0.position, touch1.position);
+                var touch0 = activeTouches[0];
+                var touch1 = activeTouches[1];
+                float currentDistance = Vector2.Distance(touch0.screenPosition, touch1.screenPosition);
                 
                 if (!_isPinching)
                 {
@@ -86,18 +105,21 @@ namespace BlackBartsGold.UI
         
         private void HandleMouseScroll()
         {
-            float scroll = Input.mouseScrollDelta.y;
+            // Use new Input System for mouse scroll
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+            
+            float scroll = mouse.scroll.ReadValue().y;
+            
+            // Normalize scroll value (new Input System returns larger values)
+            scroll = scroll / 120f;
+            
             if (Mathf.Abs(scroll) > 0.01f && _zoomCooldown <= 0f)
             {
                 int zoomDelta = scroll > 0 ? 1 : -1;
                 _uiManager.ChangeMapZoom(zoomDelta);
                 _zoomCooldown = ZOOM_COOLDOWN_TIME;
             }
-        }
-        
-        private void OnDisable()
-        {
-            _isPinching = false;
         }
     }
 }
