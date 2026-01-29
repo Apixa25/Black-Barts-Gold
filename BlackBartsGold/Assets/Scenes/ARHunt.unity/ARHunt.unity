@@ -133,6 +133,7 @@ GameObject:
   - component: {fileID: 30995427}
   - component: {fileID: 30995426}
   - component: {fileID: 30995430}
+  - component: {fileID: 30995431}
   m_Layer: 0
   m_Name: DirectionIndicatorPanel
   m_TagString: Untagged
@@ -160,7 +161,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.6}
   m_AnchorMax: {x: 0.5, y: 0.6}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 200}
   m_SizeDelta: {x: 300, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &30995426
@@ -266,6 +267,20 @@ MonoBehaviour:
   rotationSmoothSpeed: 5
   farColor: {r: 1, g: 0.84, b: 0, a: 1}
   nearColor: {r: 0.29, g: 0.87, b: 0.5, a: 1}
+--- !u!114 &30995431
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 30995424}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6f010a52815db64db07c85d875892d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.Diagnostics.StartupLogger
+  logTag: StartupLogger
+  logInterval: 5
 --- !u!1 &36419199
 GameObject:
   m_ObjectHideFlags: 0
