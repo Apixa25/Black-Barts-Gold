@@ -804,9 +804,9 @@ namespace BlackBartsGold.Core
         private Dictionary<string, GameObject> _fullMapCoinMarkers = new Dictionary<string, GameObject>();
         private double _fullMapCenterLat;
         private double _fullMapCenterLng;
-        private int _fullMapZoom = 17; // Start zoomed in more
-        private const int MIN_ZOOM = 14;
-        private const int MAX_ZOOM = 19;
+        private int _fullMapZoom = 16; // Start at medium zoom (can zoom in OR out)
+        private const int MIN_ZOOM = 13; // Wider view
+        private const int MAX_ZOOM = 19; // Street level detail
         private float _fullMapMetersPerPixel;
         private float _lastPinchDistance = 0f;
         private bool _isPinching = false;
@@ -950,28 +950,40 @@ namespace BlackBartsGold.Core
             zoomRect.anchoredPosition = new Vector2(-15, 0);
             zoomRect.sizeDelta = new Vector2(180, 60);
             
+            // Zoom level display (create first so buttons can reference it)
+            _zoomLevelText = CreateText(zoomControls.transform, "ZoomLevel", $"{_fullMapZoom}x", 
+                Vector2.zero, 18, GoldColor, FontStyles.Bold);
+            var zoomLevelRect = _zoomLevelText.GetComponent<RectTransform>();
+            zoomLevelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            zoomLevelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            zoomLevelRect.sizeDelta = new Vector2(60, 40);
+            
+            // Store reference for button callbacks
+            var zoomText = _zoomLevelText;
+            var uiMgr = this;
+            
             // Zoom OUT button (-)
             var zoomOutBtn = CreateButton(zoomControls.transform, "ZoomOut", "−", 
-                Vector2.zero, new Vector2(50, 50), new Color(0.3f, 0.3f, 0.4f),
-                () => ChangeMapZoom(-1));
+                Vector2.zero, new Vector2(55, 55), new Color(0.3f, 0.4f, 0.5f),
+                () => {
+                    uiMgr._fullMapZoom = Mathf.Clamp(uiMgr._fullMapZoom - 1, MIN_ZOOM, MAX_ZOOM);
+                    if (zoomText != null) zoomText.text = $"{uiMgr._fullMapZoom}x";
+                    uiMgr.StartCoroutine(uiMgr.LoadFullMapTile());
+                });
             var zoomOutRect = zoomOutBtn.GetComponent<RectTransform>();
             zoomOutRect.anchorMin = new Vector2(0, 0.5f);
             zoomOutRect.anchorMax = new Vector2(0, 0.5f);
             zoomOutRect.pivot = new Vector2(0, 0.5f);
             zoomOutRect.anchoredPosition = new Vector2(0, 0);
             
-            // Zoom level display
-            _zoomLevelText = CreateText(zoomControls.transform, "ZoomLevel", $"{_fullMapZoom}x", 
-                Vector2.zero, 18, GoldColor, FontStyles.Bold);
-            var zoomLevelRect = _zoomLevelText.GetComponent<RectTransform>();
-            zoomLevelRect.anchorMin = new Vector2(0.5f, 0.5f);
-            zoomLevelRect.anchorMax = new Vector2(0.5f, 0.5f);
-            zoomLevelRect.sizeDelta = new Vector2(50, 30);
-            
             // Zoom IN button (+)
             var zoomInBtn = CreateButton(zoomControls.transform, "ZoomIn", "+", 
-                Vector2.zero, new Vector2(50, 50), new Color(0.3f, 0.3f, 0.4f),
-                () => ChangeMapZoom(1));
+                Vector2.zero, new Vector2(55, 55), new Color(0.3f, 0.4f, 0.5f),
+                () => {
+                    uiMgr._fullMapZoom = Mathf.Clamp(uiMgr._fullMapZoom + 1, MIN_ZOOM, MAX_ZOOM);
+                    if (zoomText != null) zoomText.text = $"{uiMgr._fullMapZoom}x";
+                    uiMgr.StartCoroutine(uiMgr.LoadFullMapTile());
+                });
             var zoomInRect = zoomInBtn.GetComponent<RectTransform>();
             zoomInRect.anchorMin = new Vector2(1, 0.5f);
             zoomInRect.anchorMax = new Vector2(1, 0.5f);

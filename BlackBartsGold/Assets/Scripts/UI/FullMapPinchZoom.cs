@@ -14,32 +14,29 @@ namespace BlackBartsGold.UI
     {
         private UIManager _uiManager;
         private bool _isPinching = false;
-        private float _initialPinchDistance = 0f;
-        private float _lastZoomTriggerDistance = 0f;
+        private float _lastPinchDistance = 0f;
         private float _zoomCooldown = 0f;
         
-        // Pinch settings - tuned for responsiveness
-        private const float PINCH_ZOOM_THRESHOLD = 80f; // Pixels of pinch change per zoom level
-        private const float ZOOM_COOLDOWN_TIME = 0.3f;  // Seconds between zoom triggers
+        // MUCH more responsive settings!
+        private const float PINCH_ZOOM_THRESHOLD = 35f; // Reduced from 80 - pixels needed per zoom
+        private const float ZOOM_COOLDOWN_TIME = 0.12f; // Reduced from 0.3 - faster repeat zooms
         
         public void Initialize(UIManager manager)
         {
             _uiManager = manager;
-            Debug.Log("[PinchZoom] Initialized!");
+            Debug.Log("[PinchZoom] Initialized - threshold=35px, cooldown=0.12s");
         }
         
         private void Update()
         {
             if (_uiManager == null)
             {
-                // Try to find UIManager if not set
                 _uiManager = FindFirstObjectByType<UIManager>();
                 if (_uiManager == null) return;
             }
             
             if (!gameObject.activeInHierarchy) return;
             
-            // Update cooldown
             if (_zoomCooldown > 0f)
             {
                 _zoomCooldown -= Time.deltaTime;
@@ -59,36 +56,30 @@ namespace BlackBartsGold.UI
                 
                 if (!_isPinching)
                 {
-                    // Start new pinch gesture
+                    // Start new pinch
                     _isPinching = true;
-                    _initialPinchDistance = currentDistance;
-                    _lastZoomTriggerDistance = currentDistance;
-                    Debug.Log($"[PinchZoom] START - distance: {currentDistance:F0}px");
+                    _lastPinchDistance = currentDistance;
+                    Debug.Log($"[PinchZoom] START dist={currentDistance:F0}");
                 }
-                else
+                else if (_zoomCooldown <= 0f)
                 {
-                    // Continue pinching - check for zoom trigger
-                    float deltaFromLast = currentDistance - _lastZoomTriggerDistance;
+                    // Continue pinching - accumulate delta
+                    float delta = currentDistance - _lastPinchDistance;
                     
-                    if (Mathf.Abs(deltaFromLast) >= PINCH_ZOOM_THRESHOLD && _zoomCooldown <= 0f)
+                    if (Mathf.Abs(delta) >= PINCH_ZOOM_THRESHOLD)
                     {
-                        int zoomDelta = deltaFromLast > 0 ? 1 : -1;
-                        Debug.Log($"[PinchZoom] ZOOM {(zoomDelta > 0 ? "IN" : "OUT")} - delta: {deltaFromLast:F0}px");
+                        int zoomDelta = delta > 0 ? 1 : -1;
+                        Debug.Log($"[PinchZoom] {(zoomDelta > 0 ? "IN" : "OUT")} d={delta:F0}");
                         
                         _uiManager.ChangeMapZoom(zoomDelta);
-                        _lastZoomTriggerDistance = currentDistance;
+                        _lastPinchDistance = currentDistance; // Reset for next zoom
                         _zoomCooldown = ZOOM_COOLDOWN_TIME;
                     }
                 }
             }
             else if (_isPinching)
             {
-                // Pinch ended
-                float totalDelta = 0f;
-                if (Input.touchCount == 0)
-                {
-                    Debug.Log("[PinchZoom] END");
-                }
+                Debug.Log("[PinchZoom] END");
                 _isPinching = false;
             }
         }
@@ -99,7 +90,6 @@ namespace BlackBartsGold.UI
             if (Mathf.Abs(scroll) > 0.01f && _zoomCooldown <= 0f)
             {
                 int zoomDelta = scroll > 0 ? 1 : -1;
-                Debug.Log($"[PinchZoom] Mouse scroll: {zoomDelta}");
                 _uiManager.ChangeMapZoom(zoomDelta);
                 _zoomCooldown = ZOOM_COOLDOWN_TIME;
             }
