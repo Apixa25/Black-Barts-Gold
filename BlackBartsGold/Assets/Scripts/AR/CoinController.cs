@@ -126,12 +126,14 @@ namespace BlackBartsGold.AR
             if (coinRenderer == null)
             {
                 coinRenderer = gameObject.AddComponent<ARCoinRenderer>();
+                Debug.Log($"[CoinController] Added ARCoinRenderer to {gameObject.name}");
             }
             
             coinPositioner = GetComponent<ARCoinPositioner>();
             if (coinPositioner == null)
             {
                 coinPositioner = gameObject.AddComponent<ARCoinPositioner>();
+                Debug.Log($"[CoinController] Added ARCoinPositioner to {gameObject.name}");
             }
             
             // Auto-find coin model

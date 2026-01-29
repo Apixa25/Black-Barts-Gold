@@ -195,19 +195,19 @@ namespace BlackBartsGold.AR
                 meshRenderer = coinVisual.GetComponent<MeshRenderer>();
             }
             
-            // Get positioner
-            positioner = GetComponent<ARCoinPositioner>();
+            // Note: positioner is found in Start() to ensure CoinController has added it
         }
         
         private void Start()
         {
+            // Get positioner - must be in Start() to ensure CoinController.Awake() has added it
+            positioner = GetComponent<ARCoinPositioner>();
+            
             // Start hidden - Direction Indicator guides player to us
             SetMode(CoinDisplayMode.Hidden);
             
-            if (debugMode)
-            {
-                Debug.Log($"[ARCoinRenderer] Started in HIDDEN mode - waiting for player to approach");
-            }
+            // ALWAYS LOG at start for debugging
+            Debug.Log($"[ARCoinRenderer] STARTED! Settings={settings != null}, Positioner={positioner != null}, MaterializeDist={Settings.materializationDistance}");
         }
         
         private void Update()
@@ -216,7 +216,15 @@ namespace BlackBartsGold.AR
             if (!cameraFound)
             {
                 TryFindCamera();
-                if (!cameraFound) return;
+                if (!cameraFound)
+                {
+                    // Log once per second if camera not found
+                    if (Time.frameCount % 60 == 0)
+                    {
+                        Debug.LogWarning($"[ARCoinRenderer] Camera NOT FOUND! Searching...");
+                    }
+                    return;
+                }
             }
             
             // Update distances
@@ -296,6 +304,12 @@ namespace BlackBartsGold.AR
         
         private void UpdateDistances()
         {
+            // Get positioner if we don't have it yet
+            if (positioner == null)
+            {
+                positioner = GetComponent<ARCoinPositioner>();
+            }
+            
             // Get GPS distance from positioner
             if (positioner != null)
             {
@@ -327,6 +341,12 @@ namespace BlackBartsGold.AR
             }
             
             float distance = GPSDistance;
+            
+            // Log periodically to verify this method is running
+            if (Time.frameCount % 180 == 0)
+            {
+                Debug.Log($"[ARCoinRenderer] UpdateMode: GPS={distance:F1}m, MaterializeDist={Settings.materializationDistance}m, Mode={CurrentMode}");
+            }
             
             // ================================================================
             // POKEMON GO PATTERN:
@@ -414,6 +434,10 @@ namespace BlackBartsGold.AR
         
         #region Materialization
         
+        // Gyroscope for positioning
+        private GyroscopeCoinPositioner gyroPositioner;
+        private bool useGyroPositioning = false;
+        
         /// <summary>
         /// Start the materialization animation.
         /// Coin appears in front of camera with sparkle effect.
@@ -424,6 +448,9 @@ namespace BlackBartsGold.AR
             
             isMaterializing = true;
             materializeProgress = 0f;
+            
+            // Check if we should use gyroscope positioning (AR tracking not working)
+            CheckAndEnableGyroPositioning();
             
             // Calculate materialized position - in front of camera at comfortable distance
             CalculateMaterializedPosition();
@@ -443,26 +470,67 @@ namespace BlackBartsGold.AR
             
             if (debugMode)
             {
-                Debug.Log($"[ARCoinRenderer] MATERIALIZING at {materializedPosition} (GPS dist: {GPSDistance:F1}m)");
+                Debug.Log($"[ARCoinRenderer] MATERIALIZING at {materializedPosition} (GPS dist: {GPSDistance:F1}m, UseGyro={useGyroPositioning})");
+            }
+        }
+        
+        /// <summary>
+        /// Check if AR tracking is working. If not, enable gyroscope-based positioning.
+        /// </summary>
+        private void CheckAndEnableGyroPositioning()
+        {
+            // Check if AR session is actually tracking
+            var arSession = UnityEngine.XR.ARFoundation.ARSession.state;
+            bool arTracking = arSession == UnityEngine.XR.ARFoundation.ARSessionState.SessionTracking;
+            
+            if (!arTracking)
+            {
+                Debug.LogWarning($"[ARCoinRenderer] AR tracking NOT working (state={arSession}). Using gyroscope positioning.");
+                useGyroPositioning = true;
+                
+                // Add gyroscope positioner if not present
+                gyroPositioner = GetComponent<GyroscopeCoinPositioner>();
+                if (gyroPositioner == null)
+                {
+                    gyroPositioner = gameObject.AddComponent<GyroscopeCoinPositioner>();
+                    Debug.Log("[ARCoinRenderer] Added GyroscopeCoinPositioner component");
+                }
+            }
+            else
+            {
+                useGyroPositioning = false;
+                Debug.Log("[ARCoinRenderer] AR tracking working - using AR camera positioning");
             }
         }
         
         /// <summary>
         /// Calculate where coin should materialize.
-        /// Places coin at comfortable viewing distance in front of camera.
+        /// Uses gyroscope+compass when AR tracking isn't available.
         /// </summary>
         private void CalculateMaterializedPosition()
         {
             if (cameraTransform == null) return;
             
-            // Position in front of camera at comfortable distance
-            Vector3 forward = cameraTransform.forward;
-            forward.y = 0; // Keep horizontal
-            forward.Normalize();
-            
-            materializedPosition = cameraTransform.position + 
-                                   forward * materializeDistance +
-                                   Vector3.up * materializeHeight;
+            if (useGyroPositioning && gyroPositioner != null)
+            {
+                // Gyroscope positioner handles positioning in Update()
+                // Just set initial position in front of camera
+                materializedPosition = cameraTransform.position + 
+                                       Vector3.forward * materializeDistance +
+                                       Vector3.up * materializeHeight;
+                Debug.Log("[ARCoinRenderer] Using gyroscope-based positioning");
+            }
+            else
+            {
+                // Standard AR: Position in front of camera
+                Vector3 forward = cameraTransform.forward;
+                forward.y = 0; // Keep horizontal
+                forward.Normalize();
+                
+                materializedPosition = cameraTransform.position + 
+                                       forward * materializeDistance +
+                                       Vector3.up * materializeHeight;
+            }
         }
         
         /// <summary>
@@ -519,8 +587,39 @@ namespace BlackBartsGold.AR
         {
             if (coinVisual == null) return;
             
+            // Log camera position periodically to verify AR tracking
+            if (debugMode && Time.frameCount % 180 == 0)
+            {
+                Debug.Log($"[ARCoinRenderer] Visible coin at {transform.position}, Camera at {cameraTransform?.position}, AR dist={ARDistance:F1}m, UseGyro={useGyroPositioning}");
+            }
+            
             // ================================================================
-            // SPIN ANIMATION
+            // GYROSCOPE POSITIONING - When AR tracking isn't working
+            // The GyroscopeCoinPositioner component handles position updates
+            // based on compass bearing. We just do visual effects here.
+            // ================================================================
+            if (useGyroPositioning && gyroPositioner != null)
+            {
+                // GyroscopeCoinPositioner.Update() handles position
+                // We just do the visual effects below
+            }
+            
+            // ================================================================
+            // FACE CAMERA (Billboard) - Makes coin look good from any angle
+            // ================================================================
+            if (cameraTransform != null && !useGyroPositioning)
+            {
+                // Only do billboard when NOT using gyro (gyro handles its own rotation)
+                Vector3 lookDir = cameraTransform.position - transform.position;
+                lookDir.y = 0; // Keep upright
+                if (lookDir.sqrMagnitude > 0.01f)
+                {
+                    transform.rotation = Quaternion.LookRotation(-lookDir, Vector3.up);
+                }
+            }
+            
+            // ================================================================
+            // SPIN ANIMATION (on visual child)
             // ================================================================
             spinAngle += spinSpeed * Time.deltaTime;
             coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 0);
