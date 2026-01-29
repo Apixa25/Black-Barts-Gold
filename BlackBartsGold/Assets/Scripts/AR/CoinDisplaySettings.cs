@@ -26,6 +26,10 @@ namespace BlackBartsGold.AR
         [Range(50f, 200f)]
         public float hideDistance = 100f;
         
+        [Tooltip("Distance at which coin 'materializes' in AR view (Pokemon GO pattern)")]
+        [Range(15f, 50f)]
+        public float materializationDistance = 20f;
+        
         [Tooltip("Beyond this distance, coin uses billboard mode. Below this = world-locked")]
         [Range(10f, 50f)]
         public float billboardDistance = 15f;

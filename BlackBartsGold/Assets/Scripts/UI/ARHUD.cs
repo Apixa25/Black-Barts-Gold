@@ -73,6 +73,10 @@ namespace BlackBartsGold.UI
         [Tooltip("AR tracking status UI")]
         private ARTrackingUI trackingUI;
         
+        [SerializeField]
+        [Tooltip("Large direction indicator showing way to target coin")]
+        private CoinDirectionIndicator directionIndicator;
+        
         [Header("Coin Info Panel")]
         [SerializeField]
         [Tooltip("Panel showing selected coin info")]
@@ -140,6 +144,10 @@ namespace BlackBartsGold.UI
         
         [SerializeField]
         private bool showFindLimit = true;
+        
+        [SerializeField]
+        [Tooltip("Show large direction indicator when hunting")]
+        private bool showDirectionIndicator = true;
         
         [Header("Debug")]
         [SerializeField]
@@ -557,6 +565,19 @@ namespace BlackBartsGold.UI
             if (findLimit != null)
             {
                 findLimit.gameObject.SetActive(visible);
+            }
+        }
+        
+        /// <summary>
+        /// Show/hide direction indicator
+        /// </summary>
+        public void SetDirectionIndicatorVisible(bool visible)
+        {
+            showDirectionIndicator = visible;
+            if (directionIndicator != null)
+            {
+                if (visible) directionIndicator.Show();
+                else directionIndicator.Hide();
             }
         }
         
