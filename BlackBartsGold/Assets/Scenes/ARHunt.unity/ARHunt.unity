@@ -132,6 +132,7 @@ GameObject:
   - component: {fileID: 30995428}
   - component: {fileID: 30995427}
   - component: {fileID: 30995426}
+  - component: {fileID: 30995430}
   m_Layer: 0
   m_Name: DirectionIndicatorPanel
   m_TagString: Untagged
@@ -247,6 +248,24 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 30995424}
   m_CullTransparentMesh: 1
+--- !u!114 &30995430
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 30995424}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abe394616cbec5648a3a0124bfe1069d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.UI.SimpleDirectionArrow
+  arrowImage: {fileID: 1358227860}
+  distanceText: {fileID: 669359562}
+  statusText: {fileID: 2123758866}
+  rotationSmoothSpeed: 5
+  farColor: {r: 1, g: 0.84, b: 0, a: 1}
+  nearColor: {r: 0.29, g: 0.87, b: 0.5, a: 1}
 --- !u!1 &36419199
 GameObject:
   m_ObjectHideFlags: 0
@@ -1616,7 +1635,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 958858817}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &669359560
@@ -2202,10 +2222,57 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 0}
+  m_TargetGraphic: {fileID: 929358077}
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1 &958858816
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 958858817}
+  - component: {fileID: 958858818}
+  m_Layer: 0
+  m_Name: ARTrackingDebug
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &958858817
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 958858816}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 633999385}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &958858818
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 958858816}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f9c6b338ec3a94eafac6ab0a1fac82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.AR.ARTrackingDebug
+  arCamera: {fileID: 0}
+  arSession: {fileID: 0}
+  logInterval: 3
 --- !u!1 &1032112113
 GameObject:
   m_ObjectHideFlags: 0

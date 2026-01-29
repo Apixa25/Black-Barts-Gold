@@ -199,6 +199,11 @@ namespace BlackBartsGold.UI
                 CoinManager.Instance.OnTargetSet += OnTargetSet;
                 CoinManager.Instance.OnTargetCleared += OnTargetCleared;
                 CoinManager.Instance.OnHuntModeChanged += OnHuntModeChanged;
+                Debug.Log($"[CoinDirectionIndicator] Subscribed to CoinManager events");
+            }
+            else
+            {
+                Debug.LogWarning($"[CoinDirectionIndicator] CoinManager NOT FOUND - cannot subscribe to events!");
             }
             
             // Subscribe to GPS updates
@@ -210,7 +215,8 @@ namespace BlackBartsGold.UI
             // Initial state - hidden until we have a target
             Hide();
             
-            Log("CoinDirectionIndicator initialized");
+            // Log reference status
+            Debug.Log($"[CoinDirectionIndicator] STARTED! ArrowTransform={arrowTransform != null}, ArrowImage={arrowImage != null}, DistanceText={distanceText != null}, ValueText={valueText != null}");
         }
         
         private void OnDestroy()
@@ -538,6 +544,8 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void Show()
         {
+            Debug.Log($"[CoinDirectionIndicator] Show() called! Container={indicatorContainer != null}");
+            
             if (indicatorContainer != null)
             {
                 indicatorContainer.gameObject.SetActive(true);
@@ -548,7 +556,7 @@ namespace BlackBartsGold.UI
             }
             
             IsVisible = true;
-            Log("Direction indicator shown");
+            Debug.Log($"[CoinDirectionIndicator] Now VISIBLE, gameObject.activeSelf={gameObject.activeSelf}");
         }
         
         /// <summary>
