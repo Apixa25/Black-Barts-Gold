@@ -81,6 +81,16 @@ namespace BlackBartsGold.Core
         private float _miniMapRange = 50f; // meters
         private float _miniMapRadius = 100f; // pixels
         
+        // Mapbox real map integration
+        private RawImage _miniMapImage;
+        private Texture2D _currentMapTile;
+        private float _lastMapUpdateTime = 0f;
+        private float _mapUpdateInterval = 2f; // Update map every 2 seconds
+        private double _lastMapLat = 0;
+        private double _lastMapLng = 0;
+        private float _lastMapBearing = 0f;
+        private bool _mapUpdatePending = false;
+        
         // Compass smoothing for mini-map (reduces jitter)
         private float _smoothedCompassHeading = 0f;
         private float _compassVelocity = 0f;
@@ -782,6 +792,9 @@ namespace BlackBartsGold.Core
             Debug.Log("[UIManager] Full map shown!");
         }
         
+        private RawImage _fullMapImage;
+        private Texture2D _fullMapTile;
+        
         private GameObject CreateSimpleFullMapPanel()
         {
             var panel = new GameObject("SimpleFullMapPanel");
@@ -793,32 +806,158 @@ namespace BlackBartsGold.Core
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             
-            // Semi-transparent dark background
+            // Dark background
             var bg = panel.AddComponent<Image>();
-            bg.color = new Color(0, 0, 0, 0.9f);
+            bg.color = new Color(0.05f, 0.1f, 0.15f, 1f);
             bg.raycastTarget = true;
             
+            // === REAL MAP AREA ===
+            var mapArea = new GameObject("MapArea");
+            mapArea.transform.SetParent(panel.transform, false);
+            var mapAreaRect = mapArea.AddComponent<RectTransform>();
+            mapAreaRect.anchorMin = new Vector2(0.05f, 0.15f);
+            mapAreaRect.anchorMax = new Vector2(0.95f, 0.75f);
+            mapAreaRect.offsetMin = Vector2.zero;
+            mapAreaRect.offsetMax = Vector2.zero;
+            
+            // Map border
+            var mapBorder = mapArea.AddComponent<Image>();
+            mapBorder.color = new Color(0.7f, 0.6f, 0.3f, 1f); // Gold border
+            
+            // Map container (inside border)
+            var mapContainer = new GameObject("MapContainer");
+            mapContainer.transform.SetParent(mapArea.transform, false);
+            var mapContainerRect = mapContainer.AddComponent<RectTransform>();
+            mapContainerRect.anchorMin = Vector2.zero;
+            mapContainerRect.anchorMax = Vector2.one;
+            mapContainerRect.offsetMin = new Vector2(4, 4);
+            mapContainerRect.offsetMax = new Vector2(-4, -4);
+            
+            // Map background (shows while loading)
+            var mapBg = mapContainer.AddComponent<Image>();
+            mapBg.color = new Color(0.15f, 0.2f, 0.25f, 1f);
+            
+            // Real map image
+            var mapImageObj = new GameObject("MapImage");
+            mapImageObj.transform.SetParent(mapContainer.transform, false);
+            var mapImageRect = mapImageObj.AddComponent<RectTransform>();
+            mapImageRect.anchorMin = Vector2.zero;
+            mapImageRect.anchorMax = Vector2.one;
+            mapImageRect.offsetMin = Vector2.zero;
+            mapImageRect.offsetMax = Vector2.zero;
+            
+            _fullMapImage = mapImageObj.AddComponent<RawImage>();
+            _fullMapImage.color = Color.white;
+            
+            // "Loading..." text
+            var loadingText = CreateText(mapContainer.transform, "LoadingText", "Loading map...", 
+                Vector2.zero, 24, Color.gray, FontStyles.Italic);
+            var loadingRect = loadingText.GetComponent<RectTransform>();
+            loadingRect.anchorMin = new Vector2(0.5f, 0.5f);
+            loadingRect.anchorMax = new Vector2(0.5f, 0.5f);
+            
+            // Title bar at top
+            var titleBar = new GameObject("TitleBar");
+            titleBar.transform.SetParent(panel.transform, false);
+            var titleBarRect = titleBar.AddComponent<RectTransform>();
+            titleBarRect.anchorMin = new Vector2(0, 0.85f);
+            titleBarRect.anchorMax = new Vector2(1, 1);
+            titleBarRect.offsetMin = Vector2.zero;
+            titleBarRect.offsetMax = Vector2.zero;
+            var titleBarBg = titleBar.AddComponent<Image>();
+            titleBarBg.color = new Color(0.1f, 0.15f, 0.2f, 0.95f);
+            
             // Title
-            var title = CreateText(panel.transform, "Title", "🗺️ TREASURE MAP", 
-                new Vector2(0, 400), 48, GoldColor, FontStyles.Bold);
+            var title = CreateText(titleBar.transform, "Title", "TREASURE MAP", 
+                Vector2.zero, 36, GoldColor, FontStyles.Bold);
+            var titleRect = title.GetComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0.5f, 0.5f);
+            titleRect.anchorMax = new Vector2(0.5f, 0.5f);
             
-            // Instructions
-            var instructions = CreateText(panel.transform, "Instructions", 
-                "Tap a coin on the map to select it as your target.\nThen hunt it down in AR mode!", 
-                new Vector2(0, 300), 24, Color.white, FontStyles.Normal);
-            
-            // Coin list (simple version - shows nearby coins)
-            CreateCoinListInFullMap(panel.transform);
-            
-            // Close button
-            var closeBtn = CreateButton(panel.transform, "CloseButton", "✕ CLOSE MAP", 
-                new Vector2(0, -400), new Vector2(300, 80), new Color(0.8f, 0.2f, 0.2f),
+            // Close button (X in top right)
+            var closeBtn = CreateButton(titleBar.transform, "CloseButton", "✕", 
+                Vector2.zero, new Vector2(60, 60), new Color(0.8f, 0.2f, 0.2f),
                 () => {
                     Debug.Log("[UIManager] Closing full map");
                     _simpleFullMapPanel.SetActive(false);
                 });
+            var closeBtnRect = closeBtn.GetComponent<RectTransform>();
+            closeBtnRect.anchorMin = new Vector2(1, 0.5f);
+            closeBtnRect.anchorMax = new Vector2(1, 0.5f);
+            closeBtnRect.pivot = new Vector2(1, 0.5f);
+            closeBtnRect.anchoredPosition = new Vector2(-10, 0);
+            
+            // Bottom panel for coin list
+            var bottomPanel = new GameObject("BottomPanel");
+            bottomPanel.transform.SetParent(panel.transform, false);
+            var bottomRect = bottomPanel.AddComponent<RectTransform>();
+            bottomRect.anchorMin = new Vector2(0, 0);
+            bottomRect.anchorMax = new Vector2(1, 0.14f);
+            bottomRect.offsetMin = Vector2.zero;
+            bottomRect.offsetMax = Vector2.zero;
+            var bottomBg = bottomPanel.AddComponent<Image>();
+            bottomBg.color = new Color(0.1f, 0.15f, 0.2f, 0.95f);
+            
+            // Instructions
+            var instructions = CreateText(bottomPanel.transform, "Instructions", 
+                "Tap a coin below to select it as your target", 
+                Vector2.zero, 16, Color.white, FontStyles.Normal);
+            var instrRect = instructions.GetComponent<RectTransform>();
+            instrRect.anchorMin = new Vector2(0.5f, 0.7f);
+            instrRect.anchorMax = new Vector2(0.5f, 0.7f);
+            
+            // Coin list area
+            CreateCoinListInFullMap(bottomPanel.transform);
+            
+            // Load the map when shown
+            StartCoroutine(LoadFullMapTile());
+            
+            Debug.Log("[UIManager] Full map panel created with REAL MAP!");
             
             return panel;
+        }
+        
+        private IEnumerator LoadFullMapTile()
+        {
+            yield return null; // Wait a frame
+            
+            if (!MapboxService.Exists)
+            {
+                EnsureMapboxService();
+                yield return new WaitForSeconds(0.5f);
+            }
+            
+            if (GPSManager.Instance == null || !GPSManager.Instance.IsTracking)
+            {
+                Debug.Log("[UIManager] Waiting for GPS for full map...");
+                yield return new WaitForSeconds(1f);
+            }
+            
+            var loc = GPSManager.Instance?.CurrentLocation;
+            if (loc != null && MapboxService.Exists)
+            {
+                Debug.Log($"[UIManager] Loading full map tile at {loc.latitude}, {loc.longitude}");
+                MapboxService.Instance.GetFullMapTile(loc.latitude, loc.longitude, 14, (texture) => {
+                    if (texture != null && _fullMapImage != null)
+                    {
+                        if (_fullMapTile != null)
+                        {
+                            Destroy(_fullMapTile);
+                        }
+                        _fullMapTile = texture;
+                        _fullMapImage.texture = texture;
+                        
+                        // Hide loading text
+                        var loadingText = _fullMapImage.transform.parent.Find("LoadingText");
+                        if (loadingText != null)
+                        {
+                            loadingText.gameObject.SetActive(false);
+                        }
+                        
+                        Debug.Log("[UIManager] Full map tile loaded!");
+                    }
+                });
+            }
         }
         
         private void CreateCoinListInFullMap(Transform parent)
@@ -1225,11 +1364,11 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Create mini-map showing nearby coins (Pokémon GO style radar)
+        /// Create mini-map showing nearby coins (Pokémon GO style with REAL MAP!)
         /// </summary>
         private void CreateMiniMap(Transform parent)
         {
-            // Container in top-right corner - DOUBLED SIZE for visibility
+            // Container in top-right corner
             var mapContainer = new GameObject("MiniMapContainer");
             mapContainer.transform.SetParent(parent, false);
             
@@ -1238,19 +1377,66 @@ namespace BlackBartsGold.Core
             containerRect.anchorMax = new Vector2(1, 1);
             containerRect.pivot = new Vector2(1, 1);
             containerRect.anchoredPosition = new Vector2(-20, -20);
-            containerRect.sizeDelta = new Vector2(400, 400); // DOUBLED from 220
+            containerRect.sizeDelta = new Vector2(300, 300); // Slightly smaller for cleaner look
             
             _miniMapContainer = containerRect;
-            _miniMapRadius = 180f; // DOUBLED from 100
+            _miniMapRadius = 130f; // Adjusted for new size
             
-            // Circular background - CLICKABLE to open full map!
+            // Dark background (shows while map loads)
             var bgImage = mapContainer.AddComponent<Image>();
-            bgImage.color = new Color(0, 0, 0, 0.7f);
+            bgImage.color = new Color(0.1f, 0.15f, 0.2f, 0.95f);
             bgImage.raycastTarget = true; // ENABLED for click detection!
+            
+            // === REAL MAP TILE (Mapbox) ===
+            var mapTileObj = new GameObject("MapTile");
+            mapTileObj.transform.SetParent(mapContainer.transform, false);
+            var mapTileRect = mapTileObj.AddComponent<RectTransform>();
+            mapTileRect.anchorMin = Vector2.zero;
+            mapTileRect.anchorMax = Vector2.one;
+            mapTileRect.offsetMin = new Vector2(5, 5); // Small padding
+            mapTileRect.offsetMax = new Vector2(-5, -5);
+            
+            _miniMapImage = mapTileObj.AddComponent<RawImage>();
+            _miniMapImage.color = Color.white;
+            _miniMapImage.raycastTarget = false;
+            
+            // Circular mask for the map
+            var maskObj = new GameObject("MapMask");
+            maskObj.transform.SetParent(mapContainer.transform, false);
+            maskObj.transform.SetSiblingIndex(0); // Behind map
+            var maskRect = maskObj.AddComponent<RectTransform>();
+            maskRect.anchorMin = Vector2.zero;
+            maskRect.anchorMax = Vector2.one;
+            maskRect.offsetMin = Vector2.zero;
+            maskRect.offsetMax = Vector2.zero;
+            var maskImage = maskObj.AddComponent<Image>();
+            maskImage.color = Color.white;
+            maskImage.raycastTarget = false;
+            var mask = maskObj.AddComponent<Mask>();
+            mask.showMaskGraphic = false;
+            
+            // Move map tile under mask
+            mapTileObj.transform.SetParent(maskObj.transform, false);
+            mapTileRect.anchorMin = Vector2.zero;
+            mapTileRect.anchorMax = Vector2.one;
+            mapTileRect.offsetMin = Vector2.zero;
+            mapTileRect.offsetMax = Vector2.zero;
+            
+            // Semi-transparent overlay for better visibility of markers
+            var overlay = new GameObject("MapOverlay");
+            overlay.transform.SetParent(maskObj.transform, false);
+            var overlayRect = overlay.AddComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+            var overlayImage = overlay.AddComponent<Image>();
+            overlayImage.color = new Color(0, 0, 0, 0.2f); // Slight darkening
+            overlayImage.raycastTarget = false;
             
             // Add Button component to make mini-map clickable
             var miniMapButton = mapContainer.AddComponent<Button>();
-            miniMapButton.transition = Selectable.Transition.None; // No visual change on click
+            miniMapButton.transition = Selectable.Transition.None;
             miniMapButton.onClick.AddListener(() => {
                 Debug.Log("[UIManager] 🗺️ Mini-map CLICKED! Opening full map...");
                 OnMiniMapClicked();
@@ -1258,16 +1444,19 @@ namespace BlackBartsGold.Core
             
             Debug.Log("[UIManager] 🗺️ Mini-map click handler registered!");
             
-            // Range ring (50m indicator)
+            // Range ring (50m indicator) - now on top of map
             var rangeRing = new GameObject("RangeRing");
             rangeRing.transform.SetParent(mapContainer.transform, false);
             var ringRect = rangeRing.AddComponent<RectTransform>();
             ringRect.anchorMin = new Vector2(0.5f, 0.5f);
             ringRect.anchorMax = new Vector2(0.5f, 0.5f);
-            ringRect.sizeDelta = new Vector2(360, 360); // DOUBLED from 200
+            ringRect.sizeDelta = new Vector2(260, 260);
             var ringImage = rangeRing.AddComponent<Image>();
-            ringImage.color = new Color(1, 1, 1, 0.2f);
+            ringImage.color = new Color(1, 1, 1, 0.3f);
             ringImage.raycastTarget = false;
+            // Make it a ring (just outline)
+            ringImage.fillCenter = false;
+            ringImage.type = Image.Type.Sliced;
             
             // Inner range ring (25m)
             var innerRing = new GameObject("InnerRing");
@@ -1275,52 +1464,155 @@ namespace BlackBartsGold.Core
             var innerRect = innerRing.AddComponent<RectTransform>();
             innerRect.anchorMin = new Vector2(0.5f, 0.5f);
             innerRect.anchorMax = new Vector2(0.5f, 0.5f);
-            innerRect.sizeDelta = new Vector2(180, 180); // DOUBLED from 100
+            innerRect.sizeDelta = new Vector2(130, 130);
             var innerImage = innerRing.AddComponent<Image>();
-            innerImage.color = new Color(1, 1, 1, 0.15f);
+            innerImage.color = new Color(1, 1, 1, 0.2f);
             innerImage.raycastTarget = false;
             
-            // Player dot (center, blue) - DOUBLED SIZE
+            // Player dot (center, blue with glow effect)
             var playerDot = new GameObject("PlayerDot");
             playerDot.transform.SetParent(mapContainer.transform, false);
             var playerRect = playerDot.AddComponent<RectTransform>();
             playerRect.anchorMin = new Vector2(0.5f, 0.5f);
             playerRect.anchorMax = new Vector2(0.5f, 0.5f);
-            playerRect.sizeDelta = new Vector2(28, 28); // DOUBLED from 16
+            playerRect.sizeDelta = new Vector2(24, 24);
             var playerImage = playerDot.AddComponent<Image>();
             playerImage.color = new Color(0.2f, 0.6f, 1f); // Blue
             playerImage.raycastTarget = false;
             _playerDot = playerRect;
             
-            // Direction indicator (triangle showing where you're facing) - DOUBLED
+            // Player glow/pulse effect
+            var playerGlow = new GameObject("PlayerGlow");
+            playerGlow.transform.SetParent(playerDot.transform, false);
+            var glowRect = playerGlow.AddComponent<RectTransform>();
+            glowRect.anchorMin = new Vector2(0.5f, 0.5f);
+            glowRect.anchorMax = new Vector2(0.5f, 0.5f);
+            glowRect.sizeDelta = new Vector2(40, 40);
+            var glowImage = playerGlow.AddComponent<Image>();
+            glowImage.color = new Color(0.2f, 0.6f, 1f, 0.3f);
+            glowImage.raycastTarget = false;
+            glowRect.SetAsFirstSibling(); // Behind player dot
+            
+            // Direction indicator (arrow showing where you're facing)
             var dirIndicator = new GameObject("DirectionIndicator");
             dirIndicator.transform.SetParent(playerDot.transform, false);
             var dirRect = dirIndicator.AddComponent<RectTransform>();
-            dirRect.anchoredPosition = new Vector2(0, 20); // DOUBLED from 12
-            dirRect.sizeDelta = new Vector2(16, 16); // DOUBLED from 10
+            dirRect.anchoredPosition = new Vector2(0, 18);
+            dirRect.sizeDelta = new Vector2(12, 12);
             var dirImage = dirIndicator.AddComponent<Image>();
             dirImage.color = new Color(0.2f, 0.6f, 1f);
             dirImage.raycastTarget = false;
             
-            // Title - BIGGER
-            var title = CreateText(mapContainer.transform, "MapTitle", "RADAR 50m", 
-                Vector2.zero, 28, Color.white, FontStyles.Bold); // BIGGER font
+            // Border/frame around map
+            var border = new GameObject("MapBorder");
+            border.transform.SetParent(mapContainer.transform, false);
+            var borderRect = border.AddComponent<RectTransform>();
+            borderRect.anchorMin = Vector2.zero;
+            borderRect.anchorMax = Vector2.one;
+            borderRect.offsetMin = Vector2.zero;
+            borderRect.offsetMax = Vector2.zero;
+            var borderImage = border.AddComponent<Image>();
+            borderImage.color = new Color(0.8f, 0.7f, 0.4f, 0.8f); // Gold border
+            borderImage.raycastTarget = false;
+            borderImage.fillCenter = false;
+            borderImage.type = Image.Type.Sliced;
+            border.transform.SetAsLastSibling(); // On top
+            
+            // Title with background
+            var titleBg = new GameObject("TitleBg");
+            titleBg.transform.SetParent(mapContainer.transform, false);
+            var titleBgRect = titleBg.AddComponent<RectTransform>();
+            titleBgRect.anchorMin = new Vector2(0.5f, 1);
+            titleBgRect.anchorMax = new Vector2(0.5f, 1);
+            titleBgRect.pivot = new Vector2(0.5f, 1);
+            titleBgRect.anchoredPosition = new Vector2(0, 5);
+            titleBgRect.sizeDelta = new Vector2(120, 30);
+            var titleBgImage = titleBg.AddComponent<Image>();
+            titleBgImage.color = new Color(0, 0, 0, 0.7f);
+            titleBgImage.raycastTarget = false;
+            
+            var title = CreateText(titleBg.transform, "MapTitle", "MAP", 
+                Vector2.zero, 18, GoldColor, FontStyles.Bold);
             var titleRect = title.GetComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0.5f, 1);
-            titleRect.anchorMax = new Vector2(0.5f, 1);
-            titleRect.pivot = new Vector2(0.5f, 1);
-            titleRect.anchoredPosition = new Vector2(0, -8);
+            titleRect.anchorMin = Vector2.zero;
+            titleRect.anchorMax = Vector2.one;
+            titleRect.offsetMin = Vector2.zero;
+            titleRect.offsetMax = Vector2.zero;
             
-            // North indicator - BIGGER
-            var northLabel = CreateText(mapContainer.transform, "NorthLabel", "N", 
-                Vector2.zero, 24, Color.white, FontStyles.Bold); // BIGGER font
-            var northRect = northLabel.GetComponent<RectTransform>();
-            northRect.anchorMin = new Vector2(0.5f, 1);
-            northRect.anchorMax = new Vector2(0.5f, 1);
-            northRect.pivot = new Vector2(0.5f, 0.5f);
-            northRect.anchoredPosition = new Vector2(0, -25);
+            // "Tap to expand" hint
+            var hint = CreateText(mapContainer.transform, "TapHint", "Tap for full map", 
+                Vector2.zero, 12, new Color(1, 1, 1, 0.6f), FontStyles.Italic);
+            var hintRect = hint.GetComponent<RectTransform>();
+            hintRect.anchorMin = new Vector2(0.5f, 0);
+            hintRect.anchorMax = new Vector2(0.5f, 0);
+            hintRect.pivot = new Vector2(0.5f, 0);
+            hintRect.anchoredPosition = new Vector2(0, 8);
             
-            Debug.Log("[UIManager] 🗺️ Mini-map created!");
+            Debug.Log("[UIManager] 🗺️ Mini-map with REAL MAP created!");
+            
+            // Initialize MapboxService if needed
+            EnsureMapboxService();
+        }
+        
+        /// <summary>
+        /// Ensure MapboxService exists
+        /// </summary>
+        private void EnsureMapboxService()
+        {
+            if (!MapboxService.Exists)
+            {
+                var mapboxGO = new GameObject("MapboxService");
+                mapboxGO.AddComponent<MapboxService>();
+                DontDestroyOnLoad(mapboxGO);
+                Debug.Log("[UIManager] Created MapboxService");
+            }
+        }
+        
+        /// <summary>
+        /// Update the mini-map tile from Mapbox
+        /// </summary>
+        private void UpdateMiniMapTile()
+        {
+            if (_miniMapImage == null) return;
+            if (!MapboxService.Exists) return;
+            if (GPSManager.Instance == null || !GPSManager.Instance.IsTracking) return;
+            
+            var loc = GPSManager.Instance.CurrentLocation;
+            if (loc == null) return;
+            
+            // Check if we need to update (moved enough or time passed)
+            float timeSinceUpdate = Time.time - _lastMapUpdateTime;
+            double latDiff = System.Math.Abs(loc.latitude - _lastMapLat);
+            double lngDiff = System.Math.Abs(loc.longitude - _lastMapLng);
+            float bearingDiff = Mathf.Abs(_smoothedCompassHeading - _lastMapBearing);
+            
+            bool needsUpdate = timeSinceUpdate > _mapUpdateInterval && 
+                              (latDiff > 0.0001 || lngDiff > 0.0001 || bearingDiff > 15f);
+            
+            if (needsUpdate && !_mapUpdatePending)
+            {
+                _mapUpdatePending = true;
+                _lastMapUpdateTime = Time.time;
+                _lastMapLat = loc.latitude;
+                _lastMapLng = loc.longitude;
+                _lastMapBearing = _smoothedCompassHeading;
+                
+                // Request map tile from Mapbox (north-up, bearing=0 for mini-map)
+                MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, 0f, (texture) => {
+                    _mapUpdatePending = false;
+                    if (texture != null && _miniMapImage != null)
+                    {
+                        // Clean up old texture
+                        if (_currentMapTile != null)
+                        {
+                            Destroy(_currentMapTile);
+                        }
+                        _currentMapTile = texture;
+                        _miniMapImage.texture = texture;
+                        Debug.Log("[UIManager] 🗺️ Mini-map tile updated!");
+                    }
+                });
+            }
         }
         
         /// <summary>
@@ -1338,6 +1630,9 @@ namespace BlackBartsGold.Core
             // Get raw compass heading and apply smoothing to reduce jitter
             float rawHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
             _smoothedCompassHeading = Mathf.SmoothDampAngle(_smoothedCompassHeading, rawHeading, ref _compassVelocity, _compassSmoothTime);
+            
+            // Update the real map tile from Mapbox
+            UpdateMiniMapTile();
             
             // Track which coins we've updated
             HashSet<string> updatedCoins = new HashSet<string>();
