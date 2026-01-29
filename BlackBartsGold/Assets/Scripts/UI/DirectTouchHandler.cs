@@ -3,24 +3,20 @@
 // Black Bart's Gold - Direct Touch Detection (Pokemon GO Style)
 // Path: Assets/Scripts/UI/DirectTouchHandler.cs
 // Created: 2026-01-27 - Bulletproof touch handling
-// ============================================================================
-// This script bypasses Unity's EventSystem entirely and detects touches
-// directly using Input.touchCount. This is the most reliable way to handle
-// touches on mobile, following Pokemon GO's approach.
+// Updated: 2026-01-29 - Fixed for new Input System
 // ============================================================================
 
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
+using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
 {
     /// <summary>
     /// Direct touch handler that bypasses Unity's EventSystem.
-    /// Attach to any Canvas - it will detect all touches and route them
-    /// to the appropriate UI elements.
-    /// 
-    /// Pokemon GO Pattern: Direct touch detection is more reliable than
-    /// Unity's UI system on mobile devices.
+    /// Uses the new Input System's EnhancedTouch API.
     /// </summary>
     public class DirectTouchHandler : MonoBehaviour
     {
@@ -41,7 +37,6 @@ namespace BlackBartsGold.UI
         private bool initialized = false;
         
         // Touch state
-        private bool wasTouching = false;
         private Vector2 lastTouchPosition;
         
         private void Awake()
@@ -50,6 +45,16 @@ namespace BlackBartsGold.UI
             Log("DirectTouchHandler AWAKE");
             Log($"GameObject: {gameObject.name}");
             Log("========================================");
+        }
+        
+        private void OnEnable()
+        {
+            EnhancedTouchSupport.Enable();
+        }
+        
+        private void OnDisable()
+        {
+            EnhancedTouchSupport.Disable();
         }
         
         private void Start()
@@ -132,20 +137,24 @@ namespace BlackBartsGold.UI
         {
             if (!initialized) return;
             
-            // Handle touch input
-            if (Input.touchCount > 0)
+            // Handle touch input (new Input System)
+            var activeTouches = Touch.activeTouches;
+            if (activeTouches.Count > 0)
             {
-                Touch touch = Input.GetTouch(0);
-                
-                if (touch.phase == TouchPhase.Began)
+                var touch = activeTouches[0];
+                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
                 {
-                    HandleTouchBegan(touch.position);
+                    HandleTouchBegan(touch.screenPosition);
                 }
             }
-            // Also handle mouse for editor testing
-            else if (Input.GetMouseButtonDown(0))
+            // Handle mouse for editor testing (new Input System)
+            else
             {
-                HandleTouchBegan(Input.mousePosition);
+                var mouse = Mouse.current;
+                if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+                {
+                    HandleTouchBegan(mouse.position.ReadValue());
+                }
             }
         }
         
@@ -173,26 +182,20 @@ namespace BlackBartsGold.UI
                 if (IsPointInRect(screenPosition, fullMapPanel))
                 {
                     Log("Touch on FullMap - handling in FullMapUI");
-                    // Let FullMapUI handle internal touches
                 }
             }
             
             Log("Touch not on any tracked UI element");
         }
         
-        /// <summary>
-        /// Check if a screen point is inside a RectTransform.
-        /// Works with any Canvas render mode.
-        /// </summary>
         private bool IsPointInRect(Vector2 screenPoint, RectTransform rect)
         {
             if (rect == null) return false;
             
-            // Use RectTransformUtility which handles all canvas modes
             bool contains = RectTransformUtility.RectangleContainsScreenPoint(
                 rect, 
                 screenPoint, 
-                uiCamera // null for overlay, camera for world/camera space
+                uiCamera
             );
             
             Log($"IsPointInRect({rect.name}): screenPoint={screenPoint}, contains={contains}");
@@ -200,15 +203,11 @@ namespace BlackBartsGold.UI
             return contains;
         }
         
-        /// <summary>
-        /// Get screen bounds of a RectTransform for debugging
-        /// </summary>
         private Rect GetScreenBounds(RectTransform rect)
         {
             Vector3[] corners = new Vector3[4];
             rect.GetWorldCorners(corners);
             
-            // Convert to screen space
             if (uiCamera != null)
             {
                 for (int i = 0; i < 4; i++)
@@ -225,14 +224,10 @@ namespace BlackBartsGold.UI
             return new Rect(minX, minY, maxX - minX, maxY - minY);
         }
         
-        /// <summary>
-        /// Open the full map UI
-        /// </summary>
         private void OpenFullMap()
         {
             Log("Opening Full Map...");
             
-            // Try FullMapUI singleton
             if (FullMapUI.Exists)
             {
                 Log("FullMapUI.Instance.Show()");
@@ -240,7 +235,6 @@ namespace BlackBartsGold.UI
                 return;
             }
             
-            // Try to find and activate the panel directly
             if (fullMapPanel != null)
             {
                 Log("Activating fullMapPanel directly");
@@ -248,7 +242,6 @@ namespace BlackBartsGold.UI
                 return;
             }
             
-            // Try ARHUD
             if (ARHUD.Instance != null)
             {
                 Log("ARHUD.Instance.OnRadarTapped()");
@@ -259,9 +252,6 @@ namespace BlackBartsGold.UI
             LogError("Could not open full map - no handler found!");
         }
         
-        /// <summary>
-        /// Log helper with prefix
-        /// </summary>
         private void Log(string message)
         {
             if (enableDebugLogs)
@@ -275,34 +265,27 @@ namespace BlackBartsGold.UI
             Debug.LogError($"[DirectTouch] {message}");
         }
         
-        /// <summary>
-        /// Draw debug info on screen
-        /// </summary>
         private void OnGUI()
         {
             if (!enableDebugVisuals) return;
             
-            // Draw touch info
             GUI.color = Color.yellow;
             GUI.Label(new Rect(10, 10, 400, 30), $"DirectTouch: {lastTouchInfo}");
             GUI.Label(new Rect(10, 40, 400, 30), $"Total Touches: {totalTouchCount}");
             
-            // Draw radar bounds
             if (radarPanel != null)
             {
                 Rect bounds = GetScreenBounds(radarPanel);
                 GUI.Label(new Rect(10, 70, 400, 30), $"Radar Bounds: {bounds}");
                 
-                // Draw outline of radar area (flipped Y for GUI)
                 float y = Screen.height - bounds.y - bounds.height;
                 GUI.Box(new Rect(bounds.x, y, bounds.width, bounds.height), "RADAR");
             }
             
-            // Draw last touch position
             if (totalTouchCount > 0)
             {
                 float crossSize = 20;
-                float y = Screen.height - lastTouchPosition.y; // Flip Y for GUI
+                float y = Screen.height - lastTouchPosition.y;
                 GUI.color = Color.red;
                 GUI.DrawTexture(new Rect(lastTouchPosition.x - crossSize/2, y - 2, crossSize, 4), Texture2D.whiteTexture);
                 GUI.DrawTexture(new Rect(lastTouchPosition.x - 2, y - crossSize/2, 4, crossSize), Texture2D.whiteTexture);
