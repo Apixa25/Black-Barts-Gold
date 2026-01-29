@@ -787,6 +787,11 @@ namespace BlackBartsGold.Core
             {
                 _simpleFullMapPanel = CreateSimpleFullMapPanel();
             }
+            else
+            {
+                // Refresh map and markers when reopening
+                StartCoroutine(LoadFullMapTile());
+            }
             
             _simpleFullMapPanel.SetActive(true);
             Debug.Log("[UIManager] Full map shown!");
@@ -794,6 +799,19 @@ namespace BlackBartsGold.Core
         
         private RawImage _fullMapImage;
         private Texture2D _fullMapTile;
+        private RectTransform _fullMapContainer;
+        private Transform _coinMarkersContainer;
+        private Dictionary<string, GameObject> _fullMapCoinMarkers = new Dictionary<string, GameObject>();
+        private double _fullMapCenterLat;
+        private double _fullMapCenterLng;
+        private int _fullMapZoom = 17; // Start zoomed in more
+        private const int MIN_ZOOM = 14;
+        private const int MAX_ZOOM = 19;
+        private float _fullMapMetersPerPixel;
+        private float _lastPinchDistance = 0f;
+        private bool _isPinching = false;
+        private TMP_Text _zoomLevelText;
+        private bool _mapLoadPending = false;
         
         private GameObject CreateSimpleFullMapPanel()
         {
@@ -815,8 +833,8 @@ namespace BlackBartsGold.Core
             var mapArea = new GameObject("MapArea");
             mapArea.transform.SetParent(panel.transform, false);
             var mapAreaRect = mapArea.AddComponent<RectTransform>();
-            mapAreaRect.anchorMin = new Vector2(0.05f, 0.15f);
-            mapAreaRect.anchorMax = new Vector2(0.95f, 0.75f);
+            mapAreaRect.anchorMin = new Vector2(0.03f, 0.12f);
+            mapAreaRect.anchorMax = new Vector2(0.97f, 0.88f);
             mapAreaRect.offsetMin = Vector2.zero;
             mapAreaRect.offsetMax = Vector2.zero;
             
@@ -832,6 +850,7 @@ namespace BlackBartsGold.Core
             mapContainerRect.anchorMax = Vector2.one;
             mapContainerRect.offsetMin = new Vector2(4, 4);
             mapContainerRect.offsetMax = new Vector2(-4, -4);
+            _fullMapContainer = mapContainerRect;
             
             // Map background (shows while loading)
             var mapBg = mapContainer.AddComponent<Image>();
@@ -849,6 +868,19 @@ namespace BlackBartsGold.Core
             _fullMapImage = mapImageObj.AddComponent<RawImage>();
             _fullMapImage.color = Color.white;
             
+            // Coin markers container (overlay on map)
+            var coinMarkers = new GameObject("CoinMarkers");
+            coinMarkers.transform.SetParent(mapContainer.transform, false);
+            var markersRect = coinMarkers.AddComponent<RectTransform>();
+            markersRect.anchorMin = Vector2.zero;
+            markersRect.anchorMax = Vector2.one;
+            markersRect.offsetMin = Vector2.zero;
+            markersRect.offsetMax = Vector2.zero;
+            _coinMarkersContainer = coinMarkers.transform;
+            
+            // Player marker on map
+            CreatePlayerMarkerOnFullMap(coinMarkers.transform);
+            
             // "Loading..." text
             var loadingText = CreateText(mapContainer.transform, "LoadingText", "Loading map...", 
                 Vector2.zero, 24, Color.gray, FontStyles.Italic);
@@ -860,7 +892,7 @@ namespace BlackBartsGold.Core
             var titleBar = new GameObject("TitleBar");
             titleBar.transform.SetParent(panel.transform, false);
             var titleBarRect = titleBar.AddComponent<RectTransform>();
-            titleBarRect.anchorMin = new Vector2(0, 0.85f);
+            titleBarRect.anchorMin = new Vector2(0, 0.88f);
             titleBarRect.anchorMax = new Vector2(1, 1);
             titleBarRect.offsetMin = Vector2.zero;
             titleBarRect.offsetMax = Vector2.zero;
@@ -869,14 +901,14 @@ namespace BlackBartsGold.Core
             
             // Title
             var title = CreateText(titleBar.transform, "Title", "TREASURE MAP", 
-                Vector2.zero, 36, GoldColor, FontStyles.Bold);
+                Vector2.zero, 32, GoldColor, FontStyles.Bold);
             var titleRect = title.GetComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0.5f, 0.5f);
             titleRect.anchorMax = new Vector2(0.5f, 0.5f);
             
             // Close button (X in top right)
             var closeBtn = CreateButton(titleBar.transform, "CloseButton", "✕", 
-                Vector2.zero, new Vector2(60, 60), new Color(0.8f, 0.2f, 0.2f),
+                Vector2.zero, new Vector2(50, 50), new Color(0.8f, 0.2f, 0.2f),
                 () => {
                     Debug.Log("[UIManager] Closing full map");
                     _simpleFullMapPanel.SetActive(false);
@@ -887,38 +919,140 @@ namespace BlackBartsGold.Core
             closeBtnRect.pivot = new Vector2(1, 0.5f);
             closeBtnRect.anchoredPosition = new Vector2(-10, 0);
             
-            // Bottom panel for coin list
-            var bottomPanel = new GameObject("BottomPanel");
-            bottomPanel.transform.SetParent(panel.transform, false);
-            var bottomRect = bottomPanel.AddComponent<RectTransform>();
+            // Bottom info bar with zoom controls
+            var bottomBar = new GameObject("BottomBar");
+            bottomBar.transform.SetParent(panel.transform, false);
+            var bottomRect = bottomBar.AddComponent<RectTransform>();
             bottomRect.anchorMin = new Vector2(0, 0);
-            bottomRect.anchorMax = new Vector2(1, 0.14f);
+            bottomRect.anchorMax = new Vector2(1, 0.11f);
             bottomRect.offsetMin = Vector2.zero;
             bottomRect.offsetMax = Vector2.zero;
-            var bottomBg = bottomPanel.AddComponent<Image>();
+            var bottomBg = bottomBar.AddComponent<Image>();
             bottomBg.color = new Color(0.1f, 0.15f, 0.2f, 0.95f);
             
-            // Instructions
-            var instructions = CreateText(bottomPanel.transform, "Instructions", 
-                "Tap a coin below to select it as your target", 
-                Vector2.zero, 16, Color.white, FontStyles.Normal);
+            // Instructions (left side)
+            var instructions = CreateText(bottomBar.transform, "Instructions", 
+                "TAP COIN TO SELECT  •  PINCH TO ZOOM", 
+                Vector2.zero, 14, Color.white, FontStyles.Normal);
             var instrRect = instructions.GetComponent<RectTransform>();
-            instrRect.anchorMin = new Vector2(0.5f, 0.7f);
-            instrRect.anchorMax = new Vector2(0.5f, 0.7f);
+            instrRect.anchorMin = new Vector2(0, 0.5f);
+            instrRect.anchorMax = new Vector2(0, 0.5f);
+            instrRect.pivot = new Vector2(0, 0.5f);
+            instrRect.anchoredPosition = new Vector2(15, 0);
             
-            // Coin list area
-            CreateCoinListInFullMap(bottomPanel.transform);
+            // Zoom controls (right side)
+            var zoomControls = new GameObject("ZoomControls");
+            zoomControls.transform.SetParent(bottomBar.transform, false);
+            var zoomRect = zoomControls.AddComponent<RectTransform>();
+            zoomRect.anchorMin = new Vector2(1, 0.5f);
+            zoomRect.anchorMax = new Vector2(1, 0.5f);
+            zoomRect.pivot = new Vector2(1, 0.5f);
+            zoomRect.anchoredPosition = new Vector2(-15, 0);
+            zoomRect.sizeDelta = new Vector2(180, 60);
             
-            // Load the map when shown
-            StartCoroutine(LoadFullMapTile());
+            // Zoom OUT button (-)
+            var zoomOutBtn = CreateButton(zoomControls.transform, "ZoomOut", "−", 
+                Vector2.zero, new Vector2(50, 50), new Color(0.3f, 0.3f, 0.4f),
+                () => ChangeMapZoom(-1));
+            var zoomOutRect = zoomOutBtn.GetComponent<RectTransform>();
+            zoomOutRect.anchorMin = new Vector2(0, 0.5f);
+            zoomOutRect.anchorMax = new Vector2(0, 0.5f);
+            zoomOutRect.pivot = new Vector2(0, 0.5f);
+            zoomOutRect.anchoredPosition = new Vector2(0, 0);
             
-            Debug.Log("[UIManager] Full map panel created with REAL MAP!");
+            // Zoom level display
+            _zoomLevelText = CreateText(zoomControls.transform, "ZoomLevel", $"{_fullMapZoom}x", 
+                Vector2.zero, 18, GoldColor, FontStyles.Bold);
+            var zoomLevelRect = _zoomLevelText.GetComponent<RectTransform>();
+            zoomLevelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            zoomLevelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            zoomLevelRect.sizeDelta = new Vector2(50, 30);
+            
+            // Zoom IN button (+)
+            var zoomInBtn = CreateButton(zoomControls.transform, "ZoomIn", "+", 
+                Vector2.zero, new Vector2(50, 50), new Color(0.3f, 0.3f, 0.4f),
+                () => ChangeMapZoom(1));
+            var zoomInRect = zoomInBtn.GetComponent<RectTransform>();
+            zoomInRect.anchorMin = new Vector2(1, 0.5f);
+            zoomInRect.anchorMax = new Vector2(1, 0.5f);
+            zoomInRect.pivot = new Vector2(1, 0.5f);
+            zoomInRect.anchoredPosition = new Vector2(0, 0);
+            
+            // Add pinch zoom handler
+            var pinchHandler = panel.AddComponent<FullMapPinchZoom>();
+            pinchHandler.Initialize(this);
+            
+            Debug.Log("[UIManager] Full map panel created with REAL MAP, coin markers, and ZOOM!");
             
             return panel;
         }
         
+        /// <summary>
+        /// Change the full map zoom level
+        /// </summary>
+        public void ChangeMapZoom(int delta)
+        {
+            int newZoom = Mathf.Clamp(_fullMapZoom + delta, MIN_ZOOM, MAX_ZOOM);
+            if (newZoom == _fullMapZoom) return; // No change
+            
+            _fullMapZoom = newZoom;
+            Debug.Log($"[UIManager] Map zoom changed to {_fullMapZoom}");
+            
+            // Update zoom level display
+            if (_zoomLevelText != null)
+            {
+                _zoomLevelText.text = $"{_fullMapZoom}x";
+            }
+            
+            // Reload the map at new zoom level
+            if (!_mapLoadPending)
+            {
+                StartCoroutine(LoadFullMapTile());
+            }
+        }
+        
+        private GameObject _playerMarkerFullMap;
+        
+        private void CreatePlayerMarkerOnFullMap(Transform parent)
+        {
+            var marker = new GameObject("PlayerMarker");
+            marker.transform.SetParent(parent, false);
+            var markerRect = marker.AddComponent<RectTransform>();
+            markerRect.anchorMin = new Vector2(0.5f, 0.5f);
+            markerRect.anchorMax = new Vector2(0.5f, 0.5f);
+            markerRect.sizeDelta = new Vector2(30, 30);
+            
+            // Glow
+            var glow = new GameObject("Glow");
+            glow.transform.SetParent(marker.transform, false);
+            var glowRect = glow.AddComponent<RectTransform>();
+            glowRect.sizeDelta = new Vector2(50, 50);
+            var glowImg = glow.AddComponent<Image>();
+            glowImg.color = new Color(0.2f, 0.6f, 1f, 0.4f);
+            
+            // Main dot
+            var dot = new GameObject("Dot");
+            dot.transform.SetParent(marker.transform, false);
+            var dotRect = dot.AddComponent<RectTransform>();
+            dotRect.sizeDelta = new Vector2(24, 24);
+            var dotImg = dot.AddComponent<Image>();
+            dotImg.color = new Color(0.2f, 0.6f, 1f);
+            
+            // Direction arrow
+            var arrow = new GameObject("Arrow");
+            arrow.transform.SetParent(marker.transform, false);
+            var arrowRect = arrow.AddComponent<RectTransform>();
+            arrowRect.anchoredPosition = new Vector2(0, 20);
+            arrowRect.sizeDelta = new Vector2(10, 10);
+            var arrowImg = arrow.AddComponent<Image>();
+            arrowImg.color = new Color(0.2f, 0.6f, 1f);
+            
+            _playerMarkerFullMap = marker;
+        }
+        
         private IEnumerator LoadFullMapTile()
         {
+            _mapLoadPending = true;
             yield return null; // Wait a frame
             
             if (!MapboxService.Exists)
@@ -936,8 +1070,19 @@ namespace BlackBartsGold.Core
             var loc = GPSManager.Instance?.CurrentLocation;
             if (loc != null && MapboxService.Exists)
             {
-                Debug.Log($"[UIManager] Loading full map tile at {loc.latitude}, {loc.longitude}");
-                MapboxService.Instance.GetFullMapTile(loc.latitude, loc.longitude, 14, (texture) => {
+                // Store center for coin positioning
+                _fullMapCenterLat = loc.latitude;
+                _fullMapCenterLng = loc.longitude;
+                // Keep current zoom level (don't override!)
+                
+                // Calculate meters per pixel at this zoom level
+                // Formula: meters/pixel = 156543.03392 * cos(lat) / 2^zoom
+                _fullMapMetersPerPixel = (float)(156543.03392 * Mathf.Cos((float)loc.latitude * Mathf.Deg2Rad) / Mathf.Pow(2, _fullMapZoom));
+                
+                Debug.Log($"[UIManager] Loading full map tile at {loc.latitude}, {loc.longitude}, zoom {_fullMapZoom}");
+                Debug.Log($"[UIManager] Meters per pixel: {_fullMapMetersPerPixel}");
+                
+                MapboxService.Instance.GetFullMapTile(loc.latitude, loc.longitude, _fullMapZoom, (texture) => {
                     if (texture != null && _fullMapImage != null)
                     {
                         if (_fullMapTile != null)
@@ -954,9 +1099,178 @@ namespace BlackBartsGold.Core
                             loadingText.gameObject.SetActive(false);
                         }
                         
-                        Debug.Log("[UIManager] Full map tile loaded!");
+                        // Add coin markers on the map
+                        PopulateCoinMarkersOnMap();
+                        
+                        // Update zoom text
+                        if (_zoomLevelText != null)
+                        {
+                            _zoomLevelText.text = $"{_fullMapZoom}x";
+                        }
+                        
+                        _mapLoadPending = false;
+                        Debug.Log($"[UIManager] Full map tile loaded at zoom {_fullMapZoom}!");
+                    }
+                    else
+                    {
+                        _mapLoadPending = false;
                     }
                 });
+            }
+            else
+            {
+                _mapLoadPending = false;
+            }
+        }
+        
+        /// <summary>
+        /// Add clickable coin markers on the full map
+        /// </summary>
+        private void PopulateCoinMarkersOnMap()
+        {
+            if (_coinMarkersContainer == null) return;
+            if (CoinManager.Instance == null) return;
+            if (_fullMapContainer == null) return;
+            
+            // Clear existing markers
+            foreach (var marker in _fullMapCoinMarkers.Values)
+            {
+                if (marker != null) Destroy(marker);
+            }
+            _fullMapCoinMarkers.Clear();
+            
+            var playerLoc = GPSManager.Instance?.CurrentLocation;
+            if (playerLoc == null) return;
+            
+            // Get map dimensions
+            float mapWidth = _fullMapContainer.rect.width;
+            float mapHeight = _fullMapContainer.rect.height;
+            
+            Debug.Log($"[UIManager] Populating coin markers, map size: {mapWidth}x{mapHeight}");
+            
+            foreach (var coin in CoinManager.Instance.KnownCoins)
+            {
+                if (coin == null) continue;
+                
+                // Calculate distance from map center
+                float distanceMeters = (float)new LocationData(_fullMapCenterLat, _fullMapCenterLng)
+                    .DistanceTo(new LocationData(coin.latitude, coin.longitude));
+                float bearingDeg = (float)new LocationData(_fullMapCenterLat, _fullMapCenterLng)
+                    .BearingTo(new LocationData(coin.latitude, coin.longitude));
+                
+                // Convert to pixels
+                float distancePixels = distanceMeters / _fullMapMetersPerPixel;
+                
+                // Check if coin is within map bounds (with margin)
+                float maxPixelDist = Mathf.Min(mapWidth, mapHeight) * 0.45f;
+                if (distancePixels > maxPixelDist)
+                {
+                    // Coin is off-map, show at edge
+                    distancePixels = maxPixelDist;
+                }
+                
+                // Convert bearing to position (bearing is clockwise from north)
+                float bearingRad = bearingDeg * Mathf.Deg2Rad;
+                float x = Mathf.Sin(bearingRad) * distancePixels;
+                float y = Mathf.Cos(bearingRad) * distancePixels;
+                
+                // Create marker
+                CreateCoinMarkerOnMap(coin, new Vector2(x, y));
+            }
+            
+            Debug.Log($"[UIManager] Created {_fullMapCoinMarkers.Count} coin markers on map");
+        }
+        
+        private void CreateCoinMarkerOnMap(Coin coin, Vector2 position)
+        {
+            var marker = new GameObject($"CoinMarker_{coin.id}");
+            marker.transform.SetParent(_coinMarkersContainer, false);
+            
+            var rect = marker.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = new Vector2(60, 70); // Clickable area
+            
+            // Calculate distance for display
+            float distance = 0f;
+            if (GPSManager.Instance?.CurrentLocation != null)
+            {
+                distance = (float)GPSManager.Instance.CurrentLocation
+                    .DistanceTo(new LocationData(coin.latitude, coin.longitude));
+            }
+            
+            // Marker background (touch area)
+            var touchArea = marker.AddComponent<Image>();
+            touchArea.color = new Color(0, 0, 0, 0.01f); // Nearly invisible but raycastable
+            touchArea.raycastTarget = true;
+            
+            // Gold coin icon
+            var iconObj = new GameObject("Icon");
+            iconObj.transform.SetParent(marker.transform, false);
+            var iconRect = iconObj.AddComponent<RectTransform>();
+            iconRect.anchoredPosition = new Vector2(0, 10);
+            iconRect.sizeDelta = new Vector2(40, 40);
+            var iconImg = iconObj.AddComponent<Image>();
+            iconImg.color = GoldColor;
+            iconImg.raycastTarget = false;
+            
+            // Glow effect
+            var glowObj = new GameObject("Glow");
+            glowObj.transform.SetParent(iconObj.transform, false);
+            glowObj.transform.SetAsFirstSibling();
+            var glowRect = glowObj.AddComponent<RectTransform>();
+            glowRect.sizeDelta = new Vector2(55, 55);
+            var glowImg = glowObj.AddComponent<Image>();
+            glowImg.color = new Color(1f, 0.9f, 0.3f, 0.4f);
+            glowImg.raycastTarget = false;
+            
+            // Value text
+            var valueText = CreateText(marker.transform, "Value", $"${coin.value:F0}", 
+                Vector2.zero, 14, Color.white, FontStyles.Bold);
+            var valueRect = valueText.GetComponent<RectTransform>();
+            valueRect.anchoredPosition = new Vector2(0, -20);
+            
+            // Distance text
+            var distText = CreateText(marker.transform, "Distance", $"{distance:F0}m", 
+                Vector2.zero, 11, new Color(0.8f, 0.8f, 0.8f), FontStyles.Normal);
+            var distRect = distText.GetComponent<RectTransform>();
+            distRect.anchoredPosition = new Vector2(0, -32);
+            
+            // Make it a button
+            var button = marker.AddComponent<Button>();
+            button.transition = Selectable.Transition.ColorTint;
+            button.targetGraphic = iconImg;
+            
+            var colors = button.colors;
+            colors.normalColor = GoldColor;
+            colors.highlightedColor = new Color(1f, 0.95f, 0.5f);
+            colors.pressedColor = new Color(0.8f, 0.7f, 0.2f);
+            button.colors = colors;
+            
+            // Capture coin reference
+            var capturedCoin = coin;
+            button.onClick.AddListener(() => {
+                Debug.Log($"[UIManager] Map coin tapped: {capturedCoin.id} (${capturedCoin.value})");
+                SelectCoinAsTarget(capturedCoin);
+            });
+            
+            // Pulse animation for nearby coins
+            if (distance < 50f)
+            {
+                StartCoroutine(PulseCoinMarker(iconRect));
+            }
+            
+            _fullMapCoinMarkers[coin.id] = marker;
+        }
+        
+        private IEnumerator PulseCoinMarker(RectTransform rect)
+        {
+            while (rect != null && rect.gameObject.activeInHierarchy)
+            {
+                float scale = 1f + Mathf.Sin(Time.time * 3f) * 0.1f;
+                rect.localScale = Vector3.one * scale;
+                yield return null;
             }
         }
         
@@ -1540,8 +1854,8 @@ namespace BlackBartsGold.Core
             titleRect.offsetMax = Vector2.zero;
             
             // "Tap to expand" hint
-            var hint = CreateText(mapContainer.transform, "TapHint", "Tap for full map", 
-                Vector2.zero, 12, new Color(1, 1, 1, 0.6f), FontStyles.Italic);
+            var hint = CreateText(mapContainer.transform, "TapHint", "Tap to select coin", 
+                Vector2.zero, 12, new Color(1, 1, 1, 0.7f), FontStyles.Italic);
             var hintRect = hint.GetComponent<RectTransform>();
             hintRect.anchorMin = new Vector2(0.5f, 0);
             hintRect.anchorMax = new Vector2(0.5f, 0);
@@ -1616,7 +1930,8 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Update mini-map with coin positions
+        /// Update mini-map - only shows SELECTED target coin!
+        /// User must tap mini-map and select a coin from full map first.
         /// </summary>
         private void UpdateMiniMap()
         {
@@ -1634,84 +1949,77 @@ namespace BlackBartsGold.Core
             // Update the real map tile from Mapbox
             UpdateMiniMapTile();
             
-            // Track which coins we've updated
-            HashSet<string> updatedCoins = new HashSet<string>();
-            
-            foreach (var controller in CoinManager.Instance.ActiveCoins)
+            // Clear all existing dots first
+            foreach (var kvp in _coinDots)
             {
-                if (controller?.CoinData == null) continue;
-                
-                var coin = controller.CoinData;
-                
-                // Calculate distance and bearing
-                float distance = (float)playerLoc.DistanceTo(new LocationData(coin.latitude, coin.longitude));
-                float bearing = (float)playerLoc.BearingTo(new LocationData(coin.latitude, coin.longitude));
-                
-                // Skip if out of range
-                if (distance > _miniMapRange)
+                if (kvp.Value != null)
                 {
-                    RemoveMiniMapDot(coin.id);
-                    continue;
+                    kvp.Value.gameObject.SetActive(false);
                 }
-                
-                // Adjust bearing for SMOOTHED compass heading (reduces jitter)
-                float adjustedBearing = bearing - _smoothedCompassHeading;
-                float bearingRad = adjustedBearing * Mathf.Deg2Rad;
-                
-                // Calculate position on mini-map
-                float normalizedDist = distance / _miniMapRange;
-                float pixelDist = normalizedDist * _miniMapRadius;
-                float x = Mathf.Sin(bearingRad) * pixelDist;
-                float y = Mathf.Cos(bearingRad) * pixelDist;
-                
-                // Get or create dot
-                RectTransform dot;
-                if (!_coinDots.TryGetValue(coin.id, out dot))
-                {
-                    var dotObj = new GameObject($"CoinDot_{coin.id}");
-                    dotObj.transform.SetParent(_miniMapContainer, false);
-                    dot = dotObj.AddComponent<RectTransform>();
-                    dot.anchorMin = new Vector2(0.5f, 0.5f);
-                    dot.anchorMax = new Vector2(0.5f, 0.5f);
-                    dot.sizeDelta = new Vector2(24, 24); // BIGGER dots
-                    var dotImage = dotObj.AddComponent<Image>();
-                    dotImage.color = GoldColor;
-                    dotImage.raycastTarget = false;
-                    _coinDots[coin.id] = dot;
-                }
-                
-                // Update position
-                dot.anchoredPosition = new Vector2(x, y);
-                dot.gameObject.SetActive(true);
-                
-                // Color based on state
-                var img = dot.GetComponent<Image>();
-                if (img != null)
-                {
-                    if (controller.IsInRange)
-                        img.color = new Color(0.29f, 0.87f, 0.5f); // Green - in range!
-                    else
-                        img.color = GoldColor; // Gold
-                }
-                
-                // Scale based on distance (closer = bigger)
-                float scale = Mathf.Lerp(1.5f, 0.7f, normalizedDist);
-                dot.localScale = Vector3.one * scale;
-                
-                updatedCoins.Add(coin.id);
             }
             
-            // Remove dots for coins no longer active
-            var toRemove = new List<string>();
-            foreach (var id in _coinDots.Keys)
+            // ONLY show the selected target coin on the mini-map
+            var targetCoin = CoinManager.Instance.TargetCoinData;
+            if (targetCoin == null)
             {
-                if (!updatedCoins.Contains(id))
-                    toRemove.Add(id);
+                // No coin selected - mini-map shows nothing (user should tap to select one)
+                return;
             }
-            foreach (var id in toRemove)
+            
+            // Calculate distance and bearing to target
+            float distance = (float)playerLoc.DistanceTo(new LocationData(targetCoin.latitude, targetCoin.longitude));
+            float bearing = (float)playerLoc.BearingTo(new LocationData(targetCoin.latitude, targetCoin.longitude));
+            
+            // Adjust bearing for SMOOTHED compass heading (reduces jitter)
+            float adjustedBearing = bearing - _smoothedCompassHeading;
+            float bearingRad = adjustedBearing * Mathf.Deg2Rad;
+            
+            // Calculate position on mini-map (extended range for visibility)
+            float effectiveRange = _miniMapRange * 2; // 100m display range
+            float normalizedDist = Mathf.Clamp01(distance / effectiveRange);
+            float pixelDist = normalizedDist * _miniMapRadius;
+            float x = Mathf.Sin(bearingRad) * pixelDist;
+            float y = Mathf.Cos(bearingRad) * pixelDist;
+            
+            // Get or create dot for target
+            RectTransform dot;
+            if (!_coinDots.TryGetValue(targetCoin.id, out dot) || dot == null)
             {
-                RemoveMiniMapDot(id);
+                var dotObj = new GameObject($"CoinDot_{targetCoin.id}");
+                dotObj.transform.SetParent(_miniMapContainer, false);
+                dot = dotObj.AddComponent<RectTransform>();
+                dot.anchorMin = new Vector2(0.5f, 0.5f);
+                dot.anchorMax = new Vector2(0.5f, 0.5f);
+                dot.sizeDelta = new Vector2(24, 24);
+                var dotImage = dotObj.AddComponent<Image>();
+                dotImage.color = GoldColor;
+                dotImage.raycastTarget = false;
+                _coinDots[targetCoin.id] = dot;
+                
+                Debug.Log($"[UIManager] Created mini-map dot for TARGET coin {targetCoin.id}");
             }
+            
+            // Update position
+            dot.anchoredPosition = new Vector2(x, y);
+            dot.gameObject.SetActive(true);
+            
+            // Determine if in collection range
+            bool isInRange = distance <= 25f;
+            
+            // Color based on range
+            var img = dot.GetComponent<Image>();
+            if (img != null)
+            {
+                if (isInRange)
+                    img.color = new Color(0.29f, 0.87f, 0.5f); // Bright green - collectible!
+                else
+                    img.color = GoldColor; // Gold - tracking
+            }
+            
+            // Pulse animation
+            float pulse = 1f + Mathf.Sin(Time.time * 4f) * 0.2f;
+            float baseScale = isInRange ? 1.4f : 1.2f;
+            dot.localScale = Vector3.one * baseScale * pulse;
         }
         
         /// <summary>
