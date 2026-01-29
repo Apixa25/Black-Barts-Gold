@@ -1,23 +1,34 @@
 // ============================================================================
 // ARCoinPositioner.cs
-// Black Bart's Gold - GPS to AR Position Converter
+// Black Bart's Gold - GPS to AR Position Converter (Pokemon GO Pattern)
 // Path: Assets/Scripts/AR/ARCoinPositioner.cs
 // ============================================================================
-// Converts GPS coordinates to AR world positions with continuous updates.
-// Uses compass-aligned positioning (Pokémon GO pattern).
-// Reference: Docs/AR-COIN-DISPLAY-SPEC.md, pokemon-go-patterns/SKILL.md
+// REFACTORED for Pokemon GO materialization pattern.
+//
+// Key insight: We don't try to position coins at their GPS distance.
+// Instead:
+//   1. Track GPS distance/bearing for navigation (Direction Indicator uses this)
+//   2. When close enough, coin materializes at comfortable viewing distance
+//   3. GPS position only matters for determining collection eligibility
+//
+// The "compass-aligned" pattern is kept for accurate bearing calculation,
+// but position is handled by ARCoinRenderer's materialization system.
 // ============================================================================
 
 using UnityEngine;
+using System.Collections;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core.Models;
 
 namespace BlackBartsGold.AR
 {
     /// <summary>
-    /// Converts GPS coordinates to AR world positions.
-    /// Continuously updates position based on player movement and compass.
-    /// Stops updating when coin is world-locked (near player).
+    /// GPS-to-AR position converter with Pokemon GO-style materialization support.
+    /// 
+    /// This component tracks the GPS location of a coin and provides:
+    /// - GPS distance to coin (for materialization trigger)
+    /// - GPS bearing to coin (for direction indicator)
+    /// - AR position calculation (when coin materializes)
     /// </summary>
     public class ARCoinPositioner : MonoBehaviour
     {
@@ -32,18 +43,19 @@ namespace BlackBartsGold.AR
         [Tooltip("Target longitude")]
         private double longitude;
         
-        [Header("Settings")]
+        [Header("Position Settings")]
         [SerializeField]
-        [Tooltip("Height above ground (meters)")]
-        private float heightAboveGround = 1.0f;
+        [Tooltip("Height above ground when positioned")]
+        private float heightAboveGround = 1.2f;
         
         [SerializeField]
         [Tooltip("Position smoothing time")]
         private float positionSmoothTime = 0.3f;
         
+        [Header("Update Settings")]
         [SerializeField]
-        [Tooltip("Minimum movement to trigger update (meters)")]
-        private float minMovementThreshold = 0.5f;
+        [Tooltip("How often to update GPS calculations (seconds)")]
+        private float updateInterval = 0.5f;
         
         [Header("Debug")]
         [SerializeField]
@@ -53,51 +65,43 @@ namespace BlackBartsGold.AR
         
         #region Properties
         
-        /// <summary>
-        /// Target GPS latitude
-        /// </summary>
+        /// <summary>Target GPS latitude</summary>
         public double Latitude
         {
             get => latitude;
             set => latitude = value;
         }
         
-        /// <summary>
-        /// Target GPS longitude
-        /// </summary>
+        /// <summary>Target GPS longitude</summary>
         public double Longitude
         {
             get => longitude;
             set => longitude = value;
         }
         
-        /// <summary>
-        /// Is position locked (world-locked mode)?
-        /// </summary>
-        public bool IsPositionLocked { get; private set; } = false;
-        
-        /// <summary>
-        /// Current GPS distance to coin (meters)
-        /// </summary>
+        /// <summary>GPS distance to coin in meters (the REAL distance)</summary>
         public float GPSDistance { get; private set; } = float.MaxValue;
         
-        /// <summary>
-        /// Current GPS bearing to coin (degrees, 0=North)
-        /// </summary>
+        /// <summary>GPS bearing to coin (degrees, 0=North, 90=East)</summary>
         public float GPSBearing { get; private set; } = 0f;
+        
+        /// <summary>Is position currently locked (coin materialized and stable)?</summary>
+        public bool IsPositionLocked { get; private set; } = false;
+        
+        /// <summary>Calculated AR world position (only valid after UpdateGPSPosition called)</summary>
+        public Vector3 ARWorldPosition { get; private set; } = Vector3.zero;
         
         #endregion
         
         #region Static Compass Alignment
         
         // Initial compass heading (captured at AR session start)
-        // Shared across all coin positioners for consistency
+        // Shared across all positioners for consistency
         private static float _initialCompassHeading = 0f;
         private static bool _hasInitialHeading = false;
         
         /// <summary>
-        /// Capture initial compass heading. Call this once when AR session starts.
-        /// This aligns GPS north with AR coordinate system.
+        /// Capture initial compass heading. Call once when AR session starts.
         /// </summary>
         public static void CaptureInitialCompassHeading()
         {
@@ -109,7 +113,6 @@ namespace BlackBartsGold.AR
             }
             else
             {
-                // Fallback: use 0 (assume camera forward is north)
                 _initialCompassHeading = 0f;
                 _hasInitialHeading = true;
                 Debug.LogWarning("[ARCoinPositioner] Compass not available, using 0° as initial heading");
@@ -125,26 +128,16 @@ namespace BlackBartsGold.AR
             _initialCompassHeading = 0f;
         }
         
-        /// <summary>
-        /// Has initial compass heading been captured?
-        /// </summary>
+        /// <summary>Has initial compass heading been captured?</summary>
         public static bool HasInitialHeading => _hasInitialHeading;
         
         #endregion
         
         #region Private Fields
         
-        // Position smoothing
+        private float lastUpdateTime = 0f;
         private Vector3 targetPosition;
         private Vector3 positionVelocity;
-        private Vector3 lastCalculatedPosition;
-        
-        // Reference to renderer for mode checking
-        private ARCoinRenderer coinRenderer;
-        
-        // Update timing
-        private float lastUpdateTime = 0f;
-        private const float UPDATE_INTERVAL = 0.2f; // 5 Hz for GPS updates
         
         #endregion
         
@@ -152,118 +145,61 @@ namespace BlackBartsGold.AR
         
         private void Awake()
         {
-            coinRenderer = GetComponent<ARCoinRenderer>();
             targetPosition = transform.position;
-            lastCalculatedPosition = transform.position;
         }
         
         private void Start()
         {
-            // Ensure compass is enabled
+            // Enable compass
             Input.compass.enabled = true;
             
-            // Capture initial heading if not already done
+            // Capture initial heading if not done
             if (!_hasInitialHeading)
             {
                 StartCoroutine(CaptureCompassHeadingCoroutine());
             }
             
-            // Calculate initial position
-            UpdatePositionFromGPS();
+            // Initial GPS calculation
+            UpdateGPSData();
         }
         
         private void Update()
         {
             // Throttle updates
-            if (Time.time - lastUpdateTime < UPDATE_INTERVAL) return;
+            if (Time.time - lastUpdateTime < updateInterval) return;
             lastUpdateTime = Time.time;
             
-            // ================================================================
-            // ALWAYS update GPS distance - even when position is locked!
-            // We need to know if user moves away from a locked coin.
-            // ================================================================
-            UpdateGPSDistanceOnly();
+            // Always update GPS distance and bearing (Direction Indicator needs this)
+            UpdateGPSData();
             
-            // ================================================================
-            // WORLD-SPACE ANCHORING BEHAVIOR
-            // ================================================================
-            // Once coin is placed in AR world space, it should STAY there.
-            // AR Foundation's tracking handles keeping it stable as camera moves.
-            // We only recalculate position if:
-            //   1. This is initial placement (lastCalculatedPosition == zero)
-            //   2. Player physically MOVED (GPS shows significant movement)
-            //   3. Position is unlocked AND we need to update
-            // 
-            // We do NOT recalculate just because user rotated camera!
-            // ================================================================
-            
+            // If position is locked, only smoothly maintain position
+            // (ARCoinRenderer handles the materialized position)
             if (IsPositionLocked)
             {
-                // Position is locked - coin stays exactly where it is
-                // AR tracking handles camera rotation around it
-                
-                // Check if user moved FAR away - unlock so coin can reposition
-                if (GPSDistance > 15f) // Moved beyond billboard range
-                {
-                    UnlockPosition();
-                    if (debugMode)
-                    {
-                        Debug.Log($"[ARCoinPositioner] Position UNLOCKED - user moved far away, GPS: {GPSDistance:F1}m");
-                    }
-                }
-                return;
-            }
-            
-            // Update position from GPS (only if player moved or first calculation)
-            // The UpdatePositionFromGPS method now checks for significant movement
-            UpdatePositionFromGPS();
-            
-            // Smooth position update (gentler smoothing for world-space feel)
-            transform.position = Vector3.SmoothDamp(
-                transform.position,
-                targetPosition,
-                ref positionVelocity,
-                positionSmoothTime
-            );
-            
-            // ================================================================
-            // POSITION LOCKING: Lock when player is close
-            // Once locked, coin stays fixed and AR tracking keeps it stable
-            // ================================================================
-            if (GPSDistance < 8f) // Lock a bit earlier for smoother transition
-            {
-                LockPosition();
-                
-                if (debugMode)
-                {
-                    Debug.Log($"[ARCoinPositioner] Position LOCKED at {transform.position} - GPS: {GPSDistance:F1}m (world-anchored)");
-                }
+                // Gentle smooth damp to target
+                transform.position = Vector3.SmoothDamp(
+                    transform.position,
+                    targetPosition,
+                    ref positionVelocity,
+                    positionSmoothTime
+                );
             }
         }
         
         #endregion
         
-        #region GPS Position Calculation
-        
-        // Track last GPS position for movement detection
-        private double lastPlayerLat = 0;
-        private double lastPlayerLng = 0;
-        private const float GPS_MOVEMENT_THRESHOLD = 3f; // Only recalculate if moved 3+ meters
+        #region GPS Calculations
         
         /// <summary>
-        /// Calculate AR position from GPS coordinates.
-        /// Uses compass-aligned positioning (Pokémon GO pattern).
-        /// 
-        /// KEY FIX: Uses INITIAL compass heading, not current!
-        /// This allows AR tracking to handle rotation while GPS handles translation.
+        /// Update GPS distance and bearing to coin.
+        /// This is called regularly to keep Direction Indicator accurate.
         /// </summary>
-        private void UpdatePositionFromGPS()
+        private void UpdateGPSData()
         {
-            // Get player location
             LocationData playerLocation = GetPlayerLocation();
             if (playerLocation == null)
             {
-                if (debugMode)
+                if (debugMode && Time.frameCount % 60 == 0)
                 {
                     Debug.LogWarning("[ARCoinPositioner] No player location available");
                 }
@@ -273,107 +209,37 @@ namespace BlackBartsGold.AR
             // Create coin location
             LocationData coinLocation = new LocationData(latitude, longitude);
             
-            // Calculate distance and bearing
+            // Calculate GPS distance (the REAL distance, not AR distance)
             GPSDistance = (float)playerLocation.DistanceTo(coinLocation);
+            
+            // Calculate GPS bearing (for direction indicator)
             GPSBearing = (float)playerLocation.BearingTo(coinLocation);
             
-            // ================================================================
-            // WORLD-SPACE ANCHORING FIX
-            // ================================================================
-            // The critical insight from Pokémon GO research:
-            // 
-            // 1. Capture INITIAL compass heading when AR session starts
-            // 2. Use that INITIAL heading to convert GPS bearing to AR bearing ONCE
-            // 3. Let AR Foundation's tracking handle rotation as user moves camera
-            // 4. Only recalculate position when GPS shows player MOVED (not rotated)
-            //
-            // Previous bug: Using CURRENT compass heading every frame caused
-            // coins to move when user rotated phone, fighting AR tracking.
-            //
-            // How it works now:
-            //   - AR session starts, camera facing north (compass = 0°)
-            //   - _initialCompassHeading = 0°
-            //   - Coin at GPS bearing 90° (due east)
-            //   - adjustedBearing = 90° - 0° = 90°
-            //   - Coin placed at AR position (x, 0, z) based on this bearing
-            //   - User rotates phone to face east - AR TRACKING handles this!
-            //   - Coin stays at same world position, appears in front now
-            //   - This is CORRECT world-space behavior!
-            // ================================================================
+            // Also calculate the AR world position (in case renderer needs it)
+            CalculateARPosition(playerLocation);
+        }
+        
+        /// <summary>
+        /// Calculate AR world position from GPS.
+        /// Uses compass-aligned positioning (Pokemon GO pattern).
+        /// </summary>
+        private void CalculateARPosition(LocationData playerLocation)
+        {
+            if (!_hasInitialHeading) return;
             
-            // Check if player has physically moved (GPS change, not just rotation)
-            bool playerMoved = false;
-            if (lastPlayerLat != 0 && lastPlayerLng != 0)
-            {
-                LocationData lastPlayerLocation = new LocationData(lastPlayerLat, lastPlayerLng);
-                float movedDistance = (float)lastPlayerLocation.DistanceTo(playerLocation);
-                playerMoved = movedDistance > GPS_MOVEMENT_THRESHOLD;
-                
-                if (debugMode && playerMoved)
-                {
-                    Debug.Log($"[ARCoinPositioner] Player moved {movedDistance:F1}m - recalculating position");
-                }
-            }
-            else
-            {
-                // First position calculation
-                playerMoved = true;
-            }
-            
-            // Update last known player position
-            lastPlayerLat = playerLocation.latitude;
-            lastPlayerLng = playerLocation.longitude;
-            
-            // Only recalculate coin position if this is initial placement or player moved significantly
-            // This prevents constant position updates that would fight AR tracking
-            if (!playerMoved && lastCalculatedPosition != Vector3.zero)
-            {
-                // Player hasn't moved significantly - keep current position
-                // AR tracking will handle camera rotation
-                return;
-            }
-            
-            // Use INITIAL compass heading (captured when AR started) - NOT current!
-            // This is the key fix for world-space anchoring
+            // Adjust bearing for initial compass heading
             float adjustedBearing = GPSBearing - _initialCompassHeading;
             
-            // Convert bearing to radians
+            // Convert to radians
             float bearingRad = adjustedBearing * Mathf.Deg2Rad;
             
-            // Calculate AR world position
-            // In Unity: +X is right, +Z is forward (relative to initial camera facing)
+            // Calculate AR position
+            // In Unity: +X is right (east), +Z is forward (north from initial heading)
             float x = GPSDistance * Mathf.Sin(bearingRad);
             float z = GPSDistance * Mathf.Cos(bearingRad);
             float y = heightAboveGround;
             
-            Vector3 newPosition = new Vector3(x, y, z);
-            
-            // ================================================================
-            // LIGHTSHIP ENHANCEMENT: Place on real surfaces if available
-            // Uses Niantic meshing to find real-world surfaces
-            // ================================================================
-            if (LightshipManager.Exists && LightshipManager.Instance.IsMeshReady)
-            {
-                // Try to find a real surface at this position
-                if (LightshipManager.Instance.IsPositionOnSurface(newPosition, out Vector3 surfacePosition))
-                {
-                    // Place coin on the detected surface + small offset
-                    newPosition = surfacePosition + Vector3.up * 0.1f; // 10cm above surface
-                    
-                    if (debugMode)
-                    {
-                        Debug.Log($"[ARCoinPositioner] LIGHTSHIP: Placed on surface at {newPosition}");
-                    }
-                }
-            }
-            
-            targetPosition = newPosition;
-            lastCalculatedPosition = newPosition;
-            
-            if (debugMode)
-            {
-                Debug.Log($"[ARCoinPositioner] WORLD-ANCHORED: InitialCompass={_initialCompassHeading:F0}°, GPSBearing={GPSBearing:F0}° → adj={adjustedBearing:F0}°, dist={GPSDistance:F1}m, pos=({x:F1}, {y:F1}, {z:F1})");
-            }
+            ARWorldPosition = new Vector3(x, y, z);
         }
         
         /// <summary>
@@ -388,28 +254,13 @@ namespace BlackBartsGold.AR
             return null;
         }
         
-        /// <summary>
-        /// Update only GPS distance and bearing WITHOUT updating position.
-        /// Called even when position is locked to track if user moves away.
-        /// </summary>
-        private void UpdateGPSDistanceOnly()
-        {
-            LocationData playerLocation = GetPlayerLocation();
-            if (playerLocation == null) return;
-            
-            LocationData coinLocation = new LocationData(latitude, longitude);
-            
-            // Update distance and bearing
-            GPSDistance = (float)playerLocation.DistanceTo(coinLocation);
-            GPSBearing = (float)playerLocation.BearingTo(coinLocation);
-        }
-        
         #endregion
         
         #region Position Locking
         
         /// <summary>
-        /// Lock position (stop GPS updates). Called when entering world-locked mode.
+        /// Lock position - coin stays where it is.
+        /// Called by ARCoinRenderer when coin is materialized and close.
         /// </summary>
         public void LockPosition()
         {
@@ -426,7 +277,7 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Unlock position (resume GPS updates). Called when exiting world-locked mode.
+        /// Unlock position - allows position updates again.
         /// </summary>
         public void UnlockPosition()
         {
@@ -436,8 +287,25 @@ namespace BlackBartsGold.AR
             
             if (debugMode)
             {
-                Debug.Log("[ARCoinPositioner] Position UNLOCKED, resuming GPS updates");
+                Debug.Log("[ARCoinPositioner] Position UNLOCKED");
             }
+        }
+        
+        /// <summary>
+        /// Set position to a specific point (used during materialization).
+        /// </summary>
+        public void SetPosition(Vector3 position)
+        {
+            targetPosition = position;
+            transform.position = position;
+        }
+        
+        /// <summary>
+        /// Smoothly move to a target position.
+        /// </summary>
+        public void MoveTo(Vector3 position)
+        {
+            targetPosition = position;
         }
         
         #endregion
@@ -453,18 +321,16 @@ namespace BlackBartsGold.AR
             
             latitude = coinData.latitude;
             longitude = coinData.longitude;
-            heightAboveGround = coinData.heightOffset > 0 ? coinData.heightOffset : 1.0f;
+            heightAboveGround = coinData.heightOffset > 0 ? coinData.heightOffset : 1.2f;
             
-            // Reset state for new coin
+            // Reset state
             IsPositionLocked = false;
-            lastPlayerLat = 0;
-            lastPlayerLng = 0;
-            lastCalculatedPosition = Vector3.zero;
+            GPSDistance = float.MaxValue;
+            GPSBearing = 0f;
             
-            // Ensure we have initial compass heading before calculating position
+            // Ensure compass heading is captured
             if (!_hasInitialHeading)
             {
-                // Try to capture now, or start coroutine
                 if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
                 {
                     CaptureInitialCompassHeading();
@@ -475,76 +341,37 @@ namespace BlackBartsGold.AR
                 }
             }
             
-            // Calculate initial position using INITIAL compass heading
-            UpdatePositionFromGPS();
-            
-            // Set initial position immediately (no smoothing)
-            transform.position = targetPosition;
+            // Calculate initial GPS data
+            UpdateGPSData();
             
             if (debugMode)
             {
-                Debug.Log($"[ARCoinPositioner] WORLD-ANCHORED Init: ({latitude:F6}, {longitude:F6}), GPS={GPSDistance:F1}m, Compass={_initialCompassHeading:F0}°, Pos={transform.position}");
+                Debug.Log($"[ARCoinPositioner] Initialized: ({latitude:F6}, {longitude:F6}), GPS dist: {GPSDistance:F1}m");
             }
-            
-            // If GPS distance is still MaxValue, player location wasn't available yet
-            // Try again in a coroutine
-            if (GPSDistance >= float.MaxValue - 1f)
-            {
-                StartCoroutine(RetryInitialPositionUpdate());
-            }
-        }
-        
-        /// <summary>
-        /// Retry getting initial position if GPS wasn't ready
-        /// </summary>
-        private System.Collections.IEnumerator RetryInitialPositionUpdate()
-        {
-            for (int i = 0; i < 10; i++)
-            {
-                yield return new WaitForSeconds(0.5f);
-                
-                UpdatePositionFromGPS();
-                transform.position = targetPosition;
-                
-                if (GPSDistance < float.MaxValue - 1f)
-                {
-                    if (debugMode)
-                    {
-                        Debug.Log($"[ARCoinPositioner] Retry successful: GPSDistance={GPSDistance:F1}m, Position={transform.position}");
-                    }
-                    yield break;
-                }
-            }
-            
-            Debug.LogWarning("[ARCoinPositioner] Could not get GPS position after 10 retries");
         }
         
         /// <summary>
         /// Initialize with raw coordinates
         /// </summary>
-        public void Initialize(double lat, double lng, float height = 1.0f)
+        public void Initialize(double lat, double lng, float height = 1.2f)
         {
             latitude = lat;
             longitude = lng;
             heightAboveGround = height;
             
-            // Calculate initial position
-            UpdatePositionFromGPS();
-            
-            // Set initial position immediately
-            transform.position = targetPosition;
+            IsPositionLocked = false;
+            UpdateGPSData();
         }
         
         #endregion
         
         #region Compass Capture Coroutine
         
-        private System.Collections.IEnumerator CaptureCompassHeadingCoroutine()
+        private IEnumerator CaptureCompassHeadingCoroutine()
         {
             // Wait for compass to stabilize
             yield return new WaitForSeconds(0.5f);
             
-            // Try multiple times
             for (int i = 0; i < 10; i++)
             {
                 if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
@@ -568,34 +395,15 @@ namespace BlackBartsGold.AR
         [ContextMenu("Debug: Print Status")]
         public void DebugPrintStatus()
         {
-            float currentCompass = Input.compass.enabled ? Input.compass.trueHeading : -1f;
-            float adjustedBearing = GPSBearing - _initialCompassHeading;
-            
-            Debug.Log("=== ARCoinPositioner Status (WORLD-ANCHORED) ===");
+            Debug.Log("=== ARCoinPositioner Status ===");
             Debug.Log($"GPS Location: ({latitude:F6}, {longitude:F6})");
             Debug.Log($"GPS Distance: {GPSDistance:F1}m");
-            Debug.Log($"GPS Bearing: {GPSBearing:F0}° (to true north)");
-            Debug.Log($"---");
-            Debug.Log($"Initial Compass: {_initialCompassHeading:F0}° (captured={_hasInitialHeading})");
-            Debug.Log($"Current Compass: {currentCompass:F0}°");
-            Debug.Log($"Adjusted Bearing: {adjustedBearing:F0}° (GPS - Initial = AR direction)");
-            Debug.Log($"---");
+            Debug.Log($"GPS Bearing: {GPSBearing:F0}°");
+            Debug.Log($"Initial Compass: {_initialCompassHeading:F0}° (captured: {_hasInitialHeading})");
             Debug.Log($"Position Locked: {IsPositionLocked}");
-            Debug.Log($"AR World Position: {transform.position}");
-            Debug.Log($"Target Position: {targetPosition}");
-            Debug.Log("==============================================");
-        }
-        
-        [ContextMenu("Debug: Force Update Position")]
-        public void DebugForceUpdate()
-        {
-            IsPositionLocked = false;
-            lastPlayerLat = 0; // Force recalculation
-            lastPlayerLng = 0;
-            lastCalculatedPosition = Vector3.zero;
-            UpdatePositionFromGPS();
-            transform.position = targetPosition;
-            Debug.Log($"[ARCoinPositioner] Forced position update to {transform.position}");
+            Debug.Log($"AR World Position: {ARWorldPosition}");
+            Debug.Log($"Transform Position: {transform.position}");
+            Debug.Log("===============================");
         }
         
         [ContextMenu("Debug: Recapture Compass")]
@@ -603,10 +411,6 @@ namespace BlackBartsGold.AR
         {
             ResetCompassHeading();
             CaptureInitialCompassHeading();
-            Debug.Log($"[ARCoinPositioner] Recaptured compass: {_initialCompassHeading:F0}°");
-            
-            // Force position recalculation with new heading
-            DebugForceUpdate();
         }
         
         #endregion

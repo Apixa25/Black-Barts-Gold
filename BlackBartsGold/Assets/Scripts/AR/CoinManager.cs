@@ -172,6 +172,9 @@ namespace BlackBartsGold.AR
         /// <summary>Fired when target coin is collected</summary>
         public event Action<Coin, float> OnTargetCollected;
         
+        /// <summary>Fired when target coin materializes in AR view (Pokemon GO pattern)</summary>
+        public event Action<CoinController> OnCoinMaterialized;
+        
         // Legacy events
         public event Action<CoinController> OnCoinSpawned;
         public event Action<CoinController> OnCoinDespawned;
@@ -431,6 +434,7 @@ namespace BlackBartsGold.AR
             coin.OnLockedTap += HandleLockedCoinTap;
             coin.OnOutOfRangeTap += HandleOutOfRangeTap;
             coin.OnEnteredRange += HandleCoinEnteredRange;
+            coin.OnMaterialized += HandleCoinMaterialized;
             
             Log($"Spawned TARGET coin: {coinData.id}, Value: {coinData.GetDisplayValue()}");
             
@@ -453,6 +457,7 @@ namespace BlackBartsGold.AR
             TargetCoin.OnLockedTap -= HandleLockedCoinTap;
             TargetCoin.OnOutOfRangeTap -= HandleOutOfRangeTap;
             TargetCoin.OnEnteredRange -= HandleCoinEnteredRange;
+            TargetCoin.OnMaterialized -= HandleCoinMaterialized;
             
             // Return to pool
             ReturnCoinToPool(TargetCoin);
@@ -690,6 +695,24 @@ namespace BlackBartsGold.AR
             {
                 HapticService.Instance.TriggerCollectionFeedback();
             }
+        }
+        
+        /// <summary>
+        /// Handle coin materialization (Pokemon GO pattern).
+        /// Called when player gets close enough and coin appears in AR.
+        /// </summary>
+        private void HandleCoinMaterialized(CoinController coin)
+        {
+            Log($"Target coin MATERIALIZED! {coin.CoinId}");
+            
+            // Trigger haptic feedback for materialization
+            if (HapticService.Instance != null)
+            {
+                HapticService.Instance.StartProximityFeedback(ProximityZone.Near);
+            }
+            
+            // Notify UI
+            OnCoinMaterialized?.Invoke(coin);
         }
         
         #endregion
