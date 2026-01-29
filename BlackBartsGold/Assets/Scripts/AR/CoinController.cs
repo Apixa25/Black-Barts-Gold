@@ -136,6 +136,14 @@ namespace BlackBartsGold.AR
                 Debug.Log($"[CoinController] Added ARCoinPositioner to {gameObject.name}");
             }
             
+            // Add CompassCoinPlacer for gyroscope-based positioning (works without AR tracking)
+            var compassPlacer = GetComponent<CompassCoinPlacer>();
+            if (compassPlacer == null)
+            {
+                compassPlacer = gameObject.AddComponent<CompassCoinPlacer>();
+                Debug.Log($"[CoinController] Added CompassCoinPlacer to {gameObject.name}");
+            }
+            
             // Auto-find coin model
             if (coinModel == null)
             {
