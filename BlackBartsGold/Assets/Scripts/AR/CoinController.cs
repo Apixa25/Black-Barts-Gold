@@ -1,11 +1,12 @@
 // ============================================================================
 // CoinController.cs
-// Black Bart's Gold - AR Coin Controller (Simplified)
+// Black Bart's Gold - AR Coin Controller (Pokemon GO Pattern)
 // Path: Assets/Scripts/AR/CoinController.cs
 // ============================================================================
-// Main controller for coin behavior. Coordinates ARCoinRenderer and 
-// ARCoinPositioner. Handles collection, locking, and state management.
-// Reference: Docs/AR-COIN-DISPLAY-SPEC.md
+// REFACTORED for Pokemon GO materialization pattern.
+// 
+// This controller coordinates ARCoinRenderer and ARCoinPositioner.
+// The coin is HIDDEN until player gets close, then MATERIALIZES in AR.
 // ============================================================================
 
 using UnityEngine;
@@ -18,20 +19,19 @@ namespace BlackBartsGold.AR
 {
     /// <summary>
     /// GPS accuracy requirements for coin collection.
-    /// Prevents collection when GPS is inaccurate.
     /// </summary>
     public static class GPSAccuracyRequirements
     {
         /// <summary>Maximum GPS accuracy (meters) required to collect a coin</summary>
         public const float COLLECTION_ACCURACY = 25f;
         
-        /// <summary>Minimum GPS accuracy to show coins on map</summary>
-        public const float DISPLAY_ACCURACY = 200f;
+        /// <summary>Minimum GPS accuracy to track coins</summary>
+        public const float TRACKING_ACCURACY = 100f;
     }
     
     /// <summary>
-    /// Main controller for an AR coin.
-    /// Coordinates rendering (ARCoinRenderer) and positioning (ARCoinPositioner).
+    /// Main controller for an AR coin using Pokemon GO materialization pattern.
+    /// Coordinates ARCoinRenderer (visuals) and ARCoinPositioner (GPS tracking).
     /// </summary>
     [RequireComponent(typeof(ARCoinRenderer))]
     [RequireComponent(typeof(ARCoinPositioner))]
@@ -53,7 +53,7 @@ namespace BlackBartsGold.AR
         
         [Header("Debug")]
         [SerializeField]
-        private bool debugMode = true;  // Enable for diagnostics
+        private bool debugMode = true;
         
         #endregion
         
@@ -77,21 +77,25 @@ namespace BlackBartsGold.AR
         /// <summary>Has this coin been collected?</summary>
         public bool IsCollected { get; private set; } = false;
         
-        /// <summary>Distance from player (meters) - uses GPS distance for accuracy</summary>
+        /// <summary>GPS distance from player (meters)</summary>
         public float DistanceFromPlayer => coinPositioner?.GPSDistance ?? float.MaxValue;
-        
-        /// <summary>AR distance from camera (for visual purposes only)</summary>
-        public float ARDistanceFromCamera => coinRenderer?.DistanceToCamera ?? float.MaxValue;
         
         /// <summary>Current display mode</summary>
         public CoinDisplayMode DisplayMode => coinRenderer?.CurrentMode ?? CoinDisplayMode.Hidden;
         
-        /// <summary>Is coin currently visible?</summary>
+        /// <summary>Is coin currently visible in AR?</summary>
         public bool IsVisible => coinRenderer?.IsVisible ?? false;
+        
+        /// <summary>Has coin materialized?</summary>
+        public bool HasMaterialized => DisplayMode == CoinDisplayMode.Visible || 
+                                       DisplayMode == CoinDisplayMode.Collectible;
         
         #endregion
         
         #region Events
+        
+        /// <summary>Fired when coin materializes into view</summary>
+        public event Action<CoinController> OnMaterialized;
         
         /// <summary>Fired when coin is collected</summary>
         public event Action<CoinController> OnCollected;
@@ -117,7 +121,7 @@ namespace BlackBartsGold.AR
         
         private void Awake()
         {
-            // Get or add required components
+            // Get required components
             coinRenderer = GetComponent<ARCoinRenderer>();
             if (coinRenderer == null)
             {
@@ -147,7 +151,7 @@ namespace BlackBartsGold.AR
             // Set up collider
             EnsureCollider();
             
-            // Set layer and tag
+            // Set tag and layer
             gameObject.tag = "Coin";
             int coinLayer = LayerMask.NameToLayer("Coin");
             if (coinLayer >= 0)
@@ -161,6 +165,7 @@ namespace BlackBartsGold.AR
             // Subscribe to renderer events
             if (coinRenderer != null)
             {
+                coinRenderer.OnMaterialized += HandleMaterialized;
                 coinRenderer.OnEnteredCollectionRange += HandleEnteredRange;
                 coinRenderer.OnExitedCollectionRange += HandleExitedRange;
                 coinRenderer.OnModeChanged += HandleModeChanged;
@@ -172,6 +177,7 @@ namespace BlackBartsGold.AR
             // Unsubscribe
             if (coinRenderer != null)
             {
+                coinRenderer.OnMaterialized -= HandleMaterialized;
                 coinRenderer.OnEnteredCollectionRange -= HandleEnteredRange;
                 coinRenderer.OnExitedCollectionRange -= HandleExitedRange;
                 coinRenderer.OnModeChanged -= HandleModeChanged;
@@ -180,15 +186,13 @@ namespace BlackBartsGold.AR
         
         private void Update()
         {
-            // Update visual states based on locked/in-range
+            // Update visual state based on locked status
             UpdateVisualState();
             
-            // Debug: Log distance periodically
-            if (debugMode && Time.frameCount % 180 == 0) // Every 3 seconds at 60fps
+            // Debug logging
+            if (debugMode && Time.frameCount % 180 == 0)
             {
-                float gpsFromPositioner = coinPositioner?.GPSDistance ?? -1f;
-                float arFromRenderer = coinRenderer?.DistanceToCamera ?? -1f;
-                Debug.Log($"[CoinController] {CoinId} GPS={gpsFromPositioner:F1}m, AR={arFromRenderer:F1}m, InRange={IsInRange}, Mode={DisplayMode}");
+                Log($"Mode={DisplayMode}, GPS={DistanceFromPlayer:F1}m, InRange={IsInRange}, Visible={IsVisible}");
             }
         }
         
@@ -204,10 +208,7 @@ namespace BlackBartsGold.AR
             CoinData = coinData;
             IsLocked = locked;
             
-            if (debugMode)
-            {
-                Debug.Log($"[CoinController] Initialized: {coinData.id}, Value: {coinData.GetDisplayValue()}, Locked: {locked}");
-            }
+            Log($"Initialized: {coinData.id}, Value: {coinData.GetDisplayValue()}, Locked: {locked}");
             
             // Initialize positioner with GPS coordinates
             if (coinPositioner != null)
@@ -237,19 +238,17 @@ namespace BlackBartsGold.AR
             if (coinRenderer == null) return;
             
             // Update color based on state
-            var settings = coinRenderer.Settings;
-            
             if (IsLocked)
             {
-                coinRenderer.SetColor(settings.lockedColor);
+                coinRenderer.SetColor(coinRenderer.Settings.lockedColor);
             }
             else if (IsInRange)
             {
-                coinRenderer.SetColor(settings.inRangeColor);
+                coinRenderer.SetColor(coinRenderer.Settings.inRangeColor);
             }
             else
             {
-                coinRenderer.SetColor(settings.goldColor);
+                coinRenderer.SetColor(coinRenderer.Settings.goldColor);
             }
         }
         
@@ -257,14 +256,17 @@ namespace BlackBartsGold.AR
         
         #region Event Handlers
         
+        private void HandleMaterialized()
+        {
+            Log($"MATERIALIZED! Now visible in AR");
+            
+            OnMaterialized?.Invoke(this);
+        }
+        
         private void HandleEnteredRange()
         {
-            if (debugMode)
-            {
-                Debug.Log($"[CoinController] {CoinId} entered collection range");
-            }
+            Log($"Entered collection range");
             
-            // Update coin data
             if (CoinData != null)
             {
                 CoinData.isInRange = true;
@@ -275,12 +277,8 @@ namespace BlackBartsGold.AR
         
         private void HandleExitedRange()
         {
-            if (debugMode)
-            {
-                Debug.Log($"[CoinController] {CoinId} exited collection range");
-            }
+            Log($"Exited collection range");
             
-            // Update coin data
             if (CoinData != null)
             {
                 CoinData.isInRange = false;
@@ -291,10 +289,7 @@ namespace BlackBartsGold.AR
         
         private void HandleModeChanged(CoinDisplayMode oldMode, CoinDisplayMode newMode)
         {
-            if (debugMode)
-            {
-                Debug.Log($"[CoinController] {CoinId} mode changed: {oldMode} → {newMode}");
-            }
+            Log($"Mode changed: {oldMode} → {newMode}");
             
             OnDisplayModeChanged?.Invoke(this, newMode);
         }
@@ -317,23 +312,21 @@ namespace BlackBartsGold.AR
             if (IsLocked)
             {
                 OnLockedTap?.Invoke(this);
-                
-                if (debugMode)
-                {
-                    Debug.Log($"[CoinController] Collection blocked - locked: {CoinId}");
-                }
+                Log($"Collection blocked - LOCKED");
                 return false;
             }
             
-            // Check range
+            // Check if materialized and in range
+            if (!HasMaterialized)
+            {
+                Log($"Collection blocked - not materialized (Mode: {DisplayMode})");
+                return false;
+            }
+            
             if (!IsInRange)
             {
                 OnOutOfRangeTap?.Invoke(this);
-                
-                if (debugMode)
-                {
-                    Debug.Log($"[CoinController] Collection blocked - out of range: {CoinId}");
-                }
+                Log($"Collection blocked - out of range (GPS: {DistanceFromPlayer:F1}m)");
                 return false;
             }
             
@@ -343,7 +336,7 @@ namespace BlackBartsGold.AR
                 float accuracy = GPSManager.Instance.CurrentLocation.horizontalAccuracy;
                 if (accuracy > GPSAccuracyRequirements.COLLECTION_ACCURACY)
                 {
-                    Debug.LogWarning($"[CoinController] Collection blocked - GPS accuracy: {accuracy:F0}m");
+                    Log($"Collection blocked - GPS accuracy: {accuracy:F0}m (need < {GPSAccuracyRequirements.COLLECTION_ACCURACY}m)");
                     return false;
                 }
             }
@@ -356,51 +349,23 @@ namespace BlackBartsGold.AR
         private void StartCollection()
         {
             IsCollecting = true;
+            Log($"Collection started!");
             
-            if (debugMode)
+            // Tell renderer to play collection animation
+            if (coinRenderer != null)
             {
-                Debug.Log($"[CoinController] Collection started: {CoinId}");
+                coinRenderer.StartCollection();
             }
             
-            // Play collection animation
-            StartCoroutine(CollectionAnimation());
+            // Wait for animation then complete
+            StartCoroutine(WaitForCollectionComplete());
         }
         
-        private System.Collections.IEnumerator CollectionAnimation()
+        private System.Collections.IEnumerator WaitForCollectionComplete()
         {
-            float duration = 0.8f;
-            float timer = 0f;
+            // Wait for collection animation
+            yield return new WaitForSeconds(0.9f);
             
-            Vector3 startPos = transform.position;
-            Vector3 startScale = transform.localScale;
-            
-            Camera cam = Camera.main ?? FindFirstObjectByType<Camera>();
-            Vector3 targetPos = cam != null 
-                ? cam.transform.position + cam.transform.forward * 0.5f 
-                : startPos + Vector3.up;
-            
-            while (timer < duration)
-            {
-                timer += Time.deltaTime;
-                float t = timer / duration;
-                float easeT = 1f - Mathf.Pow(1f - t, 3f); // Ease out cubic
-                
-                // Move toward camera
-                transform.position = Vector3.Lerp(startPos, targetPos, easeT);
-                
-                // Scale down
-                transform.localScale = Vector3.Lerp(startScale, Vector3.zero, easeT);
-                
-                // Spin faster
-                if (coinModel != null)
-                {
-                    coinModel.transform.Rotate(0, 720f * Time.deltaTime, 0);
-                }
-                
-                yield return null;
-            }
-            
-            // Complete
             FinishCollection();
         }
         
@@ -409,10 +374,7 @@ namespace BlackBartsGold.AR
             IsCollecting = false;
             IsCollected = true;
             
-            if (debugMode)
-            {
-                Debug.Log($"[CoinController] Collection complete: {CoinId}, Value: {CoinData?.value ?? 0}");
-            }
+            Log($"Collection COMPLETE! Value: {CoinData?.value ?? 0}");
             
             // Notify
             OnCollected?.Invoke(this);
@@ -442,6 +404,14 @@ namespace BlackBartsGold.AR
             UpdateVisualState();
         }
         
+        /// <summary>
+        /// Force coin to materialize (for testing)
+        /// </summary>
+        public void ForceMaterialize()
+        {
+            coinRenderer?.ForceMaterialize();
+        }
+        
         #endregion
         
         #region Helpers
@@ -457,7 +427,7 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Get proximity zone based on distance
+        /// Get proximity zone based on GPS distance
         /// </summary>
         public ProximityZone GetProximityZone()
         {
@@ -470,40 +440,55 @@ namespace BlackBartsGold.AR
             return ProximityZone.OutOfRange;
         }
         
+        private void Log(string message)
+        {
+            if (debugMode)
+            {
+                Debug.Log($"[CoinController:{CoinId}] {message}");
+            }
+        }
+        
         #endregion
         
         #region Debug
         
-        /// <summary>Force collect this coin</summary>
         [ContextMenu("Debug: Force Collect")]
         public void DebugForceCollect()
         {
             IsLocked = false;
-            if (coinRenderer != null)
-            {
-                coinRenderer.ForceMode(CoinDisplayMode.WorldLocked);
-            }
+            coinRenderer?.ForceMaterialize();
+            StartCoroutine(DebugDelayedCollect());
+        }
+        
+        private System.Collections.IEnumerator DebugDelayedCollect()
+        {
+            yield return new WaitForSeconds(1f);
             StartCollection();
         }
         
-        /// <summary>Toggle locked state</summary>
         [ContextMenu("Debug: Toggle Locked")]
         public void DebugToggleLocked()
         {
             SetLocked(!IsLocked);
         }
         
-        /// <summary>Print current state</summary>
+        [ContextMenu("Debug: Force Materialize")]
+        public void DebugForceMaterialize()
+        {
+            ForceMaterialize();
+        }
+        
         [ContextMenu("Debug: Print State")]
         public void DebugPrintState()
         {
             Debug.Log($"=== Coin {CoinId} ===");
             Debug.Log($"Value: {CoinData?.GetDisplayValue() ?? "null"}");
             Debug.Log($"Display Mode: {DisplayMode}");
-            Debug.Log($"Distance: {DistanceFromPlayer:F1}m");
+            Debug.Log($"GPS Distance: {DistanceFromPlayer:F1}m");
             Debug.Log($"Locked: {IsLocked}");
-            Debug.Log($"InRange: {IsInRange}");
+            Debug.Log($"In Range: {IsInRange}");
             Debug.Log($"Visible: {IsVisible}");
+            Debug.Log($"Has Materialized: {HasMaterialized}");
             Debug.Log($"Collected: {IsCollected}");
             Debug.Log("==================");
         }

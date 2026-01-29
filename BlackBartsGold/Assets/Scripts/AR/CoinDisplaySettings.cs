@@ -1,10 +1,16 @@
 // ============================================================================
 // CoinDisplaySettings.cs
-// Black Bart's Gold - Coin Display Configuration
+// Black Bart's Gold - Coin Display Configuration (Pokemon GO Pattern)
 // Path: Assets/Scripts/AR/CoinDisplaySettings.cs
 // ============================================================================
-// Configuration settings for the distance-adaptive AR coin display system.
-// Reference: Docs/AR-COIN-DISPLAY-SPEC.md
+// SIMPLIFIED for Pokemon GO materialization pattern.
+// 
+// Key distances:
+//   - materializationDistance: When coin appears in AR (player navigates with direction indicator until then)
+//   - collectionDistance: When player can collect the coin
+//
+// The old billboard/world-locked distinction is removed - coins are either
+// HIDDEN (use direction indicator) or VISIBLE (materialized in AR).
 // ============================================================================
 
 using UnityEngine;
@@ -12,8 +18,8 @@ using UnityEngine;
 namespace BlackBartsGold.AR
 {
     /// <summary>
-    /// Configuration settings for coin display behavior.
-    /// Based on ViroReact billboard patterns and Minecraft Earth scaling.
+    /// Configuration for Pokemon GO-style coin display.
+    /// Simplified to focus on materialization pattern.
     /// </summary>
     [CreateAssetMenu(fileName = "CoinDisplaySettings", menuName = "Black Bart's Gold/Coin Display Settings")]
     public class CoinDisplaySettings : ScriptableObject
@@ -22,63 +28,35 @@ namespace BlackBartsGold.AR
         
         [Header("Distance Thresholds (meters)")]
         
-        [Tooltip("Beyond this distance, coin is hidden (not rendered)")]
-        [Range(50f, 200f)]
-        public float hideDistance = 100f;
-        
-        [Tooltip("Distance at which coin 'materializes' in AR view (Pokemon GO pattern)")]
-        [Range(15f, 50f)]
+        [Tooltip("GPS distance at which coin materializes in AR view. Player uses Direction Indicator to navigate until this distance.")]
+        [Range(10f, 50f)]
         public float materializationDistance = 20f;
         
-        [Tooltip("Beyond this distance, coin uses billboard mode. Below this = world-locked")]
-        [Range(10f, 50f)]
-        public float billboardDistance = 15f;
-        
-        [Tooltip("Within this distance, coin can be collected")]
+        [Tooltip("GPS distance at which coin can be collected.")]
         [Range(1f, 10f)]
         public float collectionDistance = 5f;
         
-        #endregion
-        
-        #region Screen Size Settings
-        
-        [Header("Screen Size Settings (Billboard Mode)")]
-        
-        [Tooltip("Minimum screen size in pixels when in billboard mode (same as crosshairs)")]
-        [Range(30f, 120f)]
-        public float minScreenSizePixels = 60f;
-        
-        [Tooltip("Maximum screen size in pixels to prevent coins from getting too large")]
-        [Range(100f, 400f)]
-        public float maxScreenSizePixels = 200f;
+        [Tooltip("GPS distance at which coin disappears again if player walks away (should be > materializationDistance).")]
+        [Range(20f, 100f)]
+        public float hideDistance = 35f;
         
         #endregion
         
-        #region World Scale Settings
+        #region Materialization Settings
         
-        [Header("World Scale Settings (World-Locked Mode)")]
+        [Header("Materialization Settings")]
         
-        [Tooltip("Base world scale of coin (meters). 0.3 = 30cm diameter")]
-        [Range(0.1f, 1f)]
-        public float baseWorldScale = 0.3f;
+        [Tooltip("Distance in front of camera where coin materializes")]
+        [Range(2f, 8f)]
+        public float materializeViewingDistance = 4f;
         
-        [Tooltip("Maximum world scale when very close")]
-        [Range(0.3f, 1.5f)]
-        public float maxWorldScale = 0.5f;
+        [Tooltip("Height above ground when materialized")]
+        [Range(0.5f, 2f)]
+        public float materializeHeight = 1.2f;
         
-        #endregion
-        
-        #region Transition Settings
-        
-        [Header("Transition Settings")]
-        
-        [Tooltip("Time to smoothly transition between modes (seconds)")]
-        [Range(0.1f, 1f)]
-        public float transitionSmoothTime = 0.3f;
-        
-        [Tooltip("Hysteresis distance to prevent mode flickering (meters)")]
-        [Range(1f, 5f)]
-        public float hysteresisDistance = 2f;
+        [Tooltip("Duration of materialization animation in seconds")]
+        [Range(0.3f, 2f)]
+        public float materializeDuration = 0.8f;
         
         #endregion
         
@@ -110,32 +88,22 @@ namespace BlackBartsGold.AR
         [Tooltip("Color when in collection range")]
         public Color inRangeColor = new Color(0.29f, 0.87f, 0.5f);
         
-        [Tooltip("Color when locked")]
+        [Tooltip("Color when locked (above find limit)")]
         public Color lockedColor = new Color(0.94f, 0.27f, 0.27f);
         
         #endregion
         
-        #region Performance Settings
+        #region Scale Settings
         
-        [Header("Performance Settings")]
+        [Header("Scale Settings")]
         
-        [Tooltip("Update rate for billboard mode (Hz). Lower = better performance")]
-        [Range(5f, 30f)]
-        public float billboardUpdateRate = 10f;
+        [Tooltip("Base scale of coin when materialized")]
+        [Range(0.1f, 1f)]
+        public float baseScale = 0.3f;
         
-        [Tooltip("Update rate for world-locked mode (Hz)")]
-        [Range(15f, 60f)]
-        public float worldLockedUpdateRate = 30f;
-        
-        #endregion
-        
-        #region Height Settings
-        
-        [Header("Height Settings")]
-        
-        [Tooltip("Default height above ground for coins (meters)")]
-        [Range(0.5f, 2f)]
-        public float defaultHeight = 1.0f;
+        [Tooltip("Scale multiplier when in collection range (pulse effect)")]
+        [Range(1f, 1.5f)]
+        public float collectibleScaleMultiplier = 1.1f;
         
         #endregion
         
@@ -168,62 +136,23 @@ namespace BlackBartsGold.AR
         
         #endregion
         
-        #region Helper Methods
+        #region Validation
         
-        /// <summary>
-        /// Get the update interval for a given display mode
-        /// </summary>
-        public float GetUpdateInterval(CoinDisplayMode mode)
+        private void OnValidate()
         {
-            return mode switch
+            // Ensure hideDistance > materializationDistance
+            if (hideDistance <= materializationDistance)
             {
-                CoinDisplayMode.Billboard => 1f / billboardUpdateRate,
-                CoinDisplayMode.WorldLocked => 1f / worldLockedUpdateRate,
-                _ => 1f / 10f // Default 10 Hz
-            };
-        }
-        
-        /// <summary>
-        /// Get the appropriate display mode for a given distance
-        /// </summary>
-        public CoinDisplayMode GetModeForDistance(float distance, CoinDisplayMode currentMode)
-        {
-            // Apply hysteresis to prevent flickering
-            float effectiveBillboardDistance = billboardDistance;
-            
-            if (currentMode == CoinDisplayMode.WorldLocked)
-            {
-                // Add hysteresis when transitioning back to billboard
-                effectiveBillboardDistance += hysteresisDistance;
+                hideDistance = materializationDistance + 15f;
             }
             
-            if (distance > hideDistance)
-                return CoinDisplayMode.Hidden;
-            else if (distance > effectiveBillboardDistance)
-                return CoinDisplayMode.Billboard;
-            else
-                return CoinDisplayMode.WorldLocked;
+            // Ensure collectionDistance < materializationDistance
+            if (collectionDistance >= materializationDistance)
+            {
+                collectionDistance = materializationDistance * 0.25f;
+            }
         }
         
         #endregion
-    }
-    
-    /// <summary>
-    /// Display mode for AR coins.
-    /// Based on ViroReact transformBehaviors patterns.
-    /// </summary>
-    public enum CoinDisplayMode
-    {
-        /// <summary>Coin is not rendered (out of range)</summary>
-        Hidden,
-        
-        /// <summary>Billboard mode - always faces camera, constant screen size</summary>
-        Billboard,
-        
-        /// <summary>World-locked mode - fixed in AR space, natural perspective</summary>
-        WorldLocked,
-        
-        /// <summary>Collection state - being collected</summary>
-        Collected
     }
 }

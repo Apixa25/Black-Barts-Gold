@@ -243,6 +243,7 @@ namespace BlackBartsGold.UI
                 CoinManager.Instance.OnTargetSet += OnTargetSet;
                 CoinManager.Instance.OnTargetCleared += OnTargetCleared;
                 CoinManager.Instance.OnTargetCollected += OnTargetCollected;
+                CoinManager.Instance.OnCoinMaterialized += OnCoinMaterialized;
             }
             
             // Proximity events
@@ -272,6 +273,7 @@ namespace BlackBartsGold.UI
                 CoinManager.Instance.OnTargetSet -= OnTargetSet;
                 CoinManager.Instance.OnTargetCleared -= OnTargetCleared;
                 CoinManager.Instance.OnTargetCollected -= OnTargetCollected;
+                CoinManager.Instance.OnCoinMaterialized -= OnCoinMaterialized;
             }
             
             if (ProximityManager.Instance != null)
@@ -399,6 +401,24 @@ namespace BlackBartsGold.UI
         {
             Log($"Target collected! Value: ${value:F2}");
             ShowCollectionPopup(value);
+        }
+        
+        /// <summary>
+        /// Handle coin materialization (Pokemon GO pattern).
+        /// Called when player gets close enough and coin appears in AR view.
+        /// </summary>
+        private void OnCoinMaterialized(CoinController coin)
+        {
+            Log($"Coin materialized! {coin.CoinData?.GetDisplayValue()}");
+            
+            // Show exciting message
+            ShowMessage("A Gold Doubloon appears! Walk closer to collect!");
+            
+            // Update crosshairs to show target acquired
+            if (crosshairs != null)
+            {
+                crosshairs.SetState(CrosshairsState.Hovering);
+            }
         }
         
         #endregion
