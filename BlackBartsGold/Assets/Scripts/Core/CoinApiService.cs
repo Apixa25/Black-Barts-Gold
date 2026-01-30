@@ -257,12 +257,19 @@ namespace BlackBartsGold.Core
         /// </summary>
         public async Task<CoinCollectionResponse> CollectCoin(string coinId)
         {
-            Debug.Log($"[CoinApiService] 💰 Collecting coin: {coinId}");
+            Debug.Log($"[CoinApiService] ═══════════════════════════════════════════════════════════");
+            Debug.Log($"[CoinApiService] 💰 COLLECT COIN API CALL STARTING");
+            Debug.Log($"[CoinApiService]   CoinID: {coinId}");
+            Debug.Log($"[CoinApiService]   API Environment: {ApiConfig.CurrentEnvironment}");
+            Debug.Log($"[CoinApiService]   UseMockApi: {ApiConfig.UseMockApi}");
+            Debug.Log($"[CoinApiService]   Base URL: {ApiConfig.GetBaseUrl()}");
+            Debug.Log($"[CoinApiService] ═══════════════════════════════════════════════════════════");
             
             try
             {
                 if (ApiConfig.UseMockApi)
                 {
+                    Debug.Log($"[CoinApiService] ⚠️ MOCK MODE - Not calling real server!");
                     return await MockCollectCoin(coinId);
                 }
                 
@@ -275,35 +282,70 @@ namespace BlackBartsGold.Core
                     longitude = GetCurrentLongitude()
                 };
                 
-                Debug.Log($"[CoinApiService] 📡 Sending collection request: userId={requestBody.userId ?? "null"}, lat={requestBody.latitude:F6}, lng={requestBody.longitude:F6}");
-                
                 string endpoint = ApiConfig.Coins.GetCoinUrl(ApiConfig.Coins.COLLECT, coinId);
+                string fullUrl = ApiConfig.GetBaseUrl().TrimEnd('/') + "/" + endpoint.TrimStart('/');
+                
+                Debug.Log($"[CoinApiService] 📡 CALLING REAL SERVER:");
+                Debug.Log($"[CoinApiService]   Full URL: {fullUrl}");
+                Debug.Log($"[CoinApiService]   Method: POST");
+                Debug.Log($"[CoinApiService]   Body: coinId={requestBody.coinId}, userId={requestBody.userId ?? "null"}, lat={requestBody.latitude:F6}, lng={requestBody.longitude:F6}");
+                
                 var response = await ApiClient.Instance.Post<CoinCollectionResponse>(endpoint, requestBody);
                 
-                if (response != null && response.success)
+                Debug.Log($"[CoinApiService] 📥 RESPONSE RECEIVED!");
+                
+                if (response == null)
                 {
+                    Debug.LogError($"[CoinApiService] ❌ Response was NULL!");
+                    return null;
+                }
+                
+                Debug.Log($"[CoinApiService]   Success: {response.success}");
+                Debug.Log($"[CoinApiService]   Value: ${response.value:F2}");
+                Debug.Log($"[CoinApiService]   Message: {response.message ?? "null"}");
+                Debug.Log($"[CoinApiService]   MultiFind: {response.isMultiFind}");
+                Debug.Log($"[CoinApiService]   FindsRemaining: {response.findsRemaining}");
+                Debug.Log($"[CoinApiService]   FullyCollected: {response.fullyCollected}");
+                
+                if (response.success)
+                {
+                    Debug.Log($"[CoinApiService] ✅ SERVER CONFIRMED COLLECTION!");
+                    
                     // Remove from cache (unless it's a multi-find coin with remaining finds)
                     if (!response.isMultiFind || response.fullyCollected)
                     {
                         RemoveFromCache(coinId);
                     }
                     OnCoinCollected?.Invoke(response.coin, response.value);
-                    
-                    Debug.Log($"[CoinApiService] ✅ Collection confirmed! Value: ${response.value:F2}, MultiFind: {response.isMultiFind}, Remaining: {response.findsRemaining}");
+                }
+                else
+                {
+                    Debug.LogWarning($"[CoinApiService] ⚠️ Server returned success=false: {response.message}");
                 }
                 
+                Debug.Log($"[CoinApiService] ═══════════════════════════════════════════════════════════");
                 return response;
             }
-            catch (NotFoundException)
+            catch (NotFoundException ex)
             {
-                Debug.LogWarning($"[CoinApiService] Coin {coinId} not found - may have been collected");
+                Debug.LogError($"[CoinApiService] ❌ NOT FOUND: Coin {coinId} not found on server");
+                Debug.LogError($"[CoinApiService]   Exception: {ex.Message}");
                 RemoveFromCache(coinId);
                 throw;
             }
             catch (ApiException ex)
             {
-                Debug.LogError($"[CoinApiService] Error collecting coin: {ex.Message}");
+                Debug.LogError($"[CoinApiService] ❌ API ERROR: {ex.Message}");
+                Debug.LogError($"[CoinApiService]   Status Code: {ex.StatusCode}");
+                Debug.LogError($"[CoinApiService]   User Message: {ex.UserMessage}");
                 OnApiError?.Invoke(ex.UserMessage);
+                throw;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[CoinApiService] ❌ UNEXPECTED ERROR: {ex.GetType().Name}");
+                Debug.LogError($"[CoinApiService]   Message: {ex.Message}");
+                Debug.LogError($"[CoinApiService]   Stack: {ex.StackTrace}");
                 throw;
             }
         }
