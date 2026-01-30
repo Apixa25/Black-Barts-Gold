@@ -839,6 +839,8 @@ namespace BlackBartsGold.AR
         
         private IEnumerator CollectionAnimation()
         {
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: CollectionAnimation STARTED");
+            
             float duration = 0.8f;
             float timer = 0f;
             
@@ -871,7 +873,10 @@ namespace BlackBartsGold.AR
                 yield return null;
             }
             
-            // Collection complete - coin controller handles the rest
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: CollectionAnimation FINISHED, resetting mode");
+            
+            // Collection complete - reset to Hidden mode so we can select new coins
+            SetMode(CoinDisplayMode.Hidden);
             SetVisibility(false);
         }
         
