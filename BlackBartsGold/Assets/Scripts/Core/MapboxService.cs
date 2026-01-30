@@ -37,7 +37,7 @@ namespace BlackBartsGold.Core
         
         [Header("Map Style")]
         [Tooltip("Mapbox style ID - see mapbox.com/studio for options")]
-        [SerializeField] private MapStyle mapStyle = MapStyle.Streets;
+        [SerializeField] private MapStyle mapStyle = MapStyle.Outdoors; // Better contrast than Streets
         
         [Header("Cache Settings")]
         [SerializeField] private bool enableCache = true;

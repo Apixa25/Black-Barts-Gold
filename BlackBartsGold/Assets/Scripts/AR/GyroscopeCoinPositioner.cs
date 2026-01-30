@@ -15,6 +15,7 @@
 // This approach works WITHOUT ARCore tracking!
 // ============================================================================
 
+using System.Collections;
 using UnityEngine;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core.Models;
@@ -60,8 +61,8 @@ namespace BlackBartsGold.AR
             // Enable gyroscope
             EnableGyroscope();
             
-            // Enable compass
-            Input.compass.enabled = true;
+            // Enable compass - IMPORTANT: Start location service first on Android
+            StartCoroutine(EnableCompassCoroutine());
             
             // Find camera
             arCamera = Camera.main;
@@ -84,7 +85,41 @@ namespace BlackBartsGold.AR
                 }
             }
             
-            Debug.Log($"[GyroscopeCoinPositioner] Started. Gyro={gyroEnabled}, Compass={Input.compass.enabled}");
+            Debug.Log($"[GyroscopeCoinPositioner] Started. Gyro={gyroEnabled}");
+        }
+        
+        private System.Collections.IEnumerator EnableCompassCoroutine()
+        {
+            // Start location service first - required on some Android devices
+            if (!Input.location.isEnabledByUser)
+            {
+                Debug.LogWarning("[GyroscopeCoinPositioner] Location not enabled by user!");
+            }
+            
+            if (Input.location.status == LocationServiceStatus.Stopped)
+            {
+                Input.location.Start(1f, 0.1f);
+                Debug.Log("[GyroscopeCoinPositioner] Starting location service for compass...");
+                
+                // Wait for location to initialize
+                int maxWait = 15;
+                while (Input.location.status == LocationServiceStatus.Initializing && maxWait > 0)
+                {
+                    yield return new WaitForSeconds(1);
+                    maxWait--;
+                }
+            }
+            
+            // Now enable compass
+            Input.compass.enabled = true;
+            
+            // Wait a moment for compass to warm up
+            yield return new WaitForSeconds(0.5f);
+            
+            Debug.Log($"[GyroscopeCoinPositioner] Compass status: enabled={Input.compass.enabled}, " +
+                      $"trueHeading={Input.compass.trueHeading:F1}, " +
+                      $"magneticHeading={Input.compass.magneticHeading:F1}, " +
+                      $"timestamp={Input.compass.timestamp}");
         }
         
         private void EnableGyroscope()
@@ -181,24 +216,50 @@ namespace BlackBartsGold.AR
         /// </summary>
         private float GetDeviceHeading()
         {
-            // Try compass first (more accurate for heading)
+            // Method 1: Try compass first (most accurate for absolute heading)
             if (Input.compass.enabled)
             {
                 float heading = Input.compass.trueHeading;
-                if (heading == 0)
+                if (heading == 0 || float.IsNaN(heading))
                 {
                     heading = Input.compass.magneticHeading;
                 }
+                
+                // If compass is giving real data, use it
+                if (heading != 0 && !float.IsNaN(heading))
+                {
+                    return heading;
+                }
+            }
+            
+            // Method 2: Gyroscope with proper coordinate conversion for Android
+            if (gyroEnabled && gyro != null)
+            {
+                // Unity's gyro uses a right-handed coordinate system
+                // Need to convert to get heading (Y-axis rotation)
+                Quaternion gyroAttitude = gyro.attitude;
+                
+                // Apply rotation fix for Android (90 degree X rotation)
+                // This converts from gyro space to Unity world space
+                Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
+                Quaternion camRot = rotFix * new Quaternion(gyroAttitude.x, gyroAttitude.y, -gyroAttitude.z, -gyroAttitude.w);
+                
+                // Extract heading (yaw)
+                float heading = camRot.eulerAngles.y;
+                
+                // Debug periodically
+                if (debugMode && Time.frameCount % 300 == 0)
+                {
+                    Debug.Log($"[GyroscopeCoinPositioner] GYRO: attitude={gyroAttitude.eulerAngles}, converted heading={heading:F1}°");
+                }
+                
                 return heading;
             }
             
-            // Fallback to gyroscope
-            if (gyroEnabled)
+            // Method 3: Camera Y rotation (last resort, works if AR is tracking)
+            if (arCamera != null)
             {
-                // Get gyro rotation and extract yaw
-                Quaternion q = gyro.attitude;
-                Vector3 euler = q.eulerAngles;
-                return euler.y;
+                return arCamera.transform.eulerAngles.y;
             }
             
             return 0f;
