@@ -12,6 +12,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
@@ -426,10 +427,39 @@ namespace BlackBartsGold.UI
             }
             
             ClearSelection();
-            RefreshMap();
+            
+            // Start coroutine to wait for GPS if needed
+            StartCoroutine(ShowWithGPSWait());
             
             Log("Map opened");
             OnMapOpened?.Invoke();
+        }
+        
+        /// <summary>
+        /// Wait for GPS to be ready before refreshing the map.
+        /// This fixes the "click twice to load" bug.
+        /// </summary>
+        private System.Collections.IEnumerator ShowWithGPSWait()
+        {
+            LocationData playerLocation = GetPlayerLocation();
+            
+            // If GPS not ready, wait up to 2 seconds
+            float waitTime = 0f;
+            float maxWait = 2f;
+            
+            while (playerLocation == null && waitTime < maxWait)
+            {
+                yield return new WaitForSeconds(0.1f);
+                waitTime += 0.1f;
+                playerLocation = GetPlayerLocation();
+            }
+            
+            if (playerLocation == null)
+            {
+                Log("GPS not ready after waiting - showing map anyway");
+            }
+            
+            RefreshMap();
         }
         
         /// <summary>

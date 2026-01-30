@@ -166,29 +166,29 @@ namespace BlackBartsGold.AR
         /// </summary>
         private float GetDeviceHeading()
         {
-            // Method 1: Try compass
+            // Method 1: Try compass (most accurate for absolute heading)
             float compassHeading = Input.compass.trueHeading;
-            if (compassHeading == 0)
+            if (compassHeading == 0 || float.IsNaN(compassHeading))
             {
                 compassHeading = Input.compass.magneticHeading;
             }
             
             // If compass is working (not stuck at 0), use it
-            if (compassHeading != 0)
+            if (compassHeading != 0 && !float.IsNaN(compassHeading))
             {
                 return compassHeading;
             }
             
-            // Method 2: Use gyroscope attitude
+            // Method 2: Use gyroscope attitude with proper Android coordinate fix
             if (SystemInfo.supportsGyroscope && Input.gyro.enabled)
             {
-                // Get gyro rotation and convert to heading
+                // Get gyro rotation
                 Quaternion gyroAttitude = Input.gyro.attitude;
                 
-                // Convert gyro attitude to euler angles
-                // Gyro uses different coordinate system, need to convert
+                // Apply rotation fix for Android
+                // Unity's gyro uses right-handed coords, need to convert to Unity world space
                 Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
-                Quaternion camRotation = rotFix * gyroAttitude;
+                Quaternion camRotation = rotFix * new Quaternion(gyroAttitude.x, gyroAttitude.y, -gyroAttitude.z, -gyroAttitude.w);
                 
                 // Extract Y rotation (yaw) as heading
                 float gyroHeading = camRotation.eulerAngles.y;
