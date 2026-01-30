@@ -421,45 +421,87 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void Show()
         {
-            if (mapPanel != null)
-            {
-                mapPanel.SetActive(true);
-            }
-            
-            ClearSelection();
-            
-            // Start coroutine to wait for GPS if needed
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Show() called");
+            // Start coroutine to wait for GPS then show map
             StartCoroutine(ShowWithGPSWait());
-            
-            Log("Map opened");
-            OnMapOpened?.Invoke();
         }
         
         /// <summary>
-        /// Wait for GPS to be ready before refreshing the map.
+        /// Wait for GPS to be ready before showing the map.
         /// This fixes the "click twice to load" bug.
         /// </summary>
         private System.Collections.IEnumerator ShowWithGPSWait()
         {
-            LocationData playerLocation = GetPlayerLocation();
+            float startTime = Time.realtimeSinceStartup;
+            Debug.Log($"[FullMapUI] T+{startTime:F2}s: ShowWithGPSWait coroutine STARTED");
             
-            // If GPS not ready, wait up to 2 seconds
+            // Check initial GPS state
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: GPSManager.Exists={GPSManager.Exists}");
+            if (GPSManager.Exists)
+            {
+                Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: GPSManager.Instance.IsTracking={GPSManager.Instance.IsTracking}");
+                Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: GPSManager.Instance.ServiceState={GPSManager.Instance.ServiceState}");
+            }
+            
+            LocationData playerLocation = GetPlayerLocation();
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Initial GetPlayerLocation() = {(playerLocation != null ? $"valid ({playerLocation.latitude:F6}, {playerLocation.longitude:F6})" : "NULL")}");
+            
+            // If GPS not ready, wait up to 3 seconds
             float waitTime = 0f;
-            float maxWait = 2f;
+            float maxWait = 3f;
             
             while (playerLocation == null && waitTime < maxWait)
             {
                 yield return new WaitForSeconds(0.1f);
                 waitTime += 0.1f;
                 playerLocation = GetPlayerLocation();
+                
+                // Log every 0.5 seconds
+                if (waitTime % 0.5f < 0.1f)
+                {
+                    Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Waiting for GPS... ({waitTime:F1}s/{maxWait:F0}s), location={(playerLocation != null ? "READY" : "null")}");
+                }
             }
             
             if (playerLocation == null)
             {
-                Log("GPS not ready after waiting - showing map anyway");
+                Debug.LogWarning($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: GPS NOT READY after {waitTime:F1}s! Showing map anyway...");
+                
+                // Extra debugging - why is GPS not ready?
+                if (GPSManager.Exists)
+                {
+                    Debug.LogWarning($"[FullMapUI]   - IsTracking: {GPSManager.Instance.IsTracking}");
+                    Debug.LogWarning($"[FullMapUI]   - ServiceState: {GPSManager.Instance.ServiceState}");
+                    Debug.LogWarning($"[FullMapUI]   - CurrentLocation: {(GPSManager.Instance.CurrentLocation != null ? "exists" : "NULL")}");
+                    Debug.LogWarning($"[FullMapUI]   - Input.location.status: {Input.location.status}");
+                }
+            }
+            else
+            {
+                Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: GPS READY after {waitTime:F1}s! Lat={playerLocation.latitude:F6}, Lng={playerLocation.longitude:F6}");
             }
             
+            // NOW show the panel and load data
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Activating map panel...");
+            if (mapPanel != null)
+            {
+                mapPanel.SetActive(true);
+                Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Map panel activated");
+            }
+            else
+            {
+                Debug.LogError($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: mapPanel is NULL!");
+            }
+            
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Calling ClearSelection()...");
+            ClearSelection();
+            
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Calling RefreshMap()...");
             RefreshMap();
+            
+            float totalTime = Time.realtimeSinceStartup - startTime;
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Map opened! Total show time: {totalTime:F2}s");
+            OnMapOpened?.Invoke();
         }
         
         /// <summary>
@@ -496,16 +538,34 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void RefreshMap()
         {
-            if (!CoinManager.Exists) return;
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: RefreshMap() called");
+            
+            if (!CoinManager.Exists)
+            {
+                Debug.LogWarning($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: RefreshMap - CoinManager does not exist!");
+                return;
+            }
             
             var knownCoins = CoinManager.Instance.KnownCoins;
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: RefreshMap - KnownCoins count: {knownCoins?.Count ?? 0}");
+            
             LocationData playerLocation = GetPlayerLocation();
             
             if (playerLocation == null)
             {
-                Log("No player location for map");
+                Debug.LogWarning($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: RefreshMap - playerLocation is NULL, cannot refresh!");
+                
+                // Extra debug info
+                if (GPSManager.Exists)
+                {
+                    Debug.LogWarning($"[FullMapUI]   - GPSManager.IsTracking: {GPSManager.Instance.IsTracking}");
+                    Debug.LogWarning($"[FullMapUI]   - GPSManager.CurrentLocation: {(GPSManager.Instance.CurrentLocation != null ? "exists" : "NULL")}");
+                }
+                
                 return;
             }
+            
+            Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: RefreshMap - playerLocation valid: {playerLocation.latitude:F6}, {playerLocation.longitude:F6}");
             
             // Update header info
             UpdateHeaderInfo(knownCoins);

@@ -54,9 +54,14 @@ namespace BlackBartsGold.AR
         private float bearingToTarget = 0f;
         private float gpsDistance = 0f;
         
+        // Smoothed heading to reduce jitter from accelerometer
+        private float smoothedHeading = 0f;
+        private float headingSmoothVelocity = 0f;
+        private const float HEADING_SMOOTH_TIME = 0.3f; // Smooth over 0.3 seconds
+        
         private void Start()
         {
-            Debug.Log("[GyroscopeCoinPositioner] Starting...");
+            Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Start() BEGIN");
             
             // Enable gyroscope
             EnableGyroscope();
@@ -69,6 +74,11 @@ namespace BlackBartsGold.AR
             if (arCamera != null)
             {
                 cameraTransform = arCamera.transform;
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Camera found: {arCamera.name}");
+            }
+            else
+            {
+                Debug.LogWarning($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Camera.main is NULL!");
             }
             
             // Subscribe to target changes
@@ -82,58 +92,98 @@ namespace BlackBartsGold.AR
                 {
                     var coin = CoinManager.Instance.TargetCoinData;
                     SetTarget(coin.latitude, coin.longitude);
+                    Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Already had target: {coin.latitude:F6}, {coin.longitude:F6}");
+                }
+                else
+                {
+                    Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: No existing target");
                 }
             }
+            else
+            {
+                Debug.LogWarning($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: CoinManager does NOT exist!");
+            }
             
-            Debug.Log($"[GyroscopeCoinPositioner] Started. Gyro={gyroEnabled}");
+            Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Start() END. Gyro={gyroEnabled}, Camera={(arCamera != null ? "OK" : "NULL")}");
         }
         
         private System.Collections.IEnumerator EnableCompassCoroutine()
         {
-            // Start location service first - required on some Android devices
+            float startTime = Time.realtimeSinceStartup;
+            Debug.Log($"[GyroscopeCoinPositioner] T+{startTime:F2}s: EnableCompassCoroutine BEGIN");
+            
+            // Check current location service state
+            Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Input.location.isEnabledByUser={Input.location.isEnabledByUser}");
+            Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Input.location.status={Input.location.status}");
+            
             if (!Input.location.isEnabledByUser)
             {
-                Debug.LogWarning("[GyroscopeCoinPositioner] Location not enabled by user!");
+                Debug.LogWarning($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Location NOT enabled by user!");
             }
             
             if (Input.location.status == LocationServiceStatus.Stopped)
             {
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Location stopped, calling Input.location.Start()...");
                 Input.location.Start(1f, 0.1f);
-                Debug.Log("[GyroscopeCoinPositioner] Starting location service for compass...");
                 
                 // Wait for location to initialize
                 int maxWait = 15;
+                int waitCount = 0;
                 while (Input.location.status == LocationServiceStatus.Initializing && maxWait > 0)
                 {
                     yield return new WaitForSeconds(1);
                     maxWait--;
+                    waitCount++;
+                    Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Waiting for location... ({waitCount}s), status={Input.location.status}");
                 }
+                
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Location init done after {waitCount}s, status={Input.location.status}");
+            }
+            else
+            {
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Location already running, status={Input.location.status}");
             }
             
             // Now enable compass
+            Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Enabling compass...");
             Input.compass.enabled = true;
             
             // Wait a moment for compass to warm up
             yield return new WaitForSeconds(0.5f);
             
-            Debug.Log($"[GyroscopeCoinPositioner] Compass status: enabled={Input.compass.enabled}, " +
-                      $"trueHeading={Input.compass.trueHeading:F1}, " +
-                      $"magneticHeading={Input.compass.magneticHeading:F1}, " +
-                      $"timestamp={Input.compass.timestamp}");
+            float elapsed = Time.realtimeSinceStartup - startTime;
+            Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Compass status after {elapsed:F1}s:");
+            Debug.Log($"[GyroscopeCoinPositioner]   - enabled: {Input.compass.enabled}");
+            Debug.Log($"[GyroscopeCoinPositioner]   - trueHeading: {Input.compass.trueHeading:F1}°");
+            Debug.Log($"[GyroscopeCoinPositioner]   - magneticHeading: {Input.compass.magneticHeading:F1}°");
+            Debug.Log($"[GyroscopeCoinPositioner]   - rawVector: {Input.compass.rawVector}");
+            Debug.Log($"[GyroscopeCoinPositioner]   - timestamp: {Input.compass.timestamp}");
+            Debug.Log($"[GyroscopeCoinPositioner]   - headingAccuracy: {Input.compass.headingAccuracy}");
+            
+            bool compassWorking = Input.compass.trueHeading != 0 || Input.compass.magneticHeading != 0;
+            Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Compass WORKING: {compassWorking}");
         }
         
         private void EnableGyroscope()
         {
+            Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: EnableGyroscope() - SystemInfo.supportsGyroscope={SystemInfo.supportsGyroscope}");
+            
             if (SystemInfo.supportsGyroscope)
             {
                 gyro = Input.gyro;
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Input.gyro.enabled BEFORE: {gyro.enabled}");
+                
                 gyro.enabled = true;
                 gyroEnabled = true;
-                Debug.Log("[GyroscopeCoinPositioner] Gyroscope enabled");
+                
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Input.gyro.enabled AFTER: {gyro.enabled}");
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Initial gyro.attitude: {gyro.attitude.eulerAngles}");
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Initial gyro.gravity: {gyro.gravity}");
+                Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Gyroscope ENABLED successfully");
             }
             else
             {
-                Debug.LogWarning("[GyroscopeCoinPositioner] Gyroscope NOT supported!");
+                Debug.LogWarning($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Gyroscope NOT supported on this device!");
             }
         }
         
@@ -212,9 +262,23 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Get device heading using compass, gyroscope, or accelerometer
+        /// Get device heading using compass, gyroscope, or accelerometer.
+        /// Returns a SMOOTHED heading to reduce jitter.
         /// </summary>
         private float GetDeviceHeading()
+        {
+            float rawHeading = GetRawDeviceHeading();
+            
+            // Apply smoothing using SmoothDampAngle (handles angle wrapping)
+            smoothedHeading = Mathf.SmoothDampAngle(smoothedHeading, rawHeading, ref headingSmoothVelocity, HEADING_SMOOTH_TIME);
+            
+            return smoothedHeading;
+        }
+        
+        /// <summary>
+        /// Get raw device heading without smoothing
+        /// </summary>
+        private float GetRawDeviceHeading()
         {
             // Method 1: Try compass first (most accurate for absolute heading)
             if (Input.compass.enabled)
@@ -244,11 +308,10 @@ namespace BlackBartsGold.AR
                 // Debug periodically  
                 if (debugMode && Time.frameCount % 300 == 0)
                 {
-                    Debug.Log($"[GyroscopeCoinPositioner] ACCEL: {accel}, tiltAngle={tiltAngle:F1}°");
+                    Debug.Log($"[GyroscopeCoinPositioner] ACCEL: {accel}, tiltAngle={tiltAngle:F1}°, smoothed={smoothedHeading:F1}°");
                 }
                 
                 // Use tilt as a rough heading indicator
-                // This won't give true north, but will respond to rotation
                 return tiltAngle;
             }
             
