@@ -13,6 +13,7 @@ using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using BlackBartsGold.Core.Models;
+using BlackBartsGold.Location;
 
 namespace BlackBartsGold.Core
 {
@@ -252,7 +253,7 @@ namespace BlackBartsGold.Core
         #region Collect Coin
         
         /// <summary>
-        /// Collect a coin
+        /// Collect a coin - reports collection to the server
         /// </summary>
         public async Task<CoinCollectionResponse> CollectCoin(string coinId)
         {
@@ -265,14 +266,30 @@ namespace BlackBartsGold.Core
                     return await MockCollectCoin(coinId);
                 }
                 
+                // Build request with user and location data
+                var requestBody = new CollectCoinRequest
+                {
+                    coinId = coinId,
+                    userId = GetCurrentUserId(),
+                    latitude = GetCurrentLatitude(),
+                    longitude = GetCurrentLongitude()
+                };
+                
+                Debug.Log($"[CoinApiService] 📡 Sending collection request: userId={requestBody.userId ?? "null"}, lat={requestBody.latitude:F6}, lng={requestBody.longitude:F6}");
+                
                 string endpoint = ApiConfig.Coins.GetCoinUrl(ApiConfig.Coins.COLLECT, coinId);
-                var response = await ApiClient.Instance.Post<CoinCollectionResponse>(endpoint, new { coinId });
+                var response = await ApiClient.Instance.Post<CoinCollectionResponse>(endpoint, requestBody);
                 
                 if (response != null && response.success)
                 {
-                    // Remove from cache
-                    RemoveFromCache(coinId);
+                    // Remove from cache (unless it's a multi-find coin with remaining finds)
+                    if (!response.isMultiFind || response.fullyCollected)
+                    {
+                        RemoveFromCache(coinId);
+                    }
                     OnCoinCollected?.Invoke(response.coin, response.value);
+                    
+                    Debug.Log($"[CoinApiService] ✅ Collection confirmed! Value: ${response.value:F2}, MultiFind: {response.isMultiFind}, Remaining: {response.findsRemaining}");
                 }
                 
                 return response;
@@ -289,6 +306,42 @@ namespace BlackBartsGold.Core
                 OnApiError?.Invoke(ex.UserMessage);
                 throw;
             }
+        }
+        
+        /// <summary>
+        /// Get current user ID from PlayerData
+        /// </summary>
+        private string GetCurrentUserId()
+        {
+            if (PlayerData.Exists && PlayerData.Instance.CurrentUser != null)
+            {
+                return PlayerData.Instance.CurrentUser.id;
+            }
+            return null;
+        }
+        
+        /// <summary>
+        /// Get current latitude from GPS
+        /// </summary>
+        private double GetCurrentLatitude()
+        {
+            if (GPSManager.Exists && GPSManager.Instance.CurrentLocation != null)
+            {
+                return GPSManager.Instance.CurrentLocation.latitude;
+            }
+            return 0;
+        }
+        
+        /// <summary>
+        /// Get current longitude from GPS
+        /// </summary>
+        private double GetCurrentLongitude()
+        {
+            if (GPSManager.Exists && GPSManager.Instance.CurrentLocation != null)
+            {
+                return GPSManager.Instance.CurrentLocation.longitude;
+            }
+            return 0;
         }
         
         /// <summary>
@@ -580,6 +633,27 @@ namespace BlackBartsGold.Core
         public Coin coin;
         public float value;
         public string message;
+        
+        // Multi-find coin support
+        public bool isMultiFind;
+        public int findsRemaining;
+        public bool fullyCollected;
+        
+        // Pool coin info
+        public float originalValue;
+        public bool wasPoolCoin;
+    }
+    
+    /// <summary>
+    /// Request to collect a coin
+    /// </summary>
+    [Serializable]
+    public class CollectCoinRequest
+    {
+        public string coinId;
+        public string userId;
+        public double latitude;
+        public double longitude;
     }
     
     /// <summary>
