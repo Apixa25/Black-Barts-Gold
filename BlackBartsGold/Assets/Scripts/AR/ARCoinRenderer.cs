@@ -503,6 +503,58 @@ namespace BlackBartsGold.AR
             }
         }
         
+        // For tracking camera movement to detect AR failure
+        private Vector3 lastCameraPosition = Vector3.zero;
+        private float cameraStationaryTime = 0f;
+        private const float CAMERA_STATIONARY_THRESHOLD = 3f; // seconds
+        
+        /// <summary>
+        /// Continuously check AR state and camera movement.
+        /// If AR stops working (camera not moving), switch to gyroscope.
+        /// </summary>
+        private void ContinuousARStateCheck()
+        {
+            if (cameraTransform == null) return;
+            
+            // Check AR session state
+            var arState = UnityEngine.XR.ARFoundation.ARSession.state;
+            bool arTracking = arState == UnityEngine.XR.ARFoundation.ARSessionState.SessionTracking;
+            
+            // Check if camera is moving (AR actually working)
+            float cameraMoved = Vector3.Distance(cameraTransform.position, lastCameraPosition);
+            
+            if (cameraMoved < 0.001f)
+            {
+                cameraStationaryTime += Time.deltaTime;
+            }
+            else
+            {
+                cameraStationaryTime = 0f;
+                lastCameraPosition = cameraTransform.position;
+            }
+            
+            // If AR state is not tracking OR camera hasn't moved in a while, use gyro
+            bool shouldUseGyro = !arTracking || cameraStationaryTime > CAMERA_STATIONARY_THRESHOLD;
+            
+            // Switch to gyro if needed (but don't switch back to AR once we're on gyro)
+            if (shouldUseGyro && !useGyroPositioning)
+            {
+                Debug.LogWarning($"[ARCoinRenderer] SWITCHING TO GYRO: arState={arState}, cameraStationary={cameraStationaryTime:F1}s");
+                useGyroPositioning = true;
+                
+                // Add gyroscope positioner if not present
+                if (gyroPositioner == null)
+                {
+                    gyroPositioner = GetComponent<GyroscopeCoinPositioner>();
+                    if (gyroPositioner == null)
+                    {
+                        gyroPositioner = gameObject.AddComponent<GyroscopeCoinPositioner>();
+                        Debug.Log("[ARCoinRenderer] Added GyroscopeCoinPositioner component");
+                    }
+                }
+            }
+        }
+        
         /// <summary>
         /// Calculate where coin should materialize.
         /// Uses gyroscope+compass when AR tracking isn't available.
@@ -586,6 +638,12 @@ namespace BlackBartsGold.AR
         private void UpdateVisibleCoin()
         {
             if (coinVisual == null) return;
+            
+            // ================================================================
+            // CONTINUOUS AR STATE CHECK - Enable gyro if AR stops working
+            // This fixes the issue where AR briefly tracks then stops
+            // ================================================================
+            ContinuousARStateCheck();
             
             // Log camera position periodically to verify AR tracking
             if (debugMode && Time.frameCount % 180 == 0)

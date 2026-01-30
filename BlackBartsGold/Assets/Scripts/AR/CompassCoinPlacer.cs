@@ -179,24 +179,31 @@ namespace BlackBartsGold.AR
                 return compassHeading;
             }
             
-            // Method 2: Use gyroscope attitude with proper Android coordinate fix
-            if (SystemInfo.supportsGyroscope && Input.gyro.enabled)
+            // Method 2: Use accelerometer to detect device rotation
+            // ARCore takes over the gyro, but accelerometer still works
+            Vector3 accel = Input.acceleration;
+            if (accel.sqrMagnitude > 0.01f)
             {
-                // Get gyro rotation
-                Quaternion gyroAttitude = Input.gyro.attitude;
-                
-                // Apply rotation fix for Android
-                // Unity's gyro uses right-handed coords, need to convert to Unity world space
-                Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
-                Quaternion camRotation = rotFix * new Quaternion(gyroAttitude.x, gyroAttitude.y, -gyroAttitude.z, -gyroAttitude.w);
-                
-                // Extract Y rotation (yaw) as heading
-                float gyroHeading = camRotation.eulerAngles.y;
-                
-                return gyroHeading;
+                // Get tilt angle from accelerometer
+                float tiltAngle = Mathf.Atan2(accel.x, -accel.z) * Mathf.Rad2Deg;
+                return tiltAngle;
             }
             
-            // Method 3: Use camera's Y rotation (last resort)
+            // Method 3: Use gyroscope if available and returning data
+            if (SystemInfo.supportsGyroscope && Input.gyro.enabled)
+            {
+                Quaternion gyroAttitude = Input.gyro.attitude;
+                
+                // Check if gyro is actually returning data
+                if (gyroAttitude.x != 0 || gyroAttitude.y != 0 || gyroAttitude.z != 0)
+                {
+                    Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
+                    Quaternion camRotation = rotFix * new Quaternion(gyroAttitude.x, gyroAttitude.y, -gyroAttitude.z, -gyroAttitude.w);
+                    return camRotation.eulerAngles.y;
+                }
+            }
+            
+            // Method 4: Use camera's Y rotation (last resort)
             if (arCamera != null)
             {
                 return arCamera.transform.eulerAngles.y;
