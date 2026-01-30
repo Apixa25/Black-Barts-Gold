@@ -214,7 +214,41 @@ export async function POST(
     }
     
     // Log the collection
-    console.log(`[API] Coin collected: ${coinId}, value: $${finalValue.toFixed(2)}`)
+    console.log(`[API] Coin collected: ${coinId}, value: $${finalValue.toFixed(2)}, multiFind: ${coin.multi_find}, remaining: ${newFindsRemaining}`)
+    
+    // Create a transaction record for tracking (if user provided)
+    if (body.userId) {
+      try {
+        const { error: txError } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: body.userId,
+            transaction_type: 'found',
+            amount: finalValue,
+            balance_after: 0, // Will be updated by trigger or app
+            coin_id: coinId,
+            description: `Found ${coin.multi_find ? 'multi-find ' : ''}coin: $${finalValue.toFixed(2)}`,
+            status: 'confirmed',
+            metadata: {
+              coin_type: coin.coin_type,
+              original_value: coin.value,
+              tier: coin.tier,
+              multi_find: coin.multi_find,
+              finds_remaining: newFindsRemaining,
+              location: { lat: coin.latitude, lng: coin.longitude },
+            },
+          })
+        
+        if (txError) {
+          console.error('[API] Failed to create transaction record:', txError)
+          // Don't fail the collection if transaction logging fails
+        } else {
+          console.log(`[API] Transaction recorded for user ${body.userId}`)
+        }
+      } catch (txEx) {
+        console.error('[API] Exception creating transaction:', txEx)
+      }
+    }
     
     // Generate congratulation message
     const messages = [
