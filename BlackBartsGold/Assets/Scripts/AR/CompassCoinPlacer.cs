@@ -51,10 +51,19 @@ namespace BlackBartsGold.AR
             
             // Enable sensors
             Input.compass.enabled = true;
+            Input.location.Start(); // Location might be needed for compass on some devices
+            
             if (SystemInfo.supportsGyroscope)
             {
                 Input.gyro.enabled = true;
+                Debug.Log($"[CompassCoinPlacer] Gyroscope enabled: {Input.gyro.enabled}");
             }
+            else
+            {
+                Debug.LogWarning("[CompassCoinPlacer] Gyroscope NOT supported on this device!");
+            }
+            
+            Debug.Log($"[CompassCoinPlacer] Compass enabled: {Input.compass.enabled}, Gyro supported: {SystemInfo.supportsGyroscope}");
             
             // Find camera
             arCamera = Camera.main;
@@ -128,16 +137,12 @@ namespace BlackBartsGold.AR
                 targetLat, targetLon
             );
             
-            // Get compass heading (where phone is pointing)
-            float compassHeading = Input.compass.trueHeading;
-            if (compassHeading == 0)
-            {
-                compassHeading = Input.compass.magneticHeading;
-            }
+            // Get device heading - TRY MULTIPLE METHODS
+            float deviceHeading = GetDeviceHeading();
             
             // Calculate relative bearing
             // 0 = target straight ahead, 90 = target to right, -90 = target to left
-            float relativeBearing = bearingToTarget - compassHeading;
+            float relativeBearing = bearingToTarget - deviceHeading;
             
             // Normalize to -180 to 180
             while (relativeBearing > 180) relativeBearing -= 360;
@@ -152,8 +157,52 @@ namespace BlackBartsGold.AR
                 lastLogTime = Time.time;
                 float gpsDistance = (float)GeoUtils.CalculateDistance(
                     playerLoc.latitude, playerLoc.longitude, targetLat, targetLon);
-                Debug.Log($"[CompassCoinPlacer] Bearing={bearingToTarget:F0}°, Compass={compassHeading:F0}°, Relative={relativeBearing:F0}°, GPS={gpsDistance:F1}m");
+                Debug.Log($"[CompassCoinPlacer] Bearing={bearingToTarget:F0}°, DeviceHeading={deviceHeading:F0}°, Relative={relativeBearing:F0}°, GPS={gpsDistance:F1}m");
             }
+        }
+        
+        /// <summary>
+        /// Get device heading using multiple fallback methods.
+        /// </summary>
+        private float GetDeviceHeading()
+        {
+            // Method 1: Try compass
+            float compassHeading = Input.compass.trueHeading;
+            if (compassHeading == 0)
+            {
+                compassHeading = Input.compass.magneticHeading;
+            }
+            
+            // If compass is working (not stuck at 0), use it
+            if (compassHeading != 0)
+            {
+                return compassHeading;
+            }
+            
+            // Method 2: Use gyroscope attitude
+            if (SystemInfo.supportsGyroscope && Input.gyro.enabled)
+            {
+                // Get gyro rotation and convert to heading
+                Quaternion gyroAttitude = Input.gyro.attitude;
+                
+                // Convert gyro attitude to euler angles
+                // Gyro uses different coordinate system, need to convert
+                Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
+                Quaternion camRotation = rotFix * gyroAttitude;
+                
+                // Extract Y rotation (yaw) as heading
+                float gyroHeading = camRotation.eulerAngles.y;
+                
+                return gyroHeading;
+            }
+            
+            // Method 3: Use camera's Y rotation (last resort)
+            if (arCamera != null)
+            {
+                return arCamera.transform.eulerAngles.y;
+            }
+            
+            return 0f;
         }
         
         private void PositionCoin(float relativeBearing)
