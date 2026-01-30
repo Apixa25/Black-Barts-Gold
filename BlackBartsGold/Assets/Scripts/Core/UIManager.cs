@@ -786,6 +786,9 @@ namespace BlackBartsGold.Core
             if (_simpleFullMapPanel == null)
             {
                 _simpleFullMapPanel = CreateSimpleFullMapPanel();
+                // IMPORTANT: Also load the map tile on first creation!
+                StartCoroutine(LoadFullMapTile());
+                Debug.Log("[UIManager] Panel created AND LoadFullMapTile started");
             }
             else
             {

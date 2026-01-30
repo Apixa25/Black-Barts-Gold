@@ -199,6 +199,9 @@ namespace BlackBartsGold.AR
             // Update visual state based on locked status
             UpdateVisualState();
             
+            // Check for stuck collection
+            CheckCollectionTimeout();
+            
             // Debug logging
             if (debugMode && Time.frameCount % 180 == 0)
             {
@@ -359,6 +362,7 @@ namespace BlackBartsGold.AR
         private void StartCollection()
         {
             IsCollecting = true;
+            collectionStartTime = Time.time;
             Log($"Collection started!");
             
             // Tell renderer to play collection animation
@@ -371,12 +375,26 @@ namespace BlackBartsGold.AR
             StartCoroutine(WaitForCollectionComplete());
         }
         
+        // Track when collection started for timeout
+        private float collectionStartTime;
+        private const float COLLECTION_TIMEOUT = 3f; // Force complete after 3 seconds
+        
         private System.Collections.IEnumerator WaitForCollectionComplete()
         {
             // Wait for collection animation
             yield return new WaitForSeconds(0.9f);
             
             FinishCollection();
+        }
+        
+        // Check for stuck collection in Update
+        private void CheckCollectionTimeout()
+        {
+            if (IsCollecting && !IsCollected && Time.time - collectionStartTime > COLLECTION_TIMEOUT)
+            {
+                Debug.LogWarning($"[CoinController] Collection TIMEOUT! Forcing completion after {COLLECTION_TIMEOUT}s");
+                FinishCollection();
+            }
         }
         
         private void FinishCollection()

@@ -180,18 +180,28 @@ export async function POST(
       finalValue = coin.value
     }
     
-    // Update coin status to collected
+    // Update coin status
     const now = new Date().toISOString()
+    
+    // Calculate new finds_remaining for multi-find coins
+    const newFindsRemaining = coin.multi_find 
+      ? Math.max(0, (coin.finds_remaining || 1) - 1)
+      : 0
+    
+    // Only set status to 'collected' if:
+    // - It's not a multi-find coin, OR
+    // - It IS a multi-find coin but no finds remaining
+    const newStatus = (coin.multi_find && newFindsRemaining > 0)
+      ? 'visible' // Multi-find coin still has finds remaining - keep visible
+      : 'collected'
+    
     const { error: updateError } = await supabase
       .from('coins')
       .update({
-        status: 'collected',
+        status: newStatus,
         collected_at: now,
         collected_by: body.userId || null,
-        // For multi-find coins, decrement finds_remaining
-        finds_remaining: coin.multi_find 
-          ? Math.max(0, (coin.finds_remaining || 1) - 1)
-          : 0,
+        finds_remaining: newFindsRemaining,
       })
       .eq('id', coinId)
     
@@ -219,9 +229,10 @@ export async function POST(
     // Convert to camelCase for Unity compatibility
     const updatedCoin = keysToCamelCase({
       ...coin,
-      status: 'collected',
+      status: newStatus,
       collected_at: now,
       collected_by: body.userId || null,
+      finds_remaining: newFindsRemaining,
     })
     
     return NextResponse.json({
@@ -231,6 +242,10 @@ export async function POST(
       originalValue: coin.value,
       wasPoolCoin: coin.coin_type === 'pool',
       message,
+      // Multi-find coin info
+      isMultiFind: coin.multi_find || false,
+      findsRemaining: newFindsRemaining,
+      fullyCollected: newStatus === 'collected',
     })
     
   } catch (error) {

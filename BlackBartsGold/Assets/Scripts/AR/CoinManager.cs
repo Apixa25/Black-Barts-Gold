@@ -635,12 +635,16 @@ namespace BlackBartsGold.AR
             float value = coin.CoinData?.value ?? 0f;
             string coinId = coin.CoinId;
             
-            Log($"TARGET COIN COLLECTED! Value: ${value:F2}");
+            Log($"TARGET COIN COLLECTED! Value: ${value:F2}, CoinID: {coinId}");
             
             // Set collecting mode
             SetHuntMode(HuntMode.Collecting);
             
-            // Add to wallet
+            // ===== REPORT COLLECTION TO SERVER =====
+            // This is critical! Without this, the same coin can be collected multiple times
+            ReportCoinCollection(coinId, value);
+            
+            // Add to wallet (pending until server confirms)
             if (PlayerData.Exists)
             {
                 PlayerData.Instance.AddPendingCoins(value, coinId);
@@ -656,6 +660,57 @@ namespace BlackBartsGold.AR
             // Return to pool after delay, then go back to map view
             StartCoroutine(HandleCollectionComplete(coin, 1.5f));
         }
+        
+        /// <summary>
+        /// Report coin collection to the server (admin dashboard/Supabase)
+        /// This prevents the same coin from being collected multiple times
+        /// </summary>
+        private async void ReportCoinCollection(string coinId, float expectedValue)
+        {
+            Log($"📡 REPORTING COLLECTION TO SERVER: {coinId}");
+            
+            try
+            {
+                if (!CoinApiService.Exists)
+                {
+                    Debug.LogWarning("[CoinManager] CoinApiService not available - collection not reported!");
+                    return;
+                }
+                
+                var response = await CoinApiService.Instance.CollectCoin(coinId);
+                
+                if (response != null && response.success)
+                {
+                    Log($"✅ SERVER CONFIRMED COLLECTION: ${response.value:F2}");
+                    
+                    // If server returned different value (pool coins), log it
+                    // Pool coins use a slot machine algorithm, so value may differ
+                    if (Mathf.Abs(response.value - expectedValue) > 0.01f)
+                    {
+                        Log($"💰 Server adjusted value: ${expectedValue:F2} → ${response.value:F2} (pool coin bonus!)");
+                        // TODO: Add wallet adjustment for pool coin value differences
+                    }
+                    
+                    // Fire event for any listeners
+                    OnCollectionReported?.Invoke(coinId, response.value, true);
+                }
+                else
+                {
+                    Debug.LogWarning($"[CoinManager] ⚠️ Server rejected collection: {response?.message ?? "unknown error"}");
+                    OnCollectionReported?.Invoke(coinId, 0, false);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[CoinManager] ❌ Failed to report collection: {ex.Message}");
+                // Collection still proceeds locally - will be synced later
+                // TODO: Add to offline queue for retry
+                OnCollectionReported?.Invoke(coinId, expectedValue, false);
+            }
+        }
+        
+        /// <summary>Event fired when collection is reported to server</summary>
+        public event System.Action<string, float, bool> OnCollectionReported;
         
         private System.Collections.IEnumerator HandleCollectionComplete(CoinController coin, float delay)
         {
