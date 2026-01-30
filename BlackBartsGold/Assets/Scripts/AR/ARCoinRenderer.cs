@@ -200,14 +200,27 @@ namespace BlackBartsGold.AR
         
         private void Start()
         {
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Start() BEGIN on {gameObject.name}");
+            
             // Get positioner - must be in Start() to ensure CoinController.Awake() has added it
             positioner = GetComponent<ARCoinPositioner>();
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Positioner={positioner != null}");
             
             // Start hidden - Direction Indicator guides player to us
             SetMode(CoinDisplayMode.Hidden);
             
-            // ALWAYS LOG at start for debugging
-            Debug.Log($"[ARCoinRenderer] STARTED! Settings={settings != null}, Positioner={positioner != null}, MaterializeDist={Settings.materializationDistance}");
+            // Check AR session state at start
+            var arState = UnityEngine.XR.ARFoundation.ARSession.state;
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: INITIAL AR STATE: {arState}");
+            
+            // Log all relevant component states
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: STARTED! Components:");
+            Debug.Log($"[ARCoinRenderer]   - Settings: {settings != null}");
+            Debug.Log($"[ARCoinRenderer]   - Positioner: {positioner != null}");
+            Debug.Log($"[ARCoinRenderer]   - CoinVisual: {coinVisual != null}");
+            Debug.Log($"[ARCoinRenderer]   - MeshRenderer: {meshRenderer != null}");
+            Debug.Log($"[ARCoinRenderer]   - MaterializeDist: {Settings.materializationDistance}m");
+            Debug.Log($"[ARCoinRenderer]   - CollectionDist: {Settings.collectionDistance}m");
         }
         
         private void Update()
@@ -444,16 +457,26 @@ namespace BlackBartsGold.AR
         /// </summary>
         private void StartMaterialization()
         {
-            if (isMaterializing) return;
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: StartMaterialization() called, isMaterializing={isMaterializing}");
+            
+            if (isMaterializing)
+            {
+                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Already materializing, ignoring");
+                return;
+            }
             
             isMaterializing = true;
             materializeProgress = 0f;
             
             // Check if we should use gyroscope positioning (AR tracking not working)
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Checking AR tracking state for gyro decision...");
             CheckAndEnableGyroPositioning();
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: UseGyroPositioning={useGyroPositioning}, GyroPositioner={(gyroPositioner != null ? "present" : "NULL")}");
             
             // Calculate materialized position - in front of camera at comfortable distance
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Calculating materialized position, camera={(cameraTransform != null ? cameraTransform.position.ToString() : "NULL")}");
             CalculateMaterializedPosition();
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: MaterializedPosition={materializedPosition}");
             
             // Set initial state
             transform.position = materializedPosition;
@@ -466,12 +489,10 @@ namespace BlackBartsGold.AR
             {
                 materializeParticles.transform.position = materializedPosition;
                 materializeParticles.Play();
+                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Playing materialize particles");
             }
             
-            if (debugMode)
-            {
-                Debug.Log($"[ARCoinRenderer] MATERIALIZING at {materializedPosition} (GPS dist: {GPSDistance:F1}m, UseGyro={useGyroPositioning})");
-            }
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: *** MATERIALIZING *** Position={materializedPosition}, GPSDist={GPSDistance:F1}m, UseGyro={useGyroPositioning}");
         }
         
         /// <summary>
@@ -479,25 +500,33 @@ namespace BlackBartsGold.AR
         /// </summary>
         private void CheckAndEnableGyroPositioning()
         {
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: CheckAndEnableGyroPositioning() BEGIN");
+            
             // Check if AR session is actually tracking
             var arSession = UnityEngine.XR.ARFoundation.ARSession.state;
             bool arTracking = arSession == UnityEngine.XR.ARFoundation.ARSessionState.SessionTracking;
             
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: ARSession.state={arSession}, arTracking={arTracking}");
+            
             if (!arTracking)
             {
-                Debug.LogWarning($"[ARCoinRenderer] AR tracking NOT working (state={arSession}). Using gyroscope positioning.");
+                Debug.LogWarning($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: AR NOT TRACKING! Enabling gyroscope positioning...");
                 useGyroPositioning = true;
                 
                 // Add gyroscope positioner if not present
                 gyroPositioner = GetComponent<GyroscopeCoinPositioner>();
+                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: GetComponent<GyroscopeCoinPositioner>() = {(gyroPositioner != null ? "found" : "NULL")}");
+                
                 if (gyroPositioner == null)
                 {
+                    Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Adding GyroscopeCoinPositioner component...");
                     gyroPositioner = gameObject.AddComponent<GyroscopeCoinPositioner>();
-                    Debug.Log("[ARCoinRenderer] Added GyroscopeCoinPositioner component");
+                    Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: GyroscopeCoinPositioner ADDED");
                 }
             }
             else
             {
+                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: AR IS TRACKING! Using AR positioning (no gyro fallback)");
                 useGyroPositioning = false;
                 Debug.Log("[ARCoinRenderer] AR tracking working - using AR camera positioning");
             }
@@ -514,7 +543,14 @@ namespace BlackBartsGold.AR
         /// </summary>
         private void ContinuousARStateCheck()
         {
-            if (cameraTransform == null) return;
+            if (cameraTransform == null)
+            {
+                if (Time.frameCount % 300 == 0)
+                {
+                    Debug.LogWarning($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: ContinuousARStateCheck - cameraTransform is NULL!");
+                }
+                return;
+            }
             
             // Check AR session state
             var arState = UnityEngine.XR.ARFoundation.ARSession.state;
@@ -533,13 +569,24 @@ namespace BlackBartsGold.AR
                 lastCameraPosition = cameraTransform.position;
             }
             
+            // Periodic AR status logging (every 3 seconds = ~180 frames at 60fps)
+            if (Time.frameCount % 180 == 0)
+            {
+                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: AR CHECK - " +
+                          $"State={arState}, Tracking={arTracking}, " +
+                          $"CamStationary={cameraStationaryTime:F1}s (threshold={CAMERA_STATIONARY_THRESHOLD}s), " +
+                          $"CamMoved={cameraMoved:F4}m, UseGyro={useGyroPositioning}, " +
+                          $"CamPos={cameraTransform.position}, CamRot={cameraTransform.eulerAngles}");
+            }
+            
             // If AR state is not tracking OR camera hasn't moved in a while, use gyro
             bool shouldUseGyro = !arTracking || cameraStationaryTime > CAMERA_STATIONARY_THRESHOLD;
             
             // Switch to gyro if needed (but don't switch back to AR once we're on gyro)
             if (shouldUseGyro && !useGyroPositioning)
             {
-                Debug.LogWarning($"[ARCoinRenderer] SWITCHING TO GYRO: arState={arState}, cameraStationary={cameraStationaryTime:F1}s");
+                Debug.LogWarning($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: *** SWITCHING TO GYRO ***");
+                Debug.LogWarning($"[ARCoinRenderer]   Reason: arState={arState} (tracking={arTracking}), cameraStationary={cameraStationaryTime:F1}s (threshold={CAMERA_STATIONARY_THRESHOLD}s)");
                 useGyroPositioning = true;
                 
                 // Add gyroscope positioner if not present
@@ -548,8 +595,13 @@ namespace BlackBartsGold.AR
                     gyroPositioner = GetComponent<GyroscopeCoinPositioner>();
                     if (gyroPositioner == null)
                     {
+                        Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Adding GyroscopeCoinPositioner component...");
                         gyroPositioner = gameObject.AddComponent<GyroscopeCoinPositioner>();
-                        Debug.Log("[ARCoinRenderer] Added GyroscopeCoinPositioner component");
+                        Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: GyroscopeCoinPositioner added successfully");
+                    }
+                    else
+                    {
+                        Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Found existing GyroscopeCoinPositioner component");
                     }
                 }
             }

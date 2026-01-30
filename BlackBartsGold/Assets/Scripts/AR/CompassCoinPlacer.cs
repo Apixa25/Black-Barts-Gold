@@ -8,9 +8,12 @@
 // When you turn away, it moves off screen.
 // 
 // This does NOT rely on AR tracking at all - just compass + gyroscope.
+// 
+// IMPORTANT: Uses NEW Input System sensors (Unity 6) - NOT the legacy Input class!
 // ============================================================================
 
 using UnityEngine;
+using UnityEngine.InputSystem;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core.Models;
 
@@ -18,6 +21,7 @@ namespace BlackBartsGold.AR
 {
     /// <summary>
     /// Simple compass-based coin placer. Places coin based on where phone is pointing.
+    /// Uses the NEW Input System sensors for Unity 6 compatibility.
     /// </summary>
     public class CompassCoinPlacer : MonoBehaviour
     {
@@ -33,6 +37,12 @@ namespace BlackBartsGold.AR
         private Camera arCamera;
         private Transform coinTransform;
         private CoinController coinController;
+        
+        // NEW Input System sensors
+        private UnityEngine.InputSystem.Gyroscope gyroSensor;
+        private Accelerometer accelSensor;
+        private AttitudeSensor attitudeSensor;
+        private GravitySensor gravitySensor;
         
         // State
         private bool hasTarget = false;
@@ -52,23 +62,70 @@ namespace BlackBartsGold.AR
         
         private void Start()
         {
-            Debug.Log("[CompassCoinPlacer] START - Enabling compass and gyroscope");
+            Debug.Log($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: START - Enabling NEW INPUT SYSTEM sensors...");
             
-            // Enable sensors
-            Input.compass.enabled = true;
-            Input.location.Start(); // Location might be needed for compass on some devices
+            // ================================================================
+            // ENABLE NEW INPUT SYSTEM SENSORS
+            // The legacy Input.compass, Input.gyro, Input.acceleration don't work
+            // when Active Input Handling is set to "Input System Package (New)"
+            // ================================================================
             
-            if (SystemInfo.supportsGyroscope)
+            // Get and enable Attitude Sensor (device orientation)
+            attitudeSensor = AttitudeSensor.current;
+            if (attitudeSensor != null)
             {
-                Input.gyro.enabled = true;
-                Debug.Log($"[CompassCoinPlacer] Gyroscope enabled: {Input.gyro.enabled}");
+                InputSystem.EnableDevice(attitudeSensor);
+                Debug.Log($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: AttitudeSensor ENABLED: {attitudeSensor.enabled}");
             }
             else
             {
-                Debug.LogWarning("[CompassCoinPlacer] Gyroscope NOT supported on this device!");
+                Debug.LogWarning($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: AttitudeSensor NOT AVAILABLE");
             }
             
-            Debug.Log($"[CompassCoinPlacer] Compass enabled: {Input.compass.enabled}, Gyro supported: {SystemInfo.supportsGyroscope}");
+            // Get and enable Gyroscope
+            gyroSensor = UnityEngine.InputSystem.Gyroscope.current;
+            if (gyroSensor != null)
+            {
+                InputSystem.EnableDevice(gyroSensor);
+                Debug.Log($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: Gyroscope ENABLED: {gyroSensor.enabled}");
+            }
+            else
+            {
+                Debug.LogWarning($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: Gyroscope NOT AVAILABLE");
+            }
+            
+            // Get and enable Accelerometer
+            accelSensor = Accelerometer.current;
+            if (accelSensor != null)
+            {
+                InputSystem.EnableDevice(accelSensor);
+                Debug.Log($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: Accelerometer ENABLED: {accelSensor.enabled}");
+            }
+            else
+            {
+                Debug.LogWarning($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: Accelerometer NOT AVAILABLE");
+            }
+            
+            // Get and enable Gravity Sensor
+            gravitySensor = GravitySensor.current;
+            if (gravitySensor != null)
+            {
+                InputSystem.EnableDevice(gravitySensor);
+                Debug.Log($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: GravitySensor ENABLED: {gravitySensor.enabled}");
+            }
+            else
+            {
+                Debug.LogWarning($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: GravitySensor NOT AVAILABLE");
+            }
+            
+            // Also try legacy APIs (may work on some devices)
+            Input.compass.enabled = true;
+            if (SystemInfo.supportsGyroscope)
+            {
+                Input.gyro.enabled = true;
+            }
+            
+            Debug.Log($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: Sensor initialization complete");
             
             // Find camera
             arCamera = Camera.main;
@@ -181,54 +238,136 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Get raw device heading without smoothing
+        /// Get raw device heading without smoothing.
+        /// Uses NEW Input System sensors for Unity 6 compatibility.
         /// </summary>
         private float GetRawDeviceHeading()
         {
-            // Method 1: Try compass (most accurate for absolute heading)
-            float compassHeading = Input.compass.trueHeading;
-            if (compassHeading == 0 || float.IsNaN(compassHeading))
-            {
-                compassHeading = Input.compass.magneticHeading;
-            }
+            string methodUsed = "none";
+            float result = 0f;
             
-            // If compass is working (not stuck at 0), use it
-            if (compassHeading != 0 && !float.IsNaN(compassHeading))
+            // ================================================================
+            // Method 1: NEW INPUT SYSTEM - AttitudeSensor (device orientation)
+            // This is the most reliable for device heading in Unity 6
+            // ================================================================
+            if (attitudeSensor != null && attitudeSensor.enabled)
             {
-                return compassHeading;
-            }
-            
-            // Method 2: Use accelerometer to detect device rotation
-            // ARCore takes over the gyro, but accelerometer still works
-            Vector3 accel = Input.acceleration;
-            if (accel.sqrMagnitude > 0.01f)
-            {
-                // Get tilt angle from accelerometer
-                float tiltAngle = Mathf.Atan2(accel.x, -accel.z) * Mathf.Rad2Deg;
-                return tiltAngle;
-            }
-            
-            // Method 3: Use gyroscope if available and returning data
-            if (SystemInfo.supportsGyroscope && Input.gyro.enabled)
-            {
-                Quaternion gyroAttitude = Input.gyro.attitude;
+                Quaternion attitude = attitudeSensor.attitude.ReadValue();
                 
-                // Check if gyro is actually returning data
-                if (gyroAttitude.x != 0 || gyroAttitude.y != 0 || gyroAttitude.z != 0)
+                // Check if we're getting real data
+                if (attitude.x != 0 || attitude.y != 0 || attitude.z != 0)
                 {
+                    // Convert device attitude to heading
+                    // Apply rotation fix for Android coordinate system
                     Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
-                    Quaternion camRotation = rotFix * new Quaternion(gyroAttitude.x, gyroAttitude.y, -gyroAttitude.z, -gyroAttitude.w);
-                    return camRotation.eulerAngles.y;
+                    Quaternion deviceRot = rotFix * new Quaternion(attitude.x, attitude.y, -attitude.z, -attitude.w);
+                    result = deviceRot.eulerAngles.y;
+                    methodUsed = "attitude_sensor";
                 }
             }
             
-            // Method 4: Use camera's Y rotation (last resort)
-            if (arCamera != null)
+            // ================================================================
+            // Method 2: NEW INPUT SYSTEM - Accelerometer
+            // Use gravity direction to estimate device tilt/rotation
+            // ================================================================
+            if (methodUsed == "none" && accelSensor != null && accelSensor.enabled)
             {
-                return arCamera.transform.eulerAngles.y;
+                Vector3 accel = accelSensor.acceleration.ReadValue();
+                if (accel.sqrMagnitude > 0.01f)
+                {
+                    // Get tilt angle from accelerometer
+                    float tiltAngle = Mathf.Atan2(accel.x, -accel.z) * Mathf.Rad2Deg;
+                    result = tiltAngle;
+                    methodUsed = "new_accelerometer";
+                }
             }
             
-            return 0f;
+            // ================================================================
+            // Method 3: NEW INPUT SYSTEM - GravitySensor
+            // Similar to accelerometer but filtered
+            // ================================================================
+            if (methodUsed == "none" && gravitySensor != null && gravitySensor.enabled)
+            {
+                Vector3 gravity = gravitySensor.gravity.ReadValue();
+                if (gravity.sqrMagnitude > 0.01f)
+                {
+                    float tiltAngle = Mathf.Atan2(gravity.x, -gravity.z) * Mathf.Rad2Deg;
+                    result = tiltAngle;
+                    methodUsed = "gravity_sensor";
+                }
+            }
+            
+            // ================================================================
+            // Method 4: LEGACY - Try old Input.compass (may work on some devices)
+            // ================================================================
+            if (methodUsed == "none")
+            {
+                float compassHeading = Input.compass.trueHeading;
+                if (compassHeading == 0 || float.IsNaN(compassHeading))
+                {
+                    compassHeading = Input.compass.magneticHeading;
+                }
+                
+                if (compassHeading != 0 && !float.IsNaN(compassHeading))
+                {
+                    result = compassHeading;
+                    methodUsed = "legacy_compass";
+                }
+            }
+            
+            // ================================================================
+            // Method 5: LEGACY - Try old Input.acceleration
+            // ================================================================
+            if (methodUsed == "none")
+            {
+                Vector3 accel = Input.acceleration;
+                if (accel.sqrMagnitude > 0.01f)
+                {
+                    float tiltAngle = Mathf.Atan2(accel.x, -accel.z) * Mathf.Rad2Deg;
+                    result = tiltAngle;
+                    methodUsed = "legacy_accelerometer";
+                }
+            }
+            
+            // ================================================================
+            // Method 6: Camera Y rotation (last resort)
+            // ================================================================
+            if (methodUsed == "none" && arCamera != null)
+            {
+                result = arCamera.transform.eulerAngles.y;
+                methodUsed = "camera";
+            }
+            
+            // Log detailed sensor state every 5 seconds
+            if (logEnabled && Time.frameCount % 300 == 0)
+            {
+                Debug.Log($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: === SENSOR STATUS ===");
+                Debug.Log($"[CompassCoinPlacer]   Method used: {methodUsed}, Result: {result:F1}°");
+                
+                // New Input System sensors
+                if (attitudeSensor != null)
+                {
+                    var att = attitudeSensor.attitude.ReadValue();
+                    Debug.Log($"[CompassCoinPlacer]   AttitudeSensor: enabled={attitudeSensor.enabled}, attitude={att.eulerAngles}");
+                }
+                if (accelSensor != null)
+                {
+                    var acc = accelSensor.acceleration.ReadValue();
+                    Debug.Log($"[CompassCoinPlacer]   Accelerometer(NEW): enabled={accelSensor.enabled}, value={acc}, mag={acc.magnitude:F3}");
+                }
+                if (gravitySensor != null)
+                {
+                    var grav = gravitySensor.gravity.ReadValue();
+                    Debug.Log($"[CompassCoinPlacer]   GravitySensor: enabled={gravitySensor.enabled}, value={grav}");
+                }
+                
+                // Legacy sensors (for comparison)
+                Debug.Log($"[CompassCoinPlacer]   LEGACY compass: true={Input.compass.trueHeading:F1}°, mag={Input.compass.magneticHeading:F1}°");
+                Debug.Log($"[CompassCoinPlacer]   LEGACY accel: {Input.acceleration}, mag={Input.acceleration.magnitude:F3}");
+                Debug.Log($"[CompassCoinPlacer]   Camera: rot={arCamera?.transform.eulerAngles}");
+            }
+            
+            return result;
         }
         
         private void PositionCoin(float relativeBearing)
