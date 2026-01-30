@@ -406,6 +406,9 @@ namespace BlackBartsGold.Location
         /// </summary>
         private IEnumerator LocationServiceCoroutine()
         {
+            float startTime = Time.realtimeSinceStartup;
+            Debug.Log($"[GPSManager] T+{startTime:F2}s: LocationServiceCoroutine STARTED");
+            
             SetState(GPSServiceState.Initializing);
             
             // Check permission on Android
@@ -413,7 +416,7 @@ namespace BlackBartsGold.Location
             if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(
                 UnityEngine.Android.Permission.FineLocation))
             {
-                Log("Requesting location permission...");
+                Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Requesting location permission...");
                 UnityEngine.Android.Permission.RequestUserPermission(
                     UnityEngine.Android.Permission.FineLocation);
                 
@@ -427,6 +430,7 @@ namespace BlackBartsGold.Location
                 {
                     yield return new WaitForSeconds(0.5f);
                     permissionWaitTime += 0.5f;
+                    Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Waiting for permission... ({permissionWaitTime:F1}s)");
                 }
                 
                 if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(
@@ -435,20 +439,28 @@ namespace BlackBartsGold.Location
                     HasPermission = false;
                     SetState(GPSServiceState.PermissionDenied);
                     ErrorMessage = "Location permission denied";
+                    Debug.LogError($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: PERMISSION DENIED after {permissionWaitTime:F1}s");
                     OnPermissionDenied?.Invoke();
                     OnLocationError?.Invoke(ErrorMessage);
                     yield break;
                 }
             }
             HasPermission = true;
+            Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Permission GRANTED");
             OnPermissionGranted?.Invoke();
             #else
             HasPermission = true;
+            Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Non-Android platform, permission auto-granted");
             #endif
             
             // Start Unity's location service
-            Log($"Starting location service (accuracy: {desiredAccuracy}m, distance: {updateDistance}m)");
+            Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Calling Input.location.Start(accuracy={desiredAccuracy}m, distance={updateDistance}m)");
+            Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Input.location.status BEFORE Start: {Input.location.status}");
+            Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Input.location.isEnabledByUser: {Input.location.isEnabledByUser}");
+            
             Input.location.Start(desiredAccuracy, updateDistance);
+            
+            Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Input.location.status AFTER Start: {Input.location.status}");
             
             // Wait for initialization
             float waitTime = 0f;
@@ -457,7 +469,7 @@ namespace BlackBartsGold.Location
             {
                 yield return new WaitForSeconds(1f);
                 waitTime += 1f;
-                Log($"Waiting for GPS... ({waitTime}s)");
+                Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: GPS initializing... ({waitTime:F0}s/{initializationTimeout:F0}s), status={Input.location.status}");
             }
             
             // Check result
@@ -465,6 +477,7 @@ namespace BlackBartsGold.Location
             {
                 SetState(GPSServiceState.Failed);
                 ErrorMessage = "Unable to determine device location";
+                Debug.LogError($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: GPS FAILED after {waitTime:F1}s");
                 OnLocationError?.Invoke(ErrorMessage);
                 yield break;
             }
@@ -473,18 +486,33 @@ namespace BlackBartsGold.Location
             {
                 SetState(GPSServiceState.Timeout);
                 ErrorMessage = "GPS initialization timed out";
+                Debug.LogError($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: GPS TIMEOUT after {waitTime:F1}s");
                 OnLocationError?.Invoke(ErrorMessage);
                 yield break;
             }
             
             // GPS is running!
             SetState(GPSServiceState.Running);
-            Log("GPS service running!");
+            float totalInitTime = Time.realtimeSinceStartup - startTime;
+            Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: *** GPS SERVICE RUNNING! *** Total init time: {totalInitTime:F2}s");
+            
+            // Log first location data
+            if (Input.location.status == LocationServiceStatus.Running)
+            {
+                var data = Input.location.lastData;
+                Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: FIRST FIX: Lat={data.latitude:F6}, Lng={data.longitude:F6}, Acc={data.horizontalAccuracy:F1}m");
+            }
             
             // Main location update loop
+            int updateCount = 0;
             while (ServiceState == GPSServiceState.Running)
             {
                 UpdateLocation();
+                updateCount++;
+                if (updateCount % 10 == 0) // Log every 10th update
+                {
+                    Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Update loop #{updateCount}, CurrentLocation={(CurrentLocation != null ? $"valid ({CurrentLocation.accuracy:F1}m)" : "NULL")}");
+                }
                 yield return new WaitForSeconds(pollInterval);
             }
         }

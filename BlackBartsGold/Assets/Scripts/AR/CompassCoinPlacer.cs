@@ -40,6 +40,11 @@ namespace BlackBartsGold.AR
         private double targetLon;
         private float lastLogTime;
         
+        // Smoothed heading to reduce jitter
+        private float smoothedHeading = 0f;
+        private float headingSmoothVelocity = 0f;
+        private const float HEADING_SMOOTH_TIME = 0.3f;
+        
         private void Awake()
         {
             Debug.Log("[CompassCoinPlacer] AWAKE");
@@ -163,8 +168,22 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Get device heading using multiple fallback methods.
+        /// Returns SMOOTHED heading to reduce jitter.
         /// </summary>
         private float GetDeviceHeading()
+        {
+            float rawHeading = GetRawDeviceHeading();
+            
+            // Apply smoothing using SmoothDampAngle (handles angle wrapping)
+            smoothedHeading = Mathf.SmoothDampAngle(smoothedHeading, rawHeading, ref headingSmoothVelocity, HEADING_SMOOTH_TIME);
+            
+            return smoothedHeading;
+        }
+        
+        /// <summary>
+        /// Get raw device heading without smoothing
+        /// </summary>
+        private float GetRawDeviceHeading()
         {
             // Method 1: Try compass (most accurate for absolute heading)
             float compassHeading = Input.compass.trueHeading;
