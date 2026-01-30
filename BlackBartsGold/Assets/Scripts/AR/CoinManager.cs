@@ -216,8 +216,80 @@ namespace BlackBartsGold.AR
             // Initialize compass heading for positioning
             ARCoinPositioner.CaptureInitialCompassHeading();
             
+            // Subscribe to AR raycast events for tap-to-collect
+            if (ARRaycastController.Instance != null)
+            {
+                ARRaycastController.Instance.OnCoinSelected += HandleCoinTapped;
+                Log("Subscribed to ARRaycastController.OnCoinSelected for tap-to-collect");
+            }
+            else
+            {
+                Debug.LogWarning("[CoinManager] ARRaycastController not found - tap-to-collect won't work!");
+            }
+            
             // Start in map view mode
             SetHuntMode(HuntMode.MapView);
+        }
+        
+        private void OnDestroy()
+        {
+            // Unsubscribe from raycast events
+            if (ARRaycastController.Instance != null)
+            {
+                ARRaycastController.Instance.OnCoinSelected -= HandleCoinTapped;
+            }
+        }
+        
+        /// <summary>
+        /// Handle coin tapped in AR view - this triggers collection!
+        /// </summary>
+        private void HandleCoinTapped(GameObject coinObject)
+        {
+            if (coinObject == null) return;
+            
+            // Get the CoinController from the tapped object
+            var controller = coinObject.GetComponent<CoinController>();
+            if (controller == null)
+            {
+                controller = coinObject.GetComponentInParent<CoinController>();
+            }
+            
+            if (controller == null)
+            {
+                Log($"Tapped object is not a coin: {coinObject.name}");
+                return;
+            }
+            
+            Log($"🎯 COIN TAPPED! {controller.CoinId}, InRange={controller.IsInRange}, Locked={controller.IsLocked}, Distance={controller.DistanceFromPlayer:F1}m");
+            
+            // Check if this is our target coin
+            if (TargetCoin != null && TargetCoin == controller)
+            {
+                // Try to collect!
+                if (controller.IsInRange && !controller.IsLocked)
+                {
+                    Log($"✅ Attempting collection...");
+                    bool success = controller.TryCollect();
+                    if (!success)
+                    {
+                        Log($"❌ Collection failed - check GPS accuracy or other conditions");
+                    }
+                }
+                else if (controller.IsLocked)
+                {
+                    Log($"🔒 Coin is locked - cannot collect");
+                    // Trigger the locked tap handling through TryCollect which will fire the event
+                    controller.TryCollect();
+                }
+                else
+                {
+                    Log($"📏 Too far to collect ({controller.DistanceFromPlayer:F1}m) - get closer!");
+                }
+            }
+            else
+            {
+                Log($"Tapped coin is not the current target");
+            }
         }
         
         #endregion
