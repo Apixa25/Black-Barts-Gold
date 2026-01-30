@@ -212,7 +212,7 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Get device heading using compass or gyroscope
+        /// Get device heading using compass, gyroscope, or accelerometer
         /// </summary>
         private float GetDeviceHeading()
         {
@@ -232,34 +232,58 @@ namespace BlackBartsGold.AR
                 }
             }
             
-            // Method 2: Gyroscope with proper coordinate conversion for Android
-            if (gyroEnabled && gyro != null)
+            // Method 2: Use accelerometer to estimate device orientation
+            // When ARCore owns the gyro, we can still use accelerometer
+            Vector3 accel = Input.acceleration;
+            if (accel.sqrMagnitude > 0.01f)
             {
-                // Unity's gyro uses a right-handed coordinate system
-                // Need to convert to get heading (Y-axis rotation)
-                Quaternion gyroAttitude = gyro.attitude;
+                // Get device tilt from accelerometer
+                // This gives us rough orientation when gyro is unavailable
+                float tiltAngle = Mathf.Atan2(accel.x, -accel.z) * Mathf.Rad2Deg;
                 
-                // Apply rotation fix for Android (90 degree X rotation)
-                // This converts from gyro space to Unity world space
-                Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
-                Quaternion camRot = rotFix * new Quaternion(gyroAttitude.x, gyroAttitude.y, -gyroAttitude.z, -gyroAttitude.w);
-                
-                // Extract heading (yaw)
-                float heading = camRot.eulerAngles.y;
-                
-                // Debug periodically
+                // Debug periodically  
                 if (debugMode && Time.frameCount % 300 == 0)
                 {
-                    Debug.Log($"[GyroscopeCoinPositioner] GYRO: attitude={gyroAttitude.eulerAngles}, converted heading={heading:F1}°");
+                    Debug.Log($"[GyroscopeCoinPositioner] ACCEL: {accel}, tiltAngle={tiltAngle:F1}°");
                 }
                 
-                return heading;
+                // Use tilt as a rough heading indicator
+                // This won't give true north, but will respond to rotation
+                return tiltAngle;
             }
             
-            // Method 3: Camera Y rotation (last resort, works if AR is tracking)
+            // Method 3: Use gyroscope if available
+            if (gyroEnabled && gyro != null)
+            {
+                Quaternion gyroAttitude = gyro.attitude;
+                
+                // Check if gyro is actually returning data
+                if (gyroAttitude.x != 0 || gyroAttitude.y != 0 || gyroAttitude.z != 0)
+                {
+                    Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
+                    Quaternion deviceRot = rotFix * new Quaternion(gyroAttitude.x, gyroAttitude.y, -gyroAttitude.z, -gyroAttitude.w);
+                    Vector3 forward = deviceRot * Vector3.forward;
+                    float heading = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+                    if (heading < 0) heading += 360f;
+                    
+                    if (debugMode && Time.frameCount % 300 == 0)
+                    {
+                        Debug.Log($"[GyroscopeCoinPositioner] GYRO: attitude={gyroAttitude.eulerAngles}, heading={heading:F1}°");
+                    }
+                    
+                    return heading;
+                }
+            }
+            
+            // Method 4: Camera Y rotation (last resort)
             if (arCamera != null)
             {
-                return arCamera.transform.eulerAngles.y;
+                float camHeading = arCamera.transform.eulerAngles.y;
+                if (debugMode && Time.frameCount % 300 == 0)
+                {
+                    Debug.Log($"[GyroscopeCoinPositioner] Using camera heading: {camHeading:F1}°");
+                }
+                return camHeading;
             }
             
             return 0f;
@@ -271,22 +295,48 @@ namespace BlackBartsGold.AR
         /// </summary>
         private void PositionCoin(float relativeBearing)
         {
-            // Convert bearing to radians
-            float radians = relativeBearing * Mathf.Deg2Rad;
+            if (cameraTransform == null) return;
             
-            // Calculate position relative to camera
-            // X = sin(bearing) - positive is to the right
-            // Z = cos(bearing) - positive is forward
-            float x = Mathf.Sin(radians) * displayDistance;
-            float z = Mathf.Cos(radians) * displayDistance;
+            // Use gyroscope rotation directly to determine where coin should appear
+            if (gyroEnabled && gyro != null)
+            {
+                // Get device rotation
+                Quaternion gyroAttitude = gyro.attitude;
+                Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
+                Quaternion deviceRot = rotFix * new Quaternion(gyroAttitude.x, gyroAttitude.y, -gyroAttitude.z, -gyroAttitude.w);
+                
+                // The coin should be at bearingToTarget degrees from north
+                // The phone is currently pointing at deviceHeading degrees from north
+                // So the coin should appear at (bearingToTarget - deviceHeading) relative to phone forward
+                
+                // Convert relative bearing to a direction
+                float radians = relativeBearing * Mathf.Deg2Rad;
+                
+                // Create a rotation from the bearing
+                Quaternion bearingRot = Quaternion.Euler(0, relativeBearing, 0);
+                
+                // Get the direction where the coin should appear (relative to phone)
+                Vector3 coinDirection = bearingRot * Vector3.forward;
+                
+                // Position in world space relative to camera
+                Vector3 targetPos = cameraTransform.position + coinDirection * displayDistance;
+                targetPos.y = cameraTransform.position.y + displayHeight;
+                
+                // Smooth movement
+                transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * smoothSpeed);
+            }
+            else
+            {
+                // Fallback: use simple bearing calculation
+                float radians = relativeBearing * Mathf.Deg2Rad;
+                float x = Mathf.Sin(radians) * displayDistance;
+                float z = Mathf.Cos(radians) * displayDistance;
+                
+                Vector3 targetPos = cameraTransform.position + new Vector3(x, displayHeight, z);
+                transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * smoothSpeed);
+            }
             
-            // Target position in world space (relative to camera)
-            Vector3 targetPos = cameraTransform.position + new Vector3(x, displayHeight, z);
-            
-            // Smooth movement
-            transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * smoothSpeed);
-            
-            // Face camera
+            // Face camera (billboard)
             Vector3 lookDir = cameraTransform.position - transform.position;
             lookDir.y = 0;
             if (lookDir.sqrMagnitude > 0.01f)
