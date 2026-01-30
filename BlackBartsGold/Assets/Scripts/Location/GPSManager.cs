@@ -511,7 +511,7 @@ namespace BlackBartsGold.Location
                 updateCount++;
                 if (updateCount % 10 == 0) // Log every 10th update
                 {
-                    Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Update loop #{updateCount}, CurrentLocation={(CurrentLocation != null ? $"valid ({CurrentLocation.accuracy:F1}m)" : "NULL")}");
+                    Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: Update loop #{updateCount}, CurrentLocation={(CurrentLocation != null ? $"valid ({CurrentLocation.horizontalAccuracy:F1}m)" : "NULL")}");
                 }
                 yield return new WaitForSeconds(pollInterval);
             }
