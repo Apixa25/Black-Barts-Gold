@@ -25,34 +25,8 @@ namespace BlackBartsGold.Core
         {
             eventSystem = GetComponent<EventSystem>();
             inputModule = GetComponent<InputSystemUIInputModule>();
-            
-            // Check for duplicate EventSystems
-            // IMPORTANT: Don't destroy the persistent EventSystem from AppBootstrap!
-            EventSystem[] allEventSystems = FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
-            if (allEventSystems.Length > 1)
-            {
-                Debug.Log($"[EventSystemFixer] Found {allEventSystems.Length} EventSystems");
-                
-                // Find the persistent one (it's under [BlackBartsGold] root)
-                EventSystem persistentES = null;
-                foreach (var es in allEventSystems)
-                {
-                    if (es.transform.root.name == "[BlackBartsGold]")
-                    {
-                        persistentES = es;
-                        Debug.Log($"[EventSystemFixer] Found persistent EventSystem from AppBootstrap");
-                        break;
-                    }
-                }
-                
-                // If there's a persistent one, destroy THIS scene's EventSystem (self-destruct)
-                if (persistentES != null && eventSystem != persistentES)
-                {
-                    Debug.Log($"[EventSystemFixer] Destroying THIS scene's EventSystem (keeping AppBootstrap's)");
-                    Destroy(gameObject);
-                    return;
-                }
-            }
+            Debug.Log("[EventSystemFixer] Initialized");
+            // SIMPLIFIED: Just get references, don't destroy anything
         }
 
         private void Start()

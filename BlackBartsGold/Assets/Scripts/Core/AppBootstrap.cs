@@ -38,18 +38,18 @@ namespace BlackBartsGold.Core
             var root = new GameObject("[BlackBartsGold]");
             Object.DontDestroyOnLoad(root);
             
-            // Add UIManager
-            root.AddComponent<UIManager>();
+            // SIMPLIFIED: Don't create UIManager here - let scenes manage their own UI
+            // UIManager will be created only when entering AR scenes
+            // root.AddComponent<UIManager>();
             
-            // Add single persistent EventSystem
-            CreateEventSystem(root.transform);
+            // SIMPLIFIED: Don't create EventSystem here - let scenes use their own
+            // CreateEventSystem(root.transform);
             
-            // Subscribe to scene loaded to clean up duplicate EventSystems
+            // Subscribe to scene loaded for any needed setup
             SceneManager.sceneLoaded += OnSceneLoaded;
             
-            Debug.Log("[AppBootstrap] ✅ Persistent systems initialized");
-            Debug.Log("[AppBootstrap] ✅ Single EventSystem created");
-            Debug.Log("[AppBootstrap] ✅ UIManager ready");
+            Debug.Log("[AppBootstrap] ✅ Simplified bootstrap complete");
+            Debug.Log("[AppBootstrap] ✅ Scenes will manage their own UI and EventSystem");
         }
         
         private static void CreateEventSystem(Transform parent)
@@ -64,34 +64,13 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Called when any scene loads - destroys duplicate EventSystems
+        /// Called when any scene loads
         /// </summary>
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             Debug.Log($"[AppBootstrap] Scene loaded: {scene.name}");
-            
-            // Find and destroy any EventSystems in the loaded scene
-            var eventSystems = Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
-            
-            foreach (var es in eventSystems)
-            {
-                if (es != _persistentEventSystem)
-                {
-                    Debug.Log($"[AppBootstrap] Destroying duplicate EventSystem: {es.gameObject.name}");
-                    Object.Destroy(es.gameObject);
-                }
-            }
-            
-            // Ensure our EventSystem is active and working
-            if (_persistentEventSystem != null)
-            {
-                _persistentEventSystem.enabled = true;
-                var inputModule = _persistentEventSystem.GetComponent<InputSystemUIInputModule>();
-                if (inputModule != null)
-                {
-                    inputModule.enabled = true;
-                }
-            }
+            // SIMPLIFIED: Let scenes manage their own EventSystems
+            // No more destroying or managing EventSystems from here
         }
     }
 }
