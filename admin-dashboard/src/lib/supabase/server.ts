@@ -86,3 +86,26 @@ export function createPublicClient() {
 export function isSupabaseConfigured(): boolean {
   return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 }
+
+/**
+ * Create a Supabase client with SERVICE ROLE key.
+ * Use this for admin operations that need to bypass RLS policies.
+ * 
+ * IMPORTANT: Only use this server-side, never expose service role key to client!
+ */
+export function createServiceRoleClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Supabase URL and service role key must be configured')
+  }
+
+  // Create a client with service role - bypasses RLS
+  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    }
+  })
+}

@@ -351,6 +351,26 @@ namespace BlackBartsGold.Core
             public const string FIND_LIMIT = "/user/find-limit";
         }
         
+        /// <summary>
+        /// Player tracking endpoints
+        /// Used by PlayerLocationService for real-time location updates
+        /// </summary>
+        public static class Player
+        {
+            /// <summary>
+            /// Update player location (POST) or remove from tracking (DELETE)
+            /// </summary>
+            public const string LOCATION = "/player/location";
+            
+            /// <summary>
+            /// Build DELETE URL with userId parameter
+            /// </summary>
+            public static string GetDeleteLocationUrl(string userId)
+            {
+                return $"{LOCATION}?userId={userId}";
+            }
+        }
+        
         #endregion
         
         #region Header Keys
