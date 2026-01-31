@@ -210,13 +210,41 @@ namespace BlackBartsGold.Core
             
             try
             {
-                // Simulate network delay
-                await Task.Delay(MOCK_DELAY_MS);
+                // Call real API
+                var request = new RegisterRequest
+                {
+                    email = email,
+                    password = password,
+                    displayName = displayName,
+                    age = age
+                };
                 
-                // --- MVP: Mock registration ---
-                // In production, this calls the real API
-                User newUser = CreateMockUser(email, displayName, age);
-                string token = GenerateMockToken(newUser.id);
+                Debug.Log($"[AuthService] 🌐 Calling {ApiConfig.Auth.REGISTER}...");
+                var response = await ApiClient.Instance.Post<AuthResponse>(ApiConfig.Auth.REGISTER, request);
+                
+                if (response == null)
+                {
+                    SetError("Registration failed: No response from server");
+                    return null;
+                }
+                
+                if (!response.success)
+                {
+                    SetError(response.error ?? "Registration failed");
+                    return null;
+                }
+                
+                if (response.emailConfirmationRequired)
+                {
+                    Debug.Log("[AuthService] 📧 Email confirmation required");
+                    SetError("Please check your email to confirm your account");
+                    SetState(AuthState.NotAuthenticated);
+                    return null;
+                }
+                
+                // Map response to User
+                User newUser = MapAuthResponseToUser(response);
+                string token = response.token;
                 
                 // Save session
                 SaveSession(token, newUser.id);
@@ -226,10 +254,7 @@ namespace BlackBartsGold.Core
                 AuthToken = token;
                 
                 // Update PlayerData
-                if (PlayerData.Exists)
-                {
-                    PlayerData.Instance.SetUser(newUser, token);
-                }
+                PlayerData.Instance.SetUser(newUser, token);
                 
                 SetState(AuthState.Authenticated);
                 
@@ -237,6 +262,16 @@ namespace BlackBartsGold.Core
                 OnRegisterSuccess?.Invoke(newUser);
                 
                 return newUser;
+            }
+            catch (NetworkException e)
+            {
+                SetError($"Network error: {e.Message}");
+                return null;
+            }
+            catch (ApiException e)
+            {
+                SetError(e.Message);
+                return null;
             }
             catch (Exception e)
             {
@@ -281,15 +316,31 @@ namespace BlackBartsGold.Core
             
             try
             {
-                // Simulate network delay
-                await Task.Delay(MOCK_DELAY_MS);
+                // Call real API
+                var request = new LoginRequest
+                {
+                    email = email,
+                    password = password
+                };
                 
-                // --- MVP: Mock login ---
-                // Any email/password works; returns a test user
-                // In production, this validates against real API
+                Debug.Log($"[AuthService] 🌐 Calling {ApiConfig.Auth.LOGIN}...");
+                var response = await ApiClient.Instance.Post<AuthResponse>(ApiConfig.Auth.LOGIN, request);
                 
-                User user = CreateMockUser(email, GetDisplayNameFromEmail(email), 25);
-                string token = GenerateMockToken(user.id);
+                if (response == null)
+                {
+                    SetError("Login failed: No response from server");
+                    return null;
+                }
+                
+                if (!response.success)
+                {
+                    SetError(response.error ?? "Invalid email or password");
+                    return null;
+                }
+                
+                // Map response to User
+                User user = MapAuthResponseToUser(response);
+                string token = response.token;
                 
                 // Save session
                 SaveSession(token, user.id);
@@ -299,10 +350,7 @@ namespace BlackBartsGold.Core
                 AuthToken = token;
                 
                 // Update PlayerData
-                if (PlayerData.Exists)
-                {
-                    PlayerData.Instance.SetUser(user, token);
-                }
+                PlayerData.Instance.SetUser(user, token);
                 
                 // Update GameManager
                 if (GameManager.Instance != null)
@@ -317,6 +365,16 @@ namespace BlackBartsGold.Core
                 
                 return user;
             }
+            catch (NetworkException e)
+            {
+                SetError($"Network error: {e.Message}");
+                return null;
+            }
+            catch (ApiException e)
+            {
+                SetError(e.Message);
+                return null;
+            }
             catch (Exception e)
             {
                 SetError($"Login failed: {e.Message}");
@@ -329,60 +387,20 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Login with Google OAuth (stub for MVP)
+        /// Login with Google OAuth
+        /// TODO: Implement Google OAuth flow in Phase 2
         /// </summary>
         /// <returns>Logged in user or null</returns>
         public async Task<User> LoginWithGoogle()
         {
             Debug.Log("[AuthService] 🔑 Google login requested");
             
-            SetState(AuthState.Authenticating);
-            IsLoading = true;
+            // Google OAuth will be implemented in Phase 2
+            // For now, show a message to user
+            await Task.Delay(100); // Small delay for UI responsiveness
             
-            try
-            {
-                // Simulate network delay
-                await Task.Delay(MOCK_DELAY_MS);
-                
-                // --- MVP: Stub ---
-                // In production, this triggers Google OAuth flow
-                
-                User user = CreateMockUser("pirate@gmail.com", "Google Pirate", 25);
-                user.authMethod = AuthMethod.Google;
-                user.emailVerified = true;
-                
-                string token = GenerateMockToken(user.id);
-                
-                SaveSession(token, user.id);
-                CurrentUser = user;
-                AuthToken = token;
-                
-                if (PlayerData.Exists)
-                {
-                    PlayerData.Instance.SetUser(user, token);
-                }
-                
-                if (GameManager.Instance != null)
-                {
-                    GameManager.Instance.SetAuthenticated(true);
-                }
-                
-                SetState(AuthState.Authenticated);
-                
-                Debug.Log($"[AuthService] ✅ Google login successful: {user.displayName}");
-                OnLoginSuccess?.Invoke(user);
-                
-                return user;
-            }
-            catch (Exception e)
-            {
-                SetError($"Google login failed: {e.Message}");
-                return null;
-            }
-            finally
-            {
-                IsLoading = false;
-            }
+            SetError("Google login coming soon! Please use email/password for now.");
+            return null;
         }
         
         #endregion
@@ -474,43 +492,31 @@ namespace BlackBartsGold.Core
             
             try
             {
-                // Simulate token validation
-                await Task.Delay(500);
+                // Validate token with server
+                Debug.Log($"[AuthService] 🌐 Validating token with {ApiConfig.Auth.ME}...");
                 
-                // --- MVP: Mock token validation ---
-                // In production, validate token with server
-                bool isValid = ValidateMockToken(savedToken);
+                // Temporarily set the token for the API call
+                AuthToken = savedToken;
                 
-                if (!isValid)
+                var response = await ApiClient.Instance.Get<AuthMeResponse>(ApiConfig.Auth.ME);
+                
+                if (response == null || !response.success)
                 {
-                    Debug.Log("[AuthService] Session expired");
+                    Debug.Log("[AuthService] Session expired or invalid");
                     ClearSession();
+                    AuthToken = null;
                     SetState(AuthState.SessionExpired);
                     OnSessionExpired?.Invoke();
                     return null;
                 }
                 
-                // Restore user from PlayerData or create mock
-                User user = null;
+                // Map response to User
+                User user = MapMeResponseToUser(response);
                 
-                if (PlayerData.Exists && PlayerData.Instance.CurrentUser != null)
-                {
-                    user = PlayerData.Instance.CurrentUser;
-                }
-                else
-                {
-                    // Create mock user from saved info
-                    user = User.CreateTestUser();
-                    user.id = savedUserId;
-                    
-                    if (PlayerData.Exists)
-                    {
-                        PlayerData.Instance.SetUser(user, savedToken);
-                    }
-                }
+                // Update PlayerData
+                PlayerData.Instance.SetUser(user, savedToken);
                 
                 CurrentUser = user;
-                AuthToken = savedToken;
                 
                 if (GameManager.Instance != null)
                 {
@@ -523,6 +529,22 @@ namespace BlackBartsGold.Core
                 OnLoginSuccess?.Invoke(user);
                 
                 return user;
+            }
+            catch (NetworkException e)
+            {
+                // Network error - don't clear session, might be temporary
+                Debug.LogWarning($"[AuthService] Network error during auto-login: {e.Message}");
+                SetState(AuthState.NotAuthenticated);
+                return null;
+            }
+            catch (ApiException e)
+            {
+                Debug.LogWarning($"[AuthService] Token validation failed: {e.Message}");
+                ClearSession();
+                AuthToken = null;
+                SetState(AuthState.SessionExpired);
+                OnSessionExpired?.Invoke();
+                return null;
             }
             catch (Exception e)
             {
@@ -546,7 +568,8 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Check if session is valid (quick check)
+        /// Check if session is valid (quick check - just verifies token exists)
+        /// For full validation, use TryAutoLogin()
         /// </summary>
         public bool HasValidSession()
         {
@@ -555,7 +578,9 @@ namespace BlackBartsGold.Core
                 AuthToken = PlayerPrefs.GetString(AUTH_TOKEN_KEY, "");
             }
             
-            return !string.IsNullOrEmpty(AuthToken) && ValidateMockToken(AuthToken);
+            // Quick check - just verify token exists
+            // Full validation requires server call via TryAutoLogin()
+            return !string.IsNullOrEmpty(AuthToken);
         }
         
         #endregion
@@ -701,67 +726,72 @@ namespace BlackBartsGold.Core
         
         #endregion
         
-        #region Mock Helpers (MVP Only)
+        #region Response Mapping Helpers
         
         /// <summary>
-        /// Create a mock user for MVP testing
+        /// Map AuthResponse (login/register) to User object
         /// </summary>
-        private User CreateMockUser(string email, string displayName, int age)
+        private User MapAuthResponseToUser(AuthResponse response)
         {
-            var user = new User
+            if (response.user == null)
             {
-                id = Guid.NewGuid().ToString(),
-                email = email,
-                displayName = displayName,
-                age = age,
-                bbgBalance = 15.00f, // Starter balance
-                gasRemaining = 10f,  // 10 days free trial
+                throw new Exception("Auth response missing user data");
+            }
+            
+            var userData = response.user;
+            
+            return new User
+            {
+                id = userData.id,
+                email = userData.email,
+                displayName = userData.displayName ?? GetDisplayNameFromEmail(userData.email),
+                avatarUrl = userData.avatarUrl,
+                bbgBalance = 15.00f, // Default starter balance
+                gasRemaining = 10f,  // Default free trial
                 findLimit = 1.00f,
                 highestHiddenValue = 0f,
                 currentTier = FindLimitTier.CabinBoy,
                 stats = new UserStats(),
-                createdAt = DateTime.UtcNow.ToString("o"),
+                createdAt = userData.createdAt ?? DateTime.UtcNow.ToString("o"),
                 lastLoginAt = DateTime.UtcNow.ToString("o"),
                 accountStatus = AccountStatus.Active,
                 authMethod = AuthMethod.Email,
-                emailVerified = false
+                emailVerified = true,
+                age = 18 // Default, not stored in auth response
             };
+        }
+        
+        /// <summary>
+        /// Map AuthMeResponse (token validation) to User object
+        /// </summary>
+        private User MapMeResponseToUser(AuthMeResponse response)
+        {
+            if (response.user == null)
+            {
+                throw new Exception("Me response missing user data");
+            }
             
-            return user;
-        }
-        
-        /// <summary>
-        /// Generate a mock auth token
-        /// </summary>
-        private string GenerateMockToken(string userId)
-        {
-            // Simple mock token: base64(userId + timestamp)
-            string payload = $"{userId}|{DateTime.UtcNow.Ticks}";
-            return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payload));
-        }
-        
-        /// <summary>
-        /// Validate a mock token (check if not expired)
-        /// </summary>
-        private bool ValidateMockToken(string token)
-        {
-            try
+            var userData = response.user;
+            
+            return new User
             {
-                string payload = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(token));
-                string[] parts = payload.Split('|');
-                
-                if (parts.Length != 2) return false;
-                
-                long ticks = long.Parse(parts[1]);
-                DateTime tokenTime = new DateTime(ticks);
-                
-                // Token valid for 30 days
-                return (DateTime.UtcNow - tokenTime).TotalDays < 30;
-            }
-            catch
-            {
-                return false;
-            }
+                id = userData.id,
+                email = userData.email,
+                displayName = userData.displayName ?? GetDisplayNameFromEmail(userData.email),
+                avatarUrl = userData.avatarUrl,
+                bbgBalance = 15.00f, // Would be loaded from game data
+                gasRemaining = 10f,
+                findLimit = 1.00f,
+                highestHiddenValue = 0f,
+                currentTier = FindLimitTier.CabinBoy,
+                stats = new UserStats(),
+                createdAt = userData.createdAt ?? DateTime.UtcNow.ToString("o"),
+                lastLoginAt = DateTime.UtcNow.ToString("o"),
+                accountStatus = AccountStatus.Active,
+                authMethod = AuthMethod.Email,
+                emailVerified = true,
+                age = 18
+            };
         }
         
         /// <summary>
@@ -848,6 +878,72 @@ namespace BlackBartsGold.Core
         
         /// <summary>Authentication error occurred</summary>
         Error
+    }
+    
+    #endregion
+    
+    #region Auth Request/Response Models
+    
+    /// <summary>
+    /// Login request payload
+    /// </summary>
+    [Serializable]
+    public class LoginRequest
+    {
+        public string email;
+        public string password;
+    }
+    
+    /// <summary>
+    /// Register request payload
+    /// </summary>
+    [Serializable]
+    public class RegisterRequest
+    {
+        public string email;
+        public string password;
+        public string displayName;
+        public int age;
+    }
+    
+    /// <summary>
+    /// Auth response from login/register endpoints
+    /// </summary>
+    [Serializable]
+    public class AuthResponse
+    {
+        public bool success;
+        public string token;
+        public string refreshToken;
+        public long expiresAt;
+        public AuthUserData user;
+        public string error;
+        public bool emailConfirmationRequired;
+    }
+    
+    /// <summary>
+    /// Auth /me response for token validation
+    /// </summary>
+    [Serializable]
+    public class AuthMeResponse
+    {
+        public bool success;
+        public AuthUserData user;
+        public string error;
+    }
+    
+    /// <summary>
+    /// User data from auth API responses
+    /// </summary>
+    [Serializable]
+    public class AuthUserData
+    {
+        public string id;
+        public string email;
+        public string displayName;
+        public string avatarUrl;
+        public string role;
+        public string createdAt;
     }
     
     #endregion
