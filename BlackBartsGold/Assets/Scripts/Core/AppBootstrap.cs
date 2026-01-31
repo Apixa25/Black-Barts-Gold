@@ -58,9 +58,19 @@ namespace BlackBartsGold.Core
             eventSystemGO.transform.SetParent(parent);
             
             _persistentEventSystem = eventSystemGO.AddComponent<EventSystem>();
-            eventSystemGO.AddComponent<InputSystemUIInputModule>();
+            var inputSystemModule = eventSystemGO.AddComponent<InputSystemUIInputModule>();
             
+#if UNITY_EDITOR
+            // In Editor, use StandaloneInputModule so mouse clicks work in the Game view.
+            // InputSystemUIInputModule often doesn't receive mouse input in Editor without
+            // a custom UI Actions asset; StandaloneInputModule works out of the box.
+            eventSystemGO.AddComponent<StandaloneInputModule>();
+            inputSystemModule.enabled = false;
+            Debug.Log("[AppBootstrap] EventSystem created with StandaloneInputModule (Editor - mouse works in Game view)");
+#else
+            // On device, use InputSystemUIInputModule for touch and new Input System.
             Debug.Log("[AppBootstrap] EventSystem created with InputSystemUIInputModule");
+#endif
         }
         
         /// <summary>
@@ -86,11 +96,13 @@ namespace BlackBartsGold.Core
             if (_persistentEventSystem != null)
             {
                 _persistentEventSystem.enabled = true;
+#if UNITY_EDITOR
+                var standalone = _persistentEventSystem.GetComponent<StandaloneInputModule>();
+                if (standalone != null) standalone.enabled = true;
+#else
                 var inputModule = _persistentEventSystem.GetComponent<InputSystemUIInputModule>();
-                if (inputModule != null)
-                {
-                    inputModule.enabled = true;
-                }
+                if (inputModule != null) inputModule.enabled = true;
+#endif
             }
         }
     }
