@@ -24,34 +24,55 @@ namespace BlackBartsGold.UI
         
         private void Awake()
         {
-            Debug.Log("[SimpleRegisterController] Awake - Setting up UI...");
-            SetupUI();
+            Debug.Log("[SimpleRegisterController] Awake");
         }
         
         private void Start()
         {
-            Debug.Log("[SimpleRegisterController] Start - Wiring buttons...");
-            WireButtons();
-            Debug.Log("[SimpleRegisterController] ✅ Ready!");
+            Debug.Log("[SimpleRegisterController] Start - Setting up UI...");
+            try
+            {
+                SetupUI();
+                WireButtons();
+                Debug.Log("[SimpleRegisterController] ✅ Ready!");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[SimpleRegisterController] Setup failed: {e.Message}\n{e.StackTrace}");
+            }
         }
         
         private void SetupUI()
         {
-            // Find or get the canvas
-            canvas = GetComponentInParent<Canvas>();
-            if (canvas == null)
+            // Find the RegisterCanvas specifically by name
+            var allCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            Debug.Log($"[SimpleRegisterController] Found {allCanvases.Length} canvases");
+            
+            foreach (var c in allCanvases)
             {
-                canvas = FindAnyObjectByType<Canvas>();
+                Debug.Log($"[SimpleRegisterController] Canvas: {c.name}");
+                if (c.name.Contains("Register"))
+                {
+                    canvas = c;
+                    break;
+                }
+            }
+            
+            if (canvas == null && allCanvases.Length > 0)
+            {
+                canvas = allCanvases[0];
             }
             
             if (canvas == null)
             {
-                // Create a canvas if none exists
+                Debug.Log("[SimpleRegisterController] Creating new canvas...");
                 var canvasGO = new GameObject("RegisterCanvas");
                 canvas = canvasGO.AddComponent<Canvas>();
-                canvasGO.AddComponent<UnityEngine.UI.CanvasScaler>();
-                canvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+                canvasGO.AddComponent<CanvasScaler>();
+                canvasGO.AddComponent<GraphicRaycaster>();
             }
+            
+            Debug.Log($"[SimpleRegisterController] Using canvas: {canvas.name}");
             
             // Ensure canvas is Screen Space - Overlay
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -74,28 +95,42 @@ namespace BlackBartsGold.UI
         
         private void SetupBackground()
         {
+            Debug.Log("[SimpleRegisterController] SetupBackground - checking canvas...");
+            if (canvas == null)
+            {
+                Debug.LogError("[SimpleRegisterController] Canvas is null in SetupBackground!");
+                return;
+            }
+            
+            Debug.Log("[SimpleRegisterController] SetupBackground - finding Background...");
             var bg = canvas.transform.Find("Background");
+            
             if (bg == null)
             {
+                Debug.Log("[SimpleRegisterController] Creating new Background...");
                 var bgGO = new GameObject("Background");
                 bgGO.transform.SetParent(canvas.transform, false);
                 bgGO.transform.SetAsFirstSibling();
                 bg = bgGO.transform;
+                Debug.Log("[SimpleRegisterController] Background created");
             }
             
+            Debug.Log("[SimpleRegisterController] Getting RectTransform...");
             var rect = bg.GetComponent<RectTransform>();
             if (rect == null) rect = bg.gameObject.AddComponent<RectTransform>();
             
-            // Stretch to fill canvas
+            Debug.Log("[SimpleRegisterController] Setting anchors...");
             rect.anchorMin = Vector2.zero;
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             
-            // Add Image component with dark blue color
+            Debug.Log("[SimpleRegisterController] Adding Image...");
             var img = bg.GetComponent<Image>();
             if (img == null) img = bg.gameObject.AddComponent<Image>();
-            img.color = new Color(0.12f, 0.18f, 0.28f, 1f); // Slightly different blue
+            img.color = new Color(0.12f, 0.18f, 0.28f, 1f);
+            
+            Debug.Log("[SimpleRegisterController] SetupBackground complete");
         }
         
         private void SetupTitle()
