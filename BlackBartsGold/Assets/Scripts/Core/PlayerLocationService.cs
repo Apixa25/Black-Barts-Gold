@@ -95,8 +95,19 @@ namespace BlackBartsGold.Core
         
         /// <summary>
         /// Is tracking currently active?
+        /// Checks if tracking is enabled and we have a valid user ID to send
         /// </summary>
-        public bool IsTrackingActive => trackingEnabled && SessionManager.Exists && SessionManager.Instance.IsLoggedIn;
+        public bool IsTrackingActive
+        {
+            get
+            {
+                if (!trackingEnabled) return false;
+                
+                // Check if we have a valid user ID from any source
+                string userId = GetUserId();
+                return !string.IsNullOrEmpty(userId);
+            }
+        }
         
         /// <summary>
         /// Last successful update time
@@ -297,7 +308,8 @@ namespace BlackBartsGold.Core
             
             if (!IsTrackingActive)
             {
-                Debug.Log($"[PlayerLocationService] ⏸️ SKIPPED: Tracking not active (trackingEnabled={trackingEnabled}, SessionExists={SessionManager.Exists}, IsLoggedIn={(SessionManager.Exists ? SessionManager.Instance.IsLoggedIn.ToString() : "N/A")})");
+                string userId = GetUserId();
+                Debug.Log($"[PlayerLocationService] ⏸️ SKIPPED: Tracking not active (trackingEnabled={trackingEnabled}, userId={(!string.IsNullOrEmpty(userId) ? userId : "NONE")})");
                 return;
             }
             
@@ -490,18 +502,59 @@ namespace BlackBartsGold.Core
         #region Helper Methods
         
         /// <summary>
-        /// Get the current user's ID
+        /// Get the current user's ID from multiple sources
         /// </summary>
         private string GetUserId()
         {
-            // First try PlayerData
+            // Log what sources are available
+            Debug.Log($"[PlayerLocationService] 🔍 GetUserId checking sources...");
+            Debug.Log($"[PlayerLocationService]   PlayerData.Exists={PlayerData.Exists}");
+            Debug.Log($"[PlayerLocationService]   AuthService.Exists={AuthService.Exists}");
+            
+            // Try PlayerData first (if it exists and has a user)
             if (PlayerData.Exists && PlayerData.Instance.CurrentUser != null)
             {
-                return PlayerData.Instance.CurrentUser.id;
+                string id = PlayerData.Instance.CurrentUser.id;
+                Debug.Log($"[PlayerLocationService]   PlayerData.CurrentUser.id='{id}'");
+                if (!string.IsNullOrEmpty(id))
+                {
+                    Debug.Log($"[PlayerLocationService] ✅ Got userId from PlayerData: {id}");
+                    return id;
+                }
             }
             
-            // Fallback to PlayerPrefs
-            return PlayerPrefs.GetString("user_id", "");
+            // Try AuthService (if it exists and has a user)
+            if (AuthService.Exists && AuthService.Instance.CurrentUser != null)
+            {
+                string id = AuthService.Instance.CurrentUser.id;
+                Debug.Log($"[PlayerLocationService]   AuthService.CurrentUser.id='{id}'");
+                if (!string.IsNullOrEmpty(id))
+                {
+                    Debug.Log($"[PlayerLocationService] ✅ Got userId from AuthService: {id}");
+                    return id;
+                }
+            }
+            
+            // Fallback to PlayerPrefs (where AuthService stores the user_id on login)
+            string prefsUserId = PlayerPrefs.GetString("user_id", "");
+            Debug.Log($"[PlayerLocationService]   PlayerPrefs 'user_id'='{prefsUserId}'");
+            if (!string.IsNullOrEmpty(prefsUserId))
+            {
+                Debug.Log($"[PlayerLocationService] ✅ Got userId from PlayerPrefs: {prefsUserId}");
+                return prefsUserId;
+            }
+            
+            // Last resort: try to get from auth_user_id key (some implementations use this)
+            string authUserId = PlayerPrefs.GetString("auth_user_id", "");
+            Debug.Log($"[PlayerLocationService]   PlayerPrefs 'auth_user_id'='{authUserId}'");
+            if (!string.IsNullOrEmpty(authUserId))
+            {
+                Debug.Log($"[PlayerLocationService] ✅ Got userId from PlayerPrefs auth_user_id: {authUserId}");
+                return authUserId;
+            }
+            
+            Debug.LogWarning("[PlayerLocationService] ❌ No userId found from any source!");
+            return "";
         }
         
         /// <summary>
