@@ -104,11 +104,38 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
+            Debug.Log("╔════════════════════════════════════════════════════╗");
+            Debug.Log("║ [LoginUI] START() CALLED - Login Scene Active!     ║");
+            Debug.Log("╚════════════════════════════════════════════════════╝");
+            
+            Debug.Log("[LoginUI] Setting up UI...");
             SetupUI();
+            
+            Debug.Log("[LoginUI] Setting up listeners...");
             SetupListeners();
+            
+            Debug.Log("[LoginUI] Checking session expired message...");
             CheckSessionExpiredMessage();
+            
+            Debug.Log("[LoginUI] Hiding loading...");
             HideLoading();
+            
+            Debug.Log("[LoginUI] Clearing error...");
             ClearError();
+            
+            // Log which UI elements are connected
+            Debug.Log("[LoginUI] === UI Element Status ===");
+            Debug.Log($"[LoginUI] emailInput: {(emailInput != null ? "✅ Connected" : "❌ NULL")}");
+            Debug.Log($"[LoginUI] passwordInput: {(passwordInput != null ? "✅ Connected" : "❌ NULL")}");
+            Debug.Log($"[LoginUI] loginButton: {(loginButton != null ? "✅ Connected" : "❌ NULL")}");
+            Debug.Log($"[LoginUI] googleLoginButton: {(googleLoginButton != null ? "✅ Connected" : "❌ NULL")}");
+            Debug.Log($"[LoginUI] createAccountButton: {(createAccountButton != null ? "✅ Connected" : "❌ NULL")}");
+            Debug.Log($"[LoginUI] titleText: {(titleText != null ? "✅ Connected" : "❌ NULL")}");
+            Debug.Log($"[LoginUI] errorText: {(errorText != null ? "✅ Connected" : "❌ NULL")}");
+            Debug.Log($"[LoginUI] loadingOverlay: {(loadingOverlay != null ? "✅ Connected" : "❌ NULL")}");
+            Debug.Log("[LoginUI] === End UI Element Status ===");
+            
+            Debug.Log("[LoginUI] ✅ Start() complete!");
         }
         
         private void OnDestroy()
@@ -124,6 +151,124 @@ namespace BlackBartsGold.UI
         #endregion
         
         #region Setup
+        
+        /// <summary>
+        /// <summary>
+        /// Auto-find UI elements if not assigned in inspector
+        /// </summary>
+        private void AutoFindUIElements()
+        {
+            Debug.Log("[LoginUI] AutoFindUIElements() - Looking for UI elements in scene...");
+            
+            // Find LoginCanvas specifically (not UIManager's UICanvas)
+            Canvas canvas = null;
+            var allCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            Debug.Log($"[LoginUI] Found {allCanvases.Length} canvases in scene");
+            
+            foreach (var c in allCanvases)
+            {
+                Debug.Log($"[LoginUI] Checking canvas: '{c.gameObject.name}'");
+                if (c.gameObject.name == "LoginCanvas")
+                {
+                    canvas = c;
+                    Debug.Log($"[LoginUI] ✅ Found LoginCanvas!");
+                    break;
+                }
+            }
+            
+            if (canvas == null)
+            {
+                Debug.LogError("[LoginUI] ❌ Could not find 'LoginCanvas'! Will try first canvas...");
+                // Fallback - try to find any canvas that's not UICanvas
+                foreach (var c in allCanvases)
+                {
+                    if (c.gameObject.name != "UICanvas")
+                    {
+                        canvas = c;
+                        Debug.Log($"[LoginUI] Using fallback canvas: {c.gameObject.name}");
+                        break;
+                    }
+                }
+            }
+            
+            if (canvas == null)
+            {
+                Debug.LogError("[LoginUI] ❌ No suitable Canvas found!");
+                return;
+            }
+            Debug.Log($"[LoginUI] Using canvas: {canvas.gameObject.name}");
+            
+            // Find buttons if not assigned
+            if (loginButton == null)
+            {
+                var loginBtnTransform = canvas.transform.Find("LoginButton");
+                if (loginBtnTransform != null)
+                {
+                    loginButton = loginBtnTransform.GetComponent<Button>();
+                    Debug.Log($"[LoginUI] 🔍 Auto-found LoginButton: {(loginButton != null ? "✅" : "❌")}");
+                }
+                else
+                {
+                    Debug.LogWarning("[LoginUI] Could not find 'LoginButton' in canvas");
+                }
+            }
+            
+            if (createAccountButton == null)
+            {
+                var createBtnTransform = canvas.transform.Find("CreateAccountButton");
+                if (createBtnTransform != null)
+                {
+                    createAccountButton = createBtnTransform.GetComponent<Button>();
+                    Debug.Log($"[LoginUI] 🔍 Auto-found CreateAccountButton: {(createAccountButton != null ? "✅" : "❌")}");
+                }
+                else
+                {
+                    Debug.LogWarning("[LoginUI] Could not find 'CreateAccountButton' in canvas");
+                }
+            }
+            
+            // Find input fields if not assigned
+            if (emailInput == null)
+            {
+                var emailTransform = canvas.transform.Find("EmailInput");
+                if (emailTransform != null)
+                {
+                    emailInput = emailTransform.GetComponent<TMP_InputField>();
+                    Debug.Log($"[LoginUI] 🔍 Auto-found EmailInput: {(emailInput != null ? "✅" : "❌")}");
+                }
+                else
+                {
+                    Debug.LogWarning("[LoginUI] Could not find 'EmailInput' in canvas");
+                }
+            }
+            
+            if (passwordInput == null)
+            {
+                var passwordTransform = canvas.transform.Find("PasswordInput");
+                if (passwordTransform != null)
+                {
+                    passwordInput = passwordTransform.GetComponent<TMP_InputField>();
+                    Debug.Log($"[LoginUI] 🔍 Auto-found PasswordInput: {(passwordInput != null ? "✅" : "❌")}");
+                }
+                else
+                {
+                    Debug.LogWarning("[LoginUI] Could not find 'PasswordInput' in canvas");
+                }
+            }
+            
+            // Find title text
+            if (titleText == null)
+            {
+                var titleTransform = canvas.transform.Find("TitleText");
+                if (titleTransform != null)
+                {
+                    titleText = titleTransform.GetComponent<TMP_Text>();
+                    Debug.Log($"[LoginUI] 🔍 Auto-found TitleText: {(titleText != null ? "✅" : "❌")}");
+                }
+            }
+            
+            Debug.Log("[LoginUI] AutoFindUIElements() complete");
+        }
         
         /// <summary>
         /// Setup UI initial state
@@ -165,20 +310,36 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void SetupListeners()
         {
+            Debug.Log("[LoginUI] SetupListeners() - Finding UI elements...");
+            
+            // Try to auto-find elements if not assigned in inspector
+            AutoFindUIElements();
+            
             // Buttons
             if (loginButton != null)
             {
                 loginButton.onClick.AddListener(OnLoginClicked);
+                Debug.Log("[LoginUI] ✅ Login button listener added");
+            }
+            else
+            {
+                Debug.LogError("[LoginUI] ❌ Login button is NULL - cannot add listener!");
             }
             
             if (googleLoginButton != null)
             {
                 googleLoginButton.onClick.AddListener(OnGoogleLoginClicked);
+                Debug.Log("[LoginUI] ✅ Google login button listener added");
             }
             
             if (createAccountButton != null)
             {
                 createAccountButton.onClick.AddListener(OnCreateAccountClicked);
+                Debug.Log("[LoginUI] ✅ Create account button listener added");
+            }
+            else
+            {
+                Debug.LogError("[LoginUI] ❌ Create account button is NULL - cannot add listener!");
             }
             
             if (forgotPasswordButton != null)
@@ -196,6 +357,11 @@ namespace BlackBartsGold.UI
             {
                 emailInput.onValueChanged.AddListener(OnEmailChanged);
                 emailInput.onSubmit.AddListener(_ => OnLoginClicked());
+                Debug.Log("[LoginUI] ✅ Email input listeners added");
+            }
+            else
+            {
+                Debug.LogError("[LoginUI] ❌ Email input is NULL!");
             }
             
             if (passwordInput != null)
@@ -221,9 +387,15 @@ namespace BlackBartsGold.UI
         /// </summary>
         private async void OnLoginClicked()
         {
-            if (isLoggingIn) return;
+            Debug.Log("╔════════════════════════════════════════════════════╗");
+            Debug.Log("║ [LoginUI] LOGIN BUTTON CLICKED!                    ║");
+            Debug.Log("╚════════════════════════════════════════════════════╝");
             
-            Log("Login clicked");
+            if (isLoggingIn)
+            {
+                Debug.Log("[LoginUI] Already logging in, ignoring click");
+                return;
+            }
             
             // Clear previous error
             ClearError();
@@ -231,6 +403,9 @@ namespace BlackBartsGold.UI
             // Get input values
             string email = emailInput?.text?.Trim() ?? "";
             string password = passwordInput?.text ?? "";
+            
+            Debug.Log($"[LoginUI] Email: '{email}' (length: {email.Length})");
+            Debug.Log($"[LoginUI] Password length: {password.Length}");
             
             // Validate
             if (!AuthService.Exists)
@@ -315,7 +490,10 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void OnCreateAccountClicked()
         {
-            Log("Create account clicked");
+            Debug.Log("╔════════════════════════════════════════════════════╗");
+            Debug.Log("║ [LoginUI] CREATE ACCOUNT CLICKED!                  ║");
+            Debug.Log("╚════════════════════════════════════════════════════╝");
+            Debug.Log("[LoginUI] Loading Register scene...");
             SceneLoader.LoadScene(SceneNames.Register);
         }
         

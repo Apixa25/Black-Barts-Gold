@@ -109,6 +109,14 @@ namespace BlackBartsGold.UI
             var btn = transform.Find("LoginButton");
             if (btn == null) return;
 
+            // Skip if LoginSetup already set this up (check for existing text)
+            var existingText = btn.Find("Text");
+            if (existingText != null && existingText.GetComponent<TMP_Text>()?.text?.Contains("Log In") == true)
+            {
+                Debug.Log("[LoginSceneSetup] LoginButton already set up by LoginSetup, skipping");
+                return;
+            }
+
             var rect = btn.GetComponent<RectTransform>();
             if (rect != null)
             {
@@ -125,14 +133,22 @@ namespace BlackBartsGold.UI
                 image.color = GoldColor;
             }
 
-            // Setup button text
-            SetupButtonText(btn, "⚓ SET SAIL", 36);
+            // Use consistent label with LoginSetup
+            SetupButtonText(btn, "⚓ Log In", 36);
         }
 
         private void SetupCreateAccountButton()
         {
             var btn = transform.Find("CreateAccountButton");
             if (btn == null) return;
+
+            // Skip if LoginSetup already set this up
+            var existingText = btn.Find("Text");
+            if (existingText != null && existingText.GetComponent<TMP_Text>()?.text?.Contains("Join the Crew") == true)
+            {
+                Debug.Log("[LoginSceneSetup] CreateAccountButton already set up by LoginSetup, skipping");
+                return;
+            }
 
             var rect = btn.GetComponent<RectTransform>();
             if (rect != null)
@@ -150,7 +166,7 @@ namespace BlackBartsGold.UI
                 image.color = Parchment;
             }
 
-            // Setup button text
+            // Use consistent label
             SetupButtonText(btn, "🏴‍☠️ Join the Crew", 28);
         }
 
