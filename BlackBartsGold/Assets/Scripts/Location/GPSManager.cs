@@ -578,11 +578,8 @@ namespace BlackBartsGold.Location
                 OnAccuracyChanged?.Invoke(newAccuracy);
             }
             
-            // Update PlayerData
-            if (PlayerData.Exists)
-            {
-                PlayerData.Instance.UpdateLocation(newLocation);
-            }
+            // Update PlayerData (Instance getter auto-creates if needed)
+            PlayerData.Instance.UpdateLocation(newLocation);
             
             // Notify listeners
             OnLocationUpdated?.Invoke(newLocation);

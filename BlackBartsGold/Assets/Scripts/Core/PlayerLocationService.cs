@@ -91,6 +91,7 @@ namespace BlackBartsGold.Core
         private bool _isUpdating = false;
         private string _currentSessionId = null;
         private bool _isArActive = false;
+        private bool _isSubscribed = false;
         
         /// <summary>
         /// Is tracking currently active?
@@ -155,11 +156,47 @@ namespace BlackBartsGold.Core
             if (PlayerData.Exists)
             {
                 PlayerData.Instance.OnLocationUpdated += HandleLocationUpdated;
+                _isSubscribed = true;
                 Debug.Log("[PlayerLocationService] ✅ Subscribed to PlayerData.OnLocationUpdated");
             }
             else
             {
-                Debug.LogWarning("[PlayerLocationService] ⚠️ PlayerData not found, will retry subscription");
+                Debug.LogWarning("[PlayerLocationService] ⚠️ PlayerData not found, starting retry coroutine...");
+                StartCoroutine(RetrySubscriptionCoroutine());
+            }
+        }
+        
+        /// <summary>
+        /// Coroutine to retry subscribing to PlayerData until successful
+        /// </summary>
+        private System.Collections.IEnumerator RetrySubscriptionCoroutine()
+        {
+            int attempts = 0;
+            const int maxAttempts = 30; // Try for up to 30 seconds
+            
+            while (!_isSubscribed && attempts < maxAttempts)
+            {
+                yield return new WaitForSeconds(1f);
+                attempts++;
+                
+                if (PlayerData.Exists)
+                {
+                    PlayerData.Instance.OnLocationUpdated -= HandleLocationUpdated; // Prevent duplicates
+                    PlayerData.Instance.OnLocationUpdated += HandleLocationUpdated;
+                    _isSubscribed = true;
+                    Debug.Log($"[PlayerLocationService] ✅ Subscription established after {attempts}s retry");
+                    yield break;
+                }
+                
+                if (attempts % 5 == 0)
+                {
+                    Debug.Log($"[PlayerLocationService] 🔄 Retry {attempts}/{maxAttempts}: Waiting for PlayerData...");
+                }
+            }
+            
+            if (!_isSubscribed)
+            {
+                Debug.LogError("[PlayerLocationService] ❌ Failed to subscribe after 30 attempts. Location tracking disabled.");
             }
         }
         
@@ -256,24 +293,40 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void HandleLocationUpdated(LocationData location)
         {
+            Debug.Log($"[PlayerLocationService] 📍 HandleLocationUpdated called: ({location.latitude:F6}, {location.longitude:F6})");
+            
             if (!IsTrackingActive)
             {
+                Debug.Log($"[PlayerLocationService] ⏸️ SKIPPED: Tracking not active (trackingEnabled={trackingEnabled}, SessionExists={SessionManager.Exists}, IsLoggedIn={(SessionManager.Exists ? SessionManager.Instance.IsLoggedIn.ToString() : "N/A")})");
                 return;
             }
             
             // Throttle updates
-            if (Time.time - _lastUpdateTime < updateIntervalSeconds)
+            float timeSinceLastUpdate = Time.time - _lastUpdateTime;
+            if (timeSinceLastUpdate < updateIntervalSeconds)
             {
+                Debug.Log($"[PlayerLocationService] ⏳ THROTTLED: {timeSinceLastUpdate:F1}s since last update (need {updateIntervalSeconds}s)");
                 return;
             }
             
             // Check minimum distance change (if we have a previous location)
-            if (_lastSentLocation != null && location.DistanceTo(_lastSentLocation) < minDistanceChangeMeters)
+            if (_lastSentLocation != null)
             {
-                return;
+                float distance = location.DistanceTo(_lastSentLocation);
+                if (distance < minDistanceChangeMeters)
+                {
+                    Debug.Log($"[PlayerLocationService] 📏 SKIPPED: Only moved {distance:F1}m (need {minDistanceChangeMeters}m)");
+                    return;
+                }
+                Debug.Log($"[PlayerLocationService] 📏 Distance check passed: moved {distance:F1}m");
+            }
+            else
+            {
+                Debug.Log("[PlayerLocationService] 📏 First location update (no previous location)");
             }
             
             // Send update
+            Debug.Log("[PlayerLocationService] 🚀 Initiating location send...");
             _ = SendLocationUpdateAsync(location, force: false);
         }
         
@@ -282,8 +335,11 @@ namespace BlackBartsGold.Core
         /// </summary>
         private async Task SendLocationUpdateAsync(LocationData location, bool force)
         {
+            Debug.Log($"[PlayerLocationService] 📤 SendLocationUpdateAsync START (force={force}, isUpdating={_isUpdating})");
+            
             if (_isUpdating && !force)
             {
+                Debug.Log("[PlayerLocationService] ⏸️ SKIPPED: Already updating (use force=true to override)");
                 return;
             }
             
@@ -293,9 +349,14 @@ namespace BlackBartsGold.Core
             {
                 // Get user ID
                 string userId = GetUserId();
+                Debug.Log($"[PlayerLocationService] 👤 User ID: {(string.IsNullOrEmpty(userId) ? "NULL/EMPTY" : userId)}");
+                
                 if (string.IsNullOrEmpty(userId))
                 {
                     Debug.LogWarning("[PlayerLocationService] ⚠️ No user ID available, skipping update");
+                    Debug.LogWarning($"[PlayerLocationService]   PlayerData.Exists={PlayerData.Exists}");
+                    Debug.LogWarning($"[PlayerLocationService]   CurrentUser={(PlayerData.Exists && PlayerData.Instance.CurrentUser != null ? "exists" : "NULL")}");
+                    Debug.LogWarning($"[PlayerLocationService]   PlayerPrefs user_id='{PlayerPrefs.GetString("user_id", "")}'");
                     return;
                 }
                 
@@ -318,11 +379,24 @@ namespace BlackBartsGold.Core
                     clientTimestamp = location.timestamp
                 };
                 
+                // Log the full request
+                Debug.Log($"[PlayerLocationService] 📦 REQUEST BODY:");
+                Debug.Log($"[PlayerLocationService]   userId: {requestBody.userId}");
+                Debug.Log($"[PlayerLocationService]   coords: ({requestBody.latitude:F6}, {requestBody.longitude:F6})");
+                Debug.Log($"[PlayerLocationService]   accuracy: {requestBody.accuracyMeters:F1}m");
+                Debug.Log($"[PlayerLocationService]   heading: {requestBody.heading:F1}°, speed: {requestBody.speedMps:F2}m/s");
+                Debug.Log($"[PlayerLocationService]   deviceId: {requestBody.deviceId}");
+                Debug.Log($"[PlayerLocationService]   sessionId: {requestBody.sessionId}");
+                Debug.Log($"[PlayerLocationService]   endpoint: {ApiConfig.Player.LOCATION}");
+                
                 // Send to API
+                Debug.Log($"[PlayerLocationService] 🌐 Calling ApiClient.Post to {ApiConfig.Player.LOCATION}...");
                 var response = await ApiClient.Instance.Post<LocationUpdateResponse>(
                     ApiConfig.Player.LOCATION, 
                     requestBody
                 );
+                
+                Debug.Log($"[PlayerLocationService] 📥 Response received: {(response != null ? "not null" : "NULL")}");
                 
                 if (response != null && response.success)
                 {
@@ -330,41 +404,55 @@ namespace BlackBartsGold.Core
                     _lastSentLocation = location.Clone();
                     UpdatesSentCount++;
                     
-                    if (ApiConfig.DebugLogging)
-                    {
-                        Debug.Log($"[PlayerLocationService] ✅ Location sent ({location.latitude:F4}, {location.longitude:F4}) - {response.movementType}");
-                    }
+                    Debug.Log($"[PlayerLocationService] ✅✅✅ SUCCESS! Location #{UpdatesSentCount} sent!");
+                    Debug.Log($"[PlayerLocationService]   coords: ({location.latitude:F4}, {location.longitude:F4})");
+                    Debug.Log($"[PlayerLocationService]   movementType: {response.movementType}");
+                    Debug.Log($"[PlayerLocationService]   locationId: {response.locationId}");
+                    Debug.Log($"[PlayerLocationService]   timestamp: {response.timestamp}");
                     
                     OnLocationSent?.Invoke(location);
                 }
                 else
                 {
                     UpdateFailuresCount++;
-                    Debug.LogWarning("[PlayerLocationService] ⚠️ Location update failed: null or unsuccessful response");
+                    Debug.LogWarning($"[PlayerLocationService] ⚠️ Location update FAILED (failure #{UpdateFailuresCount})");
+                    Debug.LogWarning($"[PlayerLocationService]   response is null: {response == null}");
+                    if (response != null)
+                    {
+                        Debug.LogWarning($"[PlayerLocationService]   response.success: {response.success}");
+                    }
                     OnLocationSendFailed?.Invoke("Update failed");
                 }
             }
             catch (NetworkException ex)
             {
                 UpdateFailuresCount++;
-                Debug.LogWarning($"[PlayerLocationService] 🌐 Network error: {ex.Message}");
+                Debug.LogWarning($"[PlayerLocationService] 🌐 NETWORK ERROR (failure #{UpdateFailuresCount})");
+                Debug.LogWarning($"[PlayerLocationService]   Message: {ex.Message}");
+                Debug.LogWarning($"[PlayerLocationService]   Check internet connection!");
                 OnLocationSendFailed?.Invoke(ex.Message);
             }
             catch (ApiException ex)
             {
                 UpdateFailuresCount++;
-                Debug.LogWarning($"[PlayerLocationService] ❌ API error: {ex.Message}");
+                Debug.LogWarning($"[PlayerLocationService] ❌ API ERROR (failure #{UpdateFailuresCount})");
+                Debug.LogWarning($"[PlayerLocationService]   Message: {ex.Message}");
+                Debug.LogWarning($"[PlayerLocationService]   This may be a server-side issue.");
                 OnLocationSendFailed?.Invoke(ex.Message);
             }
             catch (Exception ex)
             {
                 UpdateFailuresCount++;
-                Debug.LogError($"[PlayerLocationService] ❌ Unexpected error: {ex.Message}");
+                Debug.LogError($"[PlayerLocationService] ❌ UNEXPECTED ERROR (failure #{UpdateFailuresCount})");
+                Debug.LogError($"[PlayerLocationService]   Type: {ex.GetType().Name}");
+                Debug.LogError($"[PlayerLocationService]   Message: {ex.Message}");
+                Debug.LogError($"[PlayerLocationService]   StackTrace: {ex.StackTrace}");
                 OnLocationSendFailed?.Invoke(ex.Message);
             }
             finally
             {
                 _isUpdating = false;
+                Debug.Log("[PlayerLocationService] 📤 SendLocationUpdateAsync END");
             }
         }
         
@@ -459,7 +547,12 @@ namespace BlackBartsGold.Core
                 // Unsubscribe first to avoid duplicate subscriptions
                 PlayerData.Instance.OnLocationUpdated -= HandleLocationUpdated;
                 PlayerData.Instance.OnLocationUpdated += HandleLocationUpdated;
+                _isSubscribed = true;
                 Debug.Log("[PlayerLocationService] ✅ Subscription ensured");
+            }
+            else
+            {
+                Debug.LogWarning("[PlayerLocationService] ⚠️ EnsureSubscription called but PlayerData not available");
             }
         }
         
