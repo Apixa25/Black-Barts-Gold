@@ -374,8 +374,6 @@ GameObject:
   - component: {fileID: 463812730}
   - component: {fileID: 463812729}
   - component: {fileID: 463812728}
-  - component: {fileID: 463812727}
-  - component: {fileID: 463812732}
   m_Layer: 0
   m_Name: MainMenuCanvas
   m_TagString: Untagged
@@ -383,18 +381,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &463812727
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 463812726}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b90ca613cda4e6419ca93632d0a4ad0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.UI.MainMenuSetup
 --- !u!114 &463812728
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -444,7 +430,7 @@ Canvas:
   m_GameObject: {fileID: 463812726}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 2
+  m_RenderMode: 0
   m_Camera: {fileID: 0}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
@@ -467,7 +453,7 @@ RectTransform:
   m_GameObject: {fileID: 463812726}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 377598014}
@@ -475,26 +461,13 @@ RectTransform:
   - {fileID: 1452775513}
   - {fileID: 454347150}
   - {fileID: 874221643}
-  - {fileID: 1266337669}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &463812732
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 463812726}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 227cbbad58838a94b86b5f130797a67d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.UI.MainMenuSceneSetup
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0, y: 0}
 --- !u!1 &578577812
 GameObject:
   m_ObjectHideFlags: 0
@@ -653,7 +626,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -711,6 +684,89 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 727997565}
   m_CullTransparentMesh: 1
+--- !u!1 &808262929
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 808262931}
+  - component: {fileID: 808262930}
+  m_Layer: 0
+  m_Name: Main Camera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!20 &808262930
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 808262929}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!4 &808262931
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 808262929}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &874221642
 GameObject:
   m_ObjectHideFlags: 0
@@ -879,70 +935,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1452775513}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1266337668
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1266337669}
-  - component: {fileID: 1266337670}
-  m_Layer: 0
-  m_Name: MainMenuManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1266337669
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1266337668}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 463812731}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1266337670
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1266337668}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c2db0442f319b274c94605af649e8229, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.UI.MainMenuUI
-  titleText: {fileID: 0}
-  balanceText: {fileID: 0}
-  gasStatusText: {fileID: 0}
-  playerNameText: {fileID: 0}
-  startHuntingButton: {fileID: 0}
-  startHuntingText: {fileID: 0}
-  treasureMapButton: {fileID: 0}
-  walletButton: {fileID: 0}
-  settingsButton: {fileID: 0}
-  coinsFoundText: {fileID: 0}
-  findLimitText: {fileID: 0}
-  coinsHiddenText: {fileID: 0}
-  tierText: {fileID: 0}
-  noGasPanel: {fileID: 0}
-  buyGasButton: {fileID: 0}
-  loadingPanel: {fileID: 0}
-  goldColor: {r: 1, g: 0.84, b: 0, a: 1}
-  warningColor: {r: 0.98, g: 0.75, b: 0.14, a: 1}
-  dangerColor: {r: 0.94, g: 0.27, b: 0.27, a: 1}
-  debugMode: 0
 --- !u!1 &1452775512
 GameObject:
   m_ObjectHideFlags: 0
@@ -1117,3 +1109,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 463812731}
   - {fileID: 578577815}
+  - {fileID: 808262931}
