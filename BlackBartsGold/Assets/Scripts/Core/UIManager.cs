@@ -139,8 +139,76 @@ namespace BlackBartsGold.Core
         
         private void Start()
         {
-            // Show login by default
-            ShowLogin();
+            Debug.Log("╔════════════════════════════════════════════════════╗");
+            Debug.Log("║ [UIManager] START() CALLED                         ║");
+            Debug.Log("╚════════════════════════════════════════════════════╝");
+            
+            // Check if current scene has its own UI - if so, don't show UIManager panels
+            string currentScene = SceneManager.GetActiveScene().name;
+            Debug.Log($"[UIManager] Current active scene: '{currentScene}'");
+            
+            bool hasOwnUI = SceneHasOwnUI(currentScene);
+            Debug.Log($"[UIManager] Scene has own UI: {hasOwnUI}");
+            
+            if (hasOwnUI)
+            {
+                Debug.Log($"[UIManager] ⚠️ Scene '{currentScene}' has its own UI - DISABLING UIManager canvas entirely!");
+                DisableUIManagerCanvas();
+            }
+            else
+            {
+                Debug.Log($"[UIManager] Scene '{currentScene}' uses UIManager panels - showing login");
+                EnableUIManagerCanvas();
+                ShowLogin();
+            }
+        }
+        
+        /// <summary>
+        /// Disable the entire UIManager canvas so it doesn't overlay scene UI
+        /// </summary>
+        private void DisableUIManagerCanvas()
+        {
+            Debug.Log("[UIManager] DisableUIManagerCanvas() called");
+            HideAllPanels();
+            
+            // Also disable the canvas component itself
+            if (_ourCanvas != null)
+            {
+                _ourCanvas.enabled = false;
+                Debug.Log("[UIManager] Canvas component DISABLED");
+            }
+            else
+            {
+                Debug.LogWarning("[UIManager] _ourCanvas is null, cannot disable!");
+            }
+        }
+        
+        /// <summary>
+        /// Enable the UIManager canvas
+        /// </summary>
+        private void EnableUIManagerCanvas()
+        {
+            Debug.Log("[UIManager] EnableUIManagerCanvas() called");
+            if (_ourCanvas != null)
+            {
+                _ourCanvas.enabled = true;
+                Debug.Log("[UIManager] Canvas component ENABLED");
+            }
+        }
+        
+        /// <summary>
+        /// Check if a scene has its own dedicated UI (so UIManager shouldn't overlay)
+        /// </summary>
+        private bool SceneHasOwnUI(string sceneName)
+        {
+            // These scenes have their own LoginUI, RegisterUI, MainMenuUI, etc.
+            bool hasOwn = sceneName == "Login" || 
+                   sceneName == "Register" || 
+                   sceneName == "MainMenu" ||
+                   sceneName == "Wallet" ||
+                   sceneName == "Settings";
+            Debug.Log($"[UIManager] SceneHasOwnUI('{sceneName}') = {hasOwn}");
+            return hasOwn;
         }
         
         private void Update()
@@ -342,9 +410,37 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
         {
-            Debug.Log($"[UIManager] Scene loaded: {scene.name} - cleaning up scene UI");
+            Debug.Log("╔════════════════════════════════════════════════════╗");
+            Debug.Log($"║ [UIManager] SCENE LOADED: {scene.name,-24} ║");
+            Debug.Log("╚════════════════════════════════════════════════════╝");
             
-            // Find all Canvas objects in the scene
+            // Check if this scene has its own dedicated UI
+            if (SceneHasOwnUI(scene.name))
+            {
+                Debug.Log($"[UIManager] ✅ Scene '{scene.name}' has its own UI");
+                Debug.Log("[UIManager] ➡️ DISABLING UIManager canvas entirely");
+                DisableUIManagerCanvas();
+                
+                // Count scene canvases that should be preserved
+                var sceneCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+                int preservedCount = 0;
+                foreach (var canvas in sceneCanvases)
+                {
+                    if (canvas != _ourCanvas && !canvas.transform.IsChildOf(transform))
+                    {
+                        preservedCount++;
+                        Debug.Log($"[UIManager] 🎨 Preserving scene canvas: {canvas.gameObject.name}");
+                    }
+                }
+                Debug.Log($"[UIManager] Total scene canvases preserved: {preservedCount}");
+                return;
+            }
+            
+            // For scenes without their own UI (like ARHunt), we manage the UI
+            Debug.Log($"[UIManager] ⚙️ Scene '{scene.name}' uses UIManager panels");
+            EnableUIManagerCanvas();
+            
+            // Find and destroy scene-based canvases (only for scenes we manage)
             var allCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
             
             foreach (var canvas in allCanvases)
@@ -352,17 +448,19 @@ namespace BlackBartsGold.Core
                 // Skip our own canvas
                 if (canvas == _ourCanvas)
                 {
+                    Debug.Log($"[UIManager] Skipping our own canvas");
                     continue;
                 }
                 
                 // Skip if it's a child of our UIManager (our canvas)
                 if (canvas.transform.IsChildOf(transform))
                 {
+                    Debug.Log($"[UIManager] Skipping child canvas: {canvas.gameObject.name}");
                     continue;
                 }
                 
-                // This is a scene-based Canvas - destroy it!
-                Debug.Log($"[UIManager] Destroying scene-based Canvas: {canvas.gameObject.name}");
+                // This is a scene-based Canvas in a UIManager-managed scene - destroy it
+                Debug.Log($"[UIManager] 🗑️ Destroying scene-based Canvas: {canvas.gameObject.name}");
                 Destroy(canvas.gameObject);
             }
             
@@ -370,7 +468,8 @@ namespace BlackBartsGold.Core
             if (scene.name == "ARHunt")
             {
                 // Show AR HUD
-                Debug.Log("[UIManager] ARHunt scene - showing AR HUD");
+                Debug.Log("[UIManager] 🎮 ARHunt scene - showing AR HUD");
+                HideAllPanels();
                 if (arHudPanel != null) arHudPanel.SetActive(true);
                 
                 // Fetch real coins from API after AR initializes
@@ -380,6 +479,8 @@ namespace BlackBartsGold.Core
             {
                 // Not in AR mode and scene loaded - make sure main menu is visible
                 // (This handles returning from AR)
+                Debug.Log("[UIManager] Not in AR mode, showing login panel");
+                ShowLogin();
             }
         }
         
