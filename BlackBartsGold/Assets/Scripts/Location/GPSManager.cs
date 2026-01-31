@@ -496,6 +496,13 @@ namespace BlackBartsGold.Location
             float totalInitTime = Time.realtimeSinceStartup - startTime;
             Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: *** GPS SERVICE RUNNING! *** Total init time: {totalInitTime:F2}s");
             
+            // Initialize PlayerLocationService to send location updates to admin dashboard
+            if (PlayerLocationService.Exists || PlayerLocationService.Instance != null)
+            {
+                PlayerLocationService.Instance.EnsureSubscription();
+                Debug.Log($"[GPSManager] T+{Time.realtimeSinceStartup:F2}s: PlayerLocationService initialized for real-time tracking");
+            }
+            
             // Log first location data
             if (Input.location.status == LocationServiceStatus.Running)
             {
