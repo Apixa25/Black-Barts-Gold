@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS public.player_locations (
   movement_type TEXT DEFAULT 'walking' CHECK (movement_type IN ('walking', 'running', 'driving', 'suspicious')),
   distance_traveled_session DOUBLE PRECISION DEFAULT 0,
   
-  -- Zone context
-  current_zone_id UUID REFERENCES public.zones(id) ON DELETE SET NULL,
+  -- Zone context (FK added later if zones table exists)
+  current_zone_id UUID,
   
   -- Timestamps
   client_timestamp TIMESTAMP WITH TIME ZONE,  -- When device recorded position
@@ -64,7 +64,13 @@ CREATE INDEX IF NOT EXISTS player_locations_suspicious_idx ON public.player_loca
 -- Enable Row Level Security
 ALTER TABLE public.player_locations ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admins can view all player locations
+-- ============================================================================
+-- RLS Policies for player_locations
+-- Using DROP IF EXISTS + CREATE pattern for idempotent migrations
+-- (PostgreSQL does not support CREATE POLICY IF NOT EXISTS)
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Admins can view all player locations" ON public.player_locations;
 CREATE POLICY "Admins can view all player locations" ON public.player_locations
   FOR SELECT USING (
     EXISTS (
@@ -73,11 +79,16 @@ CREATE POLICY "Admins can view all player locations" ON public.player_locations
     )
   );
 
--- Policy: Users can update their own location
+DROP POLICY IF EXISTS "Users can update own location" ON public.player_locations;
 CREATE POLICY "Users can update own location" ON public.player_locations
   FOR ALL USING (auth.uid() = user_id);
 
--- Create updated_at trigger
+DROP POLICY IF EXISTS "Service role can manage locations" ON public.player_locations;
+CREATE POLICY "Service role can manage locations" ON public.player_locations
+  FOR ALL USING (true);
+
+-- Create updated_at trigger (drop first for idempotency)
+DROP TRIGGER IF EXISTS player_locations_updated_at ON public.player_locations;
 CREATE TRIGGER player_locations_updated_at
   BEFORE UPDATE ON public.player_locations
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
@@ -104,7 +115,12 @@ CREATE INDEX IF NOT EXISTS player_location_history_time_idx ON public.player_loc
 -- Enable RLS
 ALTER TABLE public.player_location_history ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admins can view all history
+-- ============================================================================
+-- RLS Policies for player_location_history
+-- Using DROP IF EXISTS + CREATE pattern for idempotent migrations
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Admins can view player history" ON public.player_location_history;
 CREATE POLICY "Admins can view player history" ON public.player_location_history
   FOR SELECT USING (
     EXISTS (
@@ -112,6 +128,10 @@ CREATE POLICY "Admins can view player history" ON public.player_location_history
       WHERE id = auth.uid() AND role IN ('super_admin')
     )
   );
+
+DROP POLICY IF EXISTS "Service role can insert history" ON public.player_location_history;
+CREATE POLICY "Service role can insert history" ON public.player_location_history
+  FOR INSERT WITH CHECK (true);
 
 -- ============================================================================
 -- Function to upsert player location (called by Unity app)
@@ -265,9 +285,20 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Enable Realtime for player_locations
 -- ============================================================================
 
--- Note: Run this in the Supabase Dashboard under Database > Replication
--- or use the Supabase CLI:
--- ALTER PUBLICATION supabase_realtime ADD TABLE public.player_locations;
+-- Safely add to Realtime publication (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' 
+    AND tablename = 'player_locations'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.player_locations;
+    RAISE NOTICE 'Added player_locations to supabase_realtime publication';
+  ELSE
+    RAISE NOTICE 'player_locations already in supabase_realtime publication';
+  END IF;
+END $$;
 
 -- ============================================================================
 -- Clean up old history (run periodically via cron/scheduled function)

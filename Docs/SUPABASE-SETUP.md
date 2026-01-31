@@ -520,6 +520,156 @@ INSERT INTO public.activity_logs (activity_type, severity, description, metadata
 
 ---
 
+## 📍 Phase 7: Player Locations Schema (Real-Time Tracking)
+
+After setting up activity logs, run this SQL to enable real-time player tracking:
+
+### Go to: SQL Editor
+https://supabase.com/dashboard/project/gvkfiommpbugvxwuloea/sql/new
+
+### Run this SQL:
+
+```sql
+-- ============================================================================
+-- Player Locations Table - M4: Player Tracking
+-- ============================================================================
+-- This table stores real-time player locations for the admin dashboard map.
+-- The Unity app sends location updates every 5-10 seconds.
+-- ============================================================================
+
+-- Create player_locations table
+CREATE TABLE IF NOT EXISTS public.player_locations (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  
+  -- Current position
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  altitude DOUBLE PRECISION,
+  
+  -- Accuracy & quality
+  accuracy_meters DOUBLE PRECISION NOT NULL DEFAULT 10,
+  heading DOUBLE PRECISION,          -- Direction in degrees (0-360, 0=North)
+  speed_mps DOUBLE PRECISION,        -- Speed in meters per second
+  
+  -- Device info
+  device_id TEXT,                    -- Unique device identifier
+  device_model TEXT,                 -- e.g., "OnePlus 9 Pro"
+  app_version TEXT,                  -- Unity app version
+  
+  -- Session info
+  session_id UUID,                   -- Current play session ID
+  is_ar_active BOOLEAN DEFAULT FALSE,
+  
+  -- Anti-cheat metadata
+  is_mock_location BOOLEAN DEFAULT FALSE,
+  movement_type TEXT DEFAULT 'walking' CHECK (movement_type IN ('walking', 'running', 'driving', 'suspicious')),
+  distance_traveled_session DOUBLE PRECISION DEFAULT 0,
+  
+  -- Zone context (optional - if zones table exists)
+  current_zone_id UUID,
+  
+  -- Timestamps
+  client_timestamp TIMESTAMP WITH TIME ZONE,
+  server_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create unique constraint on user_id (one location per user)
+CREATE UNIQUE INDEX IF NOT EXISTS player_locations_user_id_unique ON public.player_locations (user_id);
+
+-- Create spatial index for geo queries
+CREATE INDEX IF NOT EXISTS player_locations_lat_lng_idx ON public.player_locations (latitude, longitude);
+
+-- Create index for recent locations
+CREATE INDEX IF NOT EXISTS player_locations_updated_at_idx ON public.player_locations (updated_at DESC);
+
+-- Create index for suspicious activity
+CREATE INDEX IF NOT EXISTS player_locations_suspicious_idx ON public.player_locations (movement_type) WHERE movement_type = 'suspicious';
+
+-- Enable Row Level Security
+ALTER TABLE public.player_locations ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Admins can view all player locations
+CREATE POLICY "Admins can view all player locations" ON public.player_locations
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND role IN ('super_admin', 'sponsor_admin')
+    )
+  );
+
+-- Policy: Service role can manage all locations (for API routes)
+CREATE POLICY "Service role can manage locations" ON public.player_locations
+  FOR ALL USING (true);
+
+-- Create updated_at trigger
+CREATE TRIGGER player_locations_updated_at
+  BEFORE UPDATE ON public.player_locations
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+-- ============================================================================
+-- Player Location History Table (for trails and anti-cheat)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.player_location_history (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  accuracy_meters DOUBLE PRECISION NOT NULL,
+  speed_mps DOUBLE PRECISION,
+  movement_type TEXT DEFAULT 'walking' CHECK (movement_type IN ('walking', 'running', 'driving', 'suspicious')),
+  recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for history queries
+CREATE INDEX IF NOT EXISTS player_location_history_user_idx ON public.player_location_history (user_id, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS player_location_history_time_idx ON public.player_location_history (recorded_at DESC);
+
+-- Enable RLS
+ALTER TABLE public.player_location_history ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Admins can view all history
+CREATE POLICY "Admins can view player history" ON public.player_location_history
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND role IN ('super_admin')
+    )
+  );
+
+-- Policy: Service role can insert history
+CREATE POLICY "Service role can insert history" ON public.player_location_history
+  FOR INSERT WITH CHECK (true);
+```
+
+### Enable Realtime for player_locations
+
+After running the SQL above, enable Realtime so the admin dashboard receives live updates:
+
+**Option 1: Via SQL Editor**
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.player_locations;
+```
+
+**Option 2: Via Supabase Dashboard**
+1. Go to: Database → Replication
+2. Click on `supabase_realtime` publication
+3. Add `player_locations` table
+
+### Verify Realtime is Enabled
+
+Run this query to confirm:
+```sql
+SELECT * FROM pg_publication_tables WHERE pubname = 'supabase_realtime';
+```
+
+You should see `player_locations` in the results.
+
+---
+
 ## 👤 Create Your First Admin User
 
 After running the schema:
@@ -538,10 +688,13 @@ After running the schema:
 - [ ] Project URL copied to `.env.local`
 - [ ] Anon key copied to `.env.local`
 - [ ] Service role key copied to `.env.local`
-- [ ] Database schema SQL executed
+- [ ] Database schema SQL executed (profiles, coins, transactions, sponsors, activity_logs)
+- [ ] **Player locations schema executed (Phase 7)**
+- [ ] **Realtime enabled for player_locations table**
 - [ ] First admin user created
 - [ ] Admin role updated in profiles table
 - [ ] Login tested in dashboard
+- [ ] **Live player tracking tested on admin dashboard map**
 
 ---
 
