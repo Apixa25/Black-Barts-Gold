@@ -25,21 +25,8 @@ namespace BlackBartsGold.Core
         {
             eventSystem = GetComponent<EventSystem>();
             inputModule = GetComponent<InputSystemUIInputModule>();
-            
-            // Check for duplicate EventSystems and destroy extras
-            EventSystem[] allEventSystems = FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
-            if (allEventSystems.Length > 1)
-            {
-                Debug.LogWarning($"[EventSystemFixer] Found {allEventSystems.Length} EventSystems! Keeping only this one.");
-                foreach (var es in allEventSystems)
-                {
-                    if (es != eventSystem)
-                    {
-                        Debug.Log($"[EventSystemFixer] Destroying duplicate EventSystem: {es.gameObject.name}");
-                        Destroy(es.gameObject);
-                    }
-                }
-            }
+            Debug.Log("[EventSystemFixer] Initialized");
+            // SIMPLIFIED: Just get references, don't destroy anything
         }
 
         private void Start()
