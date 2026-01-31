@@ -503,6 +503,7 @@ namespace BlackBartsGold.Core
         
         /// <summary>
         /// Get the current user's ID from multiple sources
+        /// Falls back to device ID if no user is authenticated
         /// </summary>
         private string GetUserId()
         {
@@ -553,7 +554,7 @@ namespace BlackBartsGold.Core
                 return authUserId;
             }
             
-            Debug.LogWarning("[PlayerLocationService] ❌ No userId found from any source!");
+            Debug.LogWarning("[PlayerLocationService] ❌ No userId found from any source! Please log in.");
             return "";
         }
         
