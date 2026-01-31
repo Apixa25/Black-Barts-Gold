@@ -46,6 +46,15 @@ namespace BlackBartsGold.UI
         
         private void Awake()
         {
+            // DON'T use QuickNavigation in Login/Register scenes - let the proper UI handle it!
+            string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            if (currentScene == "Login" || currentScene == "Register")
+            {
+                Debug.Log($"[QuickNavigation] ⚠️ DISABLED in {currentScene} scene - proper auth UI will handle this");
+                // Don't attach listener - let LoginUI/RegisterUI handle button clicks
+                return;
+            }
+            
             // Auto-detect target based on GameObject name
             AutoDetectTarget();
             
@@ -53,6 +62,7 @@ namespace BlackBartsGold.UI
             if (button != null)
             {
                 button.onClick.AddListener(OnClick);
+                Debug.Log($"[QuickNavigation] Attached to button '{gameObject.name}', target: {sceneTarget}");
             }
         }
         
