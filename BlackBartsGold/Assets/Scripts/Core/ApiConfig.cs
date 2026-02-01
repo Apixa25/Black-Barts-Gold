@@ -172,14 +172,15 @@ namespace BlackBartsGold.Core
             // ================================================================
             
             #if UNITY_EDITOR
-            // In Editor: Allow PlayerPrefs override for testing different environments
+            // In Editor: Use Development (dashboard API) by default so UI Toolkit login hits localhost.
+            // Use PlayerPrefs override or debug menu to switch to Mock or Staging.
             if (PlayerPrefs.HasKey(ENVIRONMENT_KEY))
             {
                 _currentEnvironment = (ApiEnvironment)PlayerPrefs.GetInt(ENVIRONMENT_KEY);
             }
             else
             {
-                _currentEnvironment = ApiEnvironment.Mock; // Mock in Editor for testing
+                _currentEnvironment = ApiEnvironment.Development; // Dashboard API (e.g. http://localhost:3000/api/v1)
             }
             #else
             // On Device: ALWAYS use Production mode - ignore any saved PlayerPrefs

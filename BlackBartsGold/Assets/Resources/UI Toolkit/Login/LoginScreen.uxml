@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="Unity.UIElements.xsd" engine="UnityEngine.UIElements" editor-extension-mode="False">
+  <Style src="LoginScreen.uss" />
+  <ui:VisualElement name="login-root" class="login-container">
+    <ui:Label name="title" text="Black Bart's Gold" class="login-title" />
+    <ui:VisualElement name="form-container" class="form-container">
+      <ui:TextField name="email" label="Email" value="" max-length="256" class="login-field" />
+      <ui:TextField name="password" label="Password" value="" max-length="128" class="login-field" />
+      <ui:Button name="login" text="Sign In" class="login-button" />
+      <ui:Label name="message" text="" class="login-message" />
+    </ui:VisualElement>
+    <ui:Button name="register" text="Create Account" class="register-button" />
+  </ui:VisualElement>
+</ui:UXML>

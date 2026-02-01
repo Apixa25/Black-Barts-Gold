@@ -1,0 +1,89 @@
+/* Black Bart's Gold - Login Screen Styles (UI Toolkit) */
+/* Brand colors from project-vision.md: Treasure Gold #FFD700, Saddle Brown #8B4513, Dark Leather #3D2914, Parchment #F5E6D3 */
+
+.login-container {
+  flex-grow: 1;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(61, 41, 20);
+  padding: 40px;
+}
+
+.login-title {
+  font-size: 28px;
+  color: rgb(255, 215, 0);
+  -unity-font-style: bold;
+  margin-bottom: 32px;
+}
+
+.form-container {
+  width: 320px;
+  align-items: stretch;
+  padding: 24px;
+  background-color: rgb(61, 41, 20);
+  border-width: 2px;
+  border-color: rgb(184, 115, 51);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.login-field {
+  margin-bottom: 16px;
+  color: rgb(245, 230, 211);
+}
+
+.login-field .unity-text-field__input {
+  background-color: rgb(61, 41, 20);
+  color: rgb(245, 230, 211);
+  border-width: 1px;
+  border-color: rgb(139, 69, 19);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.login-field .unity-label {
+  color: rgb(210, 180, 140);
+  margin-bottom: 4px;
+}
+
+.login-button {
+  height: 44px;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  background-color: rgb(255, 215, 0);
+  color: rgb(61, 41, 20);
+  font-size: 16px;
+  -unity-font-style: bold;
+  border-radius: 6px;
+}
+
+.login-button:hover {
+  background-color: rgb(226, 88, 34);
+}
+
+.login-message {
+  font-size: 14px;
+  color: rgb(245, 230, 211);
+  min-height: 20px;
+  margin-top: 4px;
+}
+
+.login-message.error {
+  color: rgb(139, 0, 0);
+}
+
+.register-button {
+  height: 40px;
+  background-color: transparent;
+  color: rgb(210, 180, 140);
+  border-width: 1px;
+  border-color: rgb(139, 69, 19);
+  border-radius: 6px;
+}
+
+.register-button:hover {
+  background-color: rgb(139, 69, 19);
+  color: rgb(245, 230, 211);
+}
