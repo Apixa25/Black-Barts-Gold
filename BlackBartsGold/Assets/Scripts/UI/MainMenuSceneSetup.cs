@@ -12,6 +12,7 @@ using TMPro;
 
 namespace BlackBartsGold.UI
 {
+    [ExecuteAlways]
     public class MainMenuSceneSetup : MonoBehaviour
     {
         // Colors from project vision
@@ -20,9 +21,20 @@ namespace BlackBartsGold.UI
         private readonly Color Parchment = new Color(0.961f, 0.902f, 0.827f);
         private readonly Color DarkBrown = new Color(0.239f, 0.161f, 0.078f);
 
+        private void OnEnable()
+        {
+            ApplySetup();
+        }
+
         private void Start()
         {
-            Debug.Log("[MainMenuSceneSetup] Setting up MainMenu UI...");
+            ApplySetup();
+        }
+
+        private void ApplySetup()
+        {
+            if (transform == null) return;
+            Debug.Log("[MainMenuSceneSetup] Applying MainMenu UI setup...");
             
             SetupCanvas();
             SetupBackground();
