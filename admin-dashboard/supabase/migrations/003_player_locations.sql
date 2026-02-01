@@ -7,6 +7,15 @@
 -- Run this in Supabase SQL Editor to create the player tracking system.
 -- ============================================================================
 
+-- Helper: set updated_at on row update (required by triggers below and in 006/007)
+CREATE OR REPLACE FUNCTION public.update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Create player_locations table
 CREATE TABLE IF NOT EXISTS public.player_locations (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

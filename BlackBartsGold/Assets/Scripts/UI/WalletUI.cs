@@ -164,10 +164,29 @@ namespace BlackBartsGold.UI
         #region Setup
         
         /// <summary>
+        /// Resolve button references by name if not assigned in Inspector (e.g. after MCP-created buttons).
+        /// </summary>
+        private void ResolveButtonReferences()
+        {
+            if (backButton != null && parkButton != null && unparkButton != null) return;
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                if (backButton == null) backButton = canvas.transform.Find("BackButton")?.GetComponent<Button>();
+                if (parkButton == null) parkButton = canvas.transform.Find("ParkButton")?.GetComponent<Button>();
+                if (unparkButton == null) unparkButton = canvas.transform.Find("UnparkButton")?.GetComponent<Button>();
+            }
+            if (backButton == null) backButton = GameObject.Find("BackButton")?.GetComponent<Button>();
+            if (parkButton == null) parkButton = GameObject.Find("ParkButton")?.GetComponent<Button>();
+            if (unparkButton == null) unparkButton = GameObject.Find("UnparkButton")?.GetComponent<Button>();
+        }
+
+        /// <summary>
         /// Setup button listeners
         /// </summary>
         private void SetupButtons()
         {
+            ResolveButtonReferences();
             if (parkButton != null)
                 parkButton.onClick.AddListener(ShowParkModal);
             
