@@ -475,7 +475,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 150545110}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 953813096db0d2249adb01df80ea92e6, type: 3}
+  m_Script: {fileID: 11500000, guid: 88717c2a6e93e2d48be3b5a778cd2405, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.AR.ARCoinPlacer
 --- !u!4 &150545112
