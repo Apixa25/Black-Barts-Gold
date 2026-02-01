@@ -10,13 +10,16 @@ This folder contains the **UI Toolkit** login screen (email + password) that tal
 
 A copy of the UXML and USS is in **Resources/UI Toolkit/Login/** so the controller can load them at runtime if not assigned in the Inspector.
 
-## Setup in the Login scene
+## Setup in the Login scene (one-time)
 
-The **Login** scene already has a **LoginUIToolkit** GameObject with **LoginControllerUIToolkit**. At runtime it adds **UIDocument** if missing, loads the login UXML from `Resources/UI Toolkit/Login/LoginScreen`, and hides the old uGUI **LoginCanvas**.
+The **Login** scene uses the **old uGUI** login by default so the APK builds without manual setup. To use the **UI Toolkit** login:
 
-1. Open the **Login** scene and enter Play mode to use the UI Toolkit login.
-2. **(If the UI does not appear)** Create **Panel Settings**: right‑click in Project → **Create** → **UI Toolkit** → **Panel Settings**. Assign it to the **LoginUIToolkit** GameObject’s **UI Document** component → **Panel Settings** (the controller adds UIDocument at runtime; assign Panel Settings in the Inspector after entering Play once, or add a UIDocument manually and assign before Play).
-3. **Optional:** Assign **LoginScreen** (this folder’s UXML) to **UI Document** → **Source Asset** on LoginUIToolkit if you add UIDocument manually. If left empty, the controller loads from Resources.
+1. Open the **Login** scene.
+2. In the Hierarchy: **Right‑click** → **Create Empty**. Name it **LoginUIToolkit**.
+3. With **LoginUIToolkit** selected: **Add Component** → search **Login Controller UIToolkit** → add it.
+4. Enter Play. The script adds **UIDocument** at runtime, loads the form from `Resources/UI Toolkit/Login/LoginScreen`, and hides the old **LoginCanvas**. Sign In uses the dashboard API.
+
+**(If the UI does not appear)** Create **Panel Settings** (Create → UI Toolkit → Panel Settings), add a **UI Document** component to LoginUIToolkit, assign Panel Settings and **LoginScreen.uxml** as Source Asset, then Play.
 
 ## Dashboard API
 
