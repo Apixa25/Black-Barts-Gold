@@ -132,9 +132,11 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
+            Debug.Log("[WalletUI] Start - Wallet scene active, setting up UI");
             SetupButtons();
             HideModals();
             RefreshUI();
+            Debug.Log("[WalletUI] Start complete - buttons wired, modals hidden, UI refreshed");
             
             // Subscribe to wallet changes
             if (PlayerData.Exists)
@@ -153,6 +155,7 @@ namespace BlackBartsGold.UI
         
         private void OnEnable()
         {
+            Debug.Log("[WalletUI] OnEnable - Wallet UI active, refreshing display");
             RefreshUI();
         }
         
@@ -190,6 +193,8 @@ namespace BlackBartsGold.UI
             
             if (unparkCancelButton != null)
                 unparkCancelButton.onClick.AddListener(HideUnparkModal);
+            
+            Debug.Log("[WalletUI] SetupButtons done - back=" + (backButton != null) + " park=" + (parkButton != null) + " unpark=" + (unparkButton != null));
         }
         
         #endregion
@@ -588,6 +593,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void OnBackClicked()
         {
+            Debug.Log("[WalletUI] Back clicked - loading MainMenu");
             Log("Back clicked");
             SceneLoader.LoadScene(SceneNames.MainMenu);
         }
