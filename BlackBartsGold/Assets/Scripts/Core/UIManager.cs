@@ -433,6 +433,10 @@ namespace BlackBartsGold.Core
                     }
                 }
                 Debug.Log($"[UIManager] Total scene canvases preserved: {preservedCount}");
+                
+                // Fix: Refresh EventSystem next frame so it retargets the new scene's Canvas.
+                // Without this, Wallet/Settings can appear "frozen" (no touch/click response).
+                StartCoroutine(RefreshEventSystemNextFrame());
                 return;
             }
             
@@ -467,6 +471,8 @@ namespace BlackBartsGold.Core
             // Show appropriate UI based on which scene loaded
             if (scene.name == "ARHunt")
             {
+                // Mark AR mode so Update() runs UpdateDiagnosticsPanel() and debug panel shows live info
+                isInARMode = true;
                 // Show AR HUD
                 Debug.Log("[UIManager] 🎮 ARHunt scene - showing AR HUD");
                 HideAllPanels();
@@ -482,6 +488,17 @@ namespace BlackBartsGold.Core
                 Debug.Log("[UIManager] Not in AR mode, showing login panel");
                 ShowLogin();
             }
+        }
+        
+        /// <summary>
+        /// Refreshes the persistent EventSystem one frame after a scene-with-own-UI loads.
+        /// Ensures touch/click targets the new scene's Canvas (Wallet, Settings, etc.).
+        /// </summary>
+        private IEnumerator RefreshEventSystemNextFrame()
+        {
+            yield return null; // Wait one frame so the new Canvas is fully active
+            EventSystemFixer.RefreshEventSystem();
+            Debug.Log("[UIManager] EventSystem refreshed for scene-with-own-UI");
         }
         
         /// <summary>
