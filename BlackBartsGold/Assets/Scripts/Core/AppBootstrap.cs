@@ -10,6 +10,7 @@
 
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 
@@ -60,17 +61,18 @@ namespace BlackBartsGold.Core
             _persistentEventSystem = eventSystemGO.AddComponent<EventSystem>();
             var inputSystemModule = eventSystemGO.AddComponent<InputSystemUIInputModule>();
             
-#if UNITY_EDITOR
-            // In Editor, use StandaloneInputModule so mouse clicks work in the Game view.
-            // InputSystemUIInputModule often doesn't receive mouse input in Editor without
-            // a custom UI Actions asset; StandaloneInputModule works out of the box.
-            eventSystemGO.AddComponent<StandaloneInputModule>();
-            inputSystemModule.enabled = false;
-            Debug.Log("[AppBootstrap] EventSystem created with StandaloneInputModule (Editor - mouse works in Game view)");
-#else
-            // On device, use InputSystemUIInputModule for touch and new Input System.
-            Debug.Log("[AppBootstrap] EventSystem created with InputSystemUIInputModule");
-#endif
+            // Assign UI Input Actions so the module gets mouse (Editor) and touch (device) input.
+            // Asset lives in Resources so it can be loaded at runtime before any scene.
+            var uiActions = Resources.Load<InputActionAsset>("InputSystem_Actions");
+            if (uiActions != null)
+            {
+                inputSystemModule.actionsAsset = uiActions;
+                Debug.Log("[AppBootstrap] EventSystem created with InputSystemUIInputModule + UI Actions (Editor mouse + device touch)");
+            }
+            else
+            {
+                Debug.LogWarning("[AppBootstrap] InputSystem_Actions not found in Resources; UI may not respond in Editor. Add Assets/Resources/InputSystem_Actions.inputactions.");
+            }
         }
         
         /// <summary>
@@ -96,13 +98,8 @@ namespace BlackBartsGold.Core
             if (_persistentEventSystem != null)
             {
                 _persistentEventSystem.enabled = true;
-#if UNITY_EDITOR
-                var standalone = _persistentEventSystem.GetComponent<StandaloneInputModule>();
-                if (standalone != null) standalone.enabled = true;
-#else
                 var inputModule = _persistentEventSystem.GetComponent<InputSystemUIInputModule>();
                 if (inputModule != null) inputModule.enabled = true;
-#endif
             }
         }
     }

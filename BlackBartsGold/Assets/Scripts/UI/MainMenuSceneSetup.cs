@@ -183,6 +183,12 @@ namespace BlackBartsGold.UI
             {
                 textTransform = button.Find("Text");
             }
+            // If existing child has no RectTransform (invalid UI child from scene), replace it
+            if (textTransform != null && textTransform.GetComponent<RectTransform>() == null)
+            {
+                Destroy(textTransform.gameObject);
+                textTransform = null;
+            }
             if (textTransform == null)
             {
                 var textGO = new GameObject("Text");
@@ -212,6 +218,7 @@ namespace BlackBartsGold.UI
             tmpText.fontStyle = FontStyles.Bold;
             tmpText.alignment = TextAlignmentOptions.Center;
             tmpText.color = DarkBrown;
+            tmpText.raycastTarget = false;
         }
     }
 }
