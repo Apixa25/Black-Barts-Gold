@@ -198,7 +198,10 @@ namespace BlackBartsGold.UI
             // If existing child has no RectTransform (invalid UI child from scene), replace it
             if (textTransform != null && textTransform.GetComponent<RectTransform>() == null)
             {
-                Destroy(textTransform.gameObject);
+                if (Application.isPlaying)
+                    Destroy(textTransform.gameObject);
+                else
+                    DestroyImmediate(textTransform.gameObject);
                 textTransform = null;
             }
             if (textTransform == null)
