@@ -90,14 +90,19 @@ namespace BlackBartsGold.Core
             }
             else
             {
-                // Try to refresh EventSystem directly
+                // Persistent EventSystem (AppBootstrap) has no fixer; refresh EventSystem.current directly
+                Debug.Log("[EventSystemFixer] No EventSystemFixer component found - using EventSystem.current fallback");
                 var eventSystem = EventSystem.current;
                 if (eventSystem != null)
                 {
                     eventSystem.enabled = false;
                     eventSystem.enabled = true;
                     eventSystem.UpdateModules();
-                    Debug.Log("[EventSystemFixer] Refreshed EventSystem.current");
+                    Debug.Log("[EventSystemFixer] Refreshed EventSystem.current (persistent)");
+                }
+                else
+                {
+                    Debug.LogWarning("[EventSystemFixer] EventSystem.current is null - cannot refresh");
                 }
             }
         }

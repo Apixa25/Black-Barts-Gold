@@ -493,12 +493,16 @@ namespace BlackBartsGold.Core
         /// <summary>
         /// Refreshes the persistent EventSystem one frame after a scene-with-own-UI loads.
         /// Ensures touch/click targets the new scene's Canvas (Wallet, Settings, etc.).
+        /// Double-refresh (T+1 and T+2) helps on some devices where one frame wasn't enough.
         /// </summary>
         private IEnumerator RefreshEventSystemNextFrame()
         {
             yield return null; // Wait one frame so the new Canvas is fully active
             EventSystemFixer.RefreshEventSystem();
-            Debug.Log("[UIManager] EventSystem refreshed for scene-with-own-UI");
+            Debug.Log("[UIManager] EventSystem refreshed (frame 1) for scene-with-own-UI");
+            yield return null; // Second frame - double-refresh for stubborn devices
+            EventSystemFixer.RefreshEventSystem();
+            Debug.Log("[UIManager] EventSystem refreshed (frame 2) for scene-with-own-UI");
         }
         
         /// <summary>
