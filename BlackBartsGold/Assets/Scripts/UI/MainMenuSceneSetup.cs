@@ -34,6 +34,10 @@ namespace BlackBartsGold.UI
         private void ApplySetup()
         {
             if (transform == null) return;
+#if UNITY_EDITOR
+            // Skip during player build so we don't hit MissingReferenceException from edit-mode destroy/recreate
+            if (UnityEditor.BuildPipeline.isBuildingPlayer) return;
+#endif
             Debug.Log("[MainMenuSceneSetup] Applying MainMenu UI setup...");
             
             SetupCanvas();
@@ -204,6 +208,9 @@ namespace BlackBartsGold.UI
                     DestroyImmediate(textTransform.gameObject);
                 textTransform = null;
             }
+            // Treat destroyed refs as null (e.g. stale from previous ApplySetup or edit-mode)
+            if (textTransform != null && !textTransform)
+                textTransform = null;
             if (textTransform == null)
             {
                 var textGO = new GameObject("Text");
