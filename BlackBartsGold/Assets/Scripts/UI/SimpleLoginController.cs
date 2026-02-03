@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
+using System;
 
 namespace BlackBartsGold.UI
 {
@@ -231,8 +232,32 @@ namespace BlackBartsGold.UI
         
         private void OnLoginClicked()
         {
-            Debug.Log("[SimpleLoginController] 🔑 LOGIN CLICKED!");
-            SceneManager.LoadScene("MainMenu");
+            Debug.Log("[SimpleLoginController] 🔑 LOGIN CLICKED - Showing email/password form...");
+            
+            // Find or create LoginUIToolkit and add the real login form (calls AuthService + API)
+            var loginUIToolkit = GameObject.Find("LoginUIToolkit");
+            if (loginUIToolkit == null)
+            {
+                loginUIToolkit = new GameObject("LoginUIToolkit");
+                Debug.Log("[SimpleLoginController] Created LoginUIToolkit GameObject.");
+            }
+            
+            // Use reflection to add LoginControllerUIToolkit (avoids compile-time dependency issues)
+            var toolkitType = Type.GetType("BlackBartsGold.UI.LoginControllerUIToolkit, Assembly-CSharp");
+            if (toolkitType == null)
+            {
+                Debug.LogError("[SimpleLoginController] LoginControllerUIToolkit type not found. Ensure the script compiles.");
+                return;
+            }
+            
+            var existing = loginUIToolkit.GetComponent(toolkitType);
+            if (existing == null)
+            {
+                loginUIToolkit.AddComponent(toolkitType);
+                Debug.Log("[SimpleLoginController] Added LoginControllerUIToolkit - showing email/password form.");
+            }
+            
+            loginUIToolkit.SetActive(true);
         }
         
         private void OnCreateAccountClicked()

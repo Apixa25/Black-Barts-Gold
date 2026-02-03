@@ -1,6 +1,7 @@
 // ============================================================================
 // RegisterButtonHandler.cs
-// Simple Register scene controller - creates UI and handles navigation
+// Register scene controller - creates registration form and calls AuthService
+// Path: Assets/Scripts/UI/RegisterButtonHandler.cs
 // ============================================================================
 
 using UnityEngine;
@@ -8,21 +9,29 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections;
+using BlackBartsGold.Core;
 
 namespace BlackBartsGold.UI
 {
     public class RegisterButtonHandler : MonoBehaviour
     {
         private Button backButton;
+        private Button registerButton;
+        private TMP_InputField emailInput;
+        private TMP_InputField passwordInput;
+        private TMP_InputField confirmPasswordInput;
+        private TMP_InputField displayNameInput;
+        private TMP_InputField ageInput;
+        private TMP_Text messageText;
+        private bool isRegistering;
         
         private IEnumerator Start()
         {
             Debug.Log("[RegisterButtonHandler] Start - waiting a frame...");
             
-            // Wait a frame to let other systems initialize
             yield return null;
             
-            Debug.Log("[RegisterButtonHandler] Creating UI...");
+            Debug.Log("[RegisterButtonHandler] Creating registration UI...");
             CreateUI();
         }
         
@@ -30,12 +39,10 @@ namespace BlackBartsGold.UI
         {
             try
             {
-                // Find existing canvas or create new one
                 Canvas canvas = FindAnyObjectByType<Canvas>();
                 
                 if (canvas == null)
                 {
-                    Debug.Log("[RegisterButtonHandler] Creating canvas...");
                     var canvasGO = new GameObject("RegisterCanvas");
                     canvas = canvasGO.AddComponent<Canvas>();
                     canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -46,9 +53,13 @@ namespace BlackBartsGold.UI
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 canvas.sortingOrder = 100;
                 
-                Debug.Log($"[RegisterButtonHandler] Using canvas: {canvas.name}");
+                // Clear existing children so we build fresh
+                foreach (Transform child in canvas.transform)
+                {
+                    Destroy(child.gameObject);
+                }
                 
-                // Create a full-screen panel with dark background
+                // Background panel
                 var panel = new GameObject("Panel");
                 panel.transform.SetParent(canvas.transform, false);
                 var panelRect = panel.AddComponent<RectTransform>();
@@ -56,73 +67,241 @@ namespace BlackBartsGold.UI
                 panelRect.anchorMax = Vector2.one;
                 panelRect.offsetMin = Vector2.zero;
                 panelRect.offsetMax = Vector2.zero;
-                var panelImage = panel.AddComponent<Image>();
-                panelImage.color = new Color(0.1f, 0.15f, 0.25f, 1f);
+                panel.AddComponent<Image>().color = new Color(0.1f, 0.15f, 0.25f, 1f);
                 
-                // Create title
-                var title = new GameObject("Title");
-                title.transform.SetParent(canvas.transform, false);
-                var titleRect = title.AddComponent<RectTransform>();
-                titleRect.anchorMin = new Vector2(0.5f, 0.75f);
-                titleRect.anchorMax = new Vector2(0.5f, 0.75f);
-                titleRect.sizeDelta = new Vector2(500, 80);
-                var titleText = title.AddComponent<TextMeshProUGUI>();
-                titleText.text = "Join the Crew!";
-                titleText.fontSize = 42;
-                titleText.alignment = TextAlignmentOptions.Center;
-                titleText.color = new Color(1f, 0.84f, 0f, 1f);
+                // Title
+                var title = CreateText(canvas.transform, "Title", "Join the Crew!", 0.88f, 48, new Color(1f, 0.84f, 0f, 1f));
                 
-                // Create info text
-                var info = new GameObject("Info");
-                info.transform.SetParent(canvas.transform, false);
-                var infoRect = info.AddComponent<RectTransform>();
-                infoRect.anchorMin = new Vector2(0.5f, 0.55f);
-                infoRect.anchorMax = new Vector2(0.5f, 0.55f);
-                infoRect.sizeDelta = new Vector2(400, 100);
-                var infoText = info.AddComponent<TextMeshProUGUI>();
-                infoText.text = "Registration coming soon!\n\nTap below to return.";
-                infoText.fontSize = 22;
-                infoText.alignment = TextAlignmentOptions.Center;
-                infoText.color = Color.white;
+                // Create scroll container for form fields
+                float y = 0.78f;
                 
-                // Create back button
-                var btnGO = new GameObject("BackButton");
-                btnGO.transform.SetParent(canvas.transform, false);
-                var btnRect = btnGO.AddComponent<RectTransform>();
-                btnRect.anchorMin = new Vector2(0.5f, 0.3f);
-                btnRect.anchorMax = new Vector2(0.5f, 0.3f);
-                btnRect.sizeDelta = new Vector2(280, 55);
-                var btnImage = btnGO.AddComponent<Image>();
-                btnImage.color = new Color(0.2f, 0.5f, 0.3f, 1f);
-                backButton = btnGO.AddComponent<Button>();
-                backButton.targetGraphic = btnImage;
+                // Email
+                var emailRow = CreateInputRow(canvas.transform, "Email", "Email", ref y);
+                emailInput = emailRow.inputField;
+                emailInput.contentType = TMP_InputField.ContentType.EmailAddress;
                 
-                // Button text
-                var btnText = new GameObject("Text");
-                btnText.transform.SetParent(btnGO.transform, false);
-                var btnTextRect = btnText.AddComponent<RectTransform>();
-                btnTextRect.anchorMin = Vector2.zero;
-                btnTextRect.anchorMax = Vector2.one;
-                btnTextRect.offsetMin = Vector2.zero;
-                btnTextRect.offsetMax = Vector2.zero;
-                var btnTextTMP = btnText.AddComponent<TextMeshProUGUI>();
-                btnTextTMP.text = "Back to Login";
-                btnTextTMP.fontSize = 22;
-                btnTextTMP.alignment = TextAlignmentOptions.Center;
-                btnTextTMP.color = Color.white;
+                // Display name
+                var nameRow = CreateInputRow(canvas.transform, "DisplayName", "Display Name", ref y);
+                displayNameInput = nameRow.inputField;
                 
-                // Wire button
-                backButton.onClick.AddListener(() => {
-                    Debug.Log("[RegisterButtonHandler] Back clicked!");
-                    SceneManager.LoadScene("Login");
-                });
+                // Password
+                var passRow = CreateInputRow(canvas.transform, "Password", "Password (min 8 chars)", ref y);
+                passwordInput = passRow.inputField;
+                passwordInput.contentType = TMP_InputField.ContentType.Password;
                 
-                Debug.Log("[RegisterButtonHandler] ✅ UI created and button wired!");
+                // Confirm password
+                var confirmRow = CreateInputRow(canvas.transform, "ConfirmPassword", "Confirm Password", ref y);
+                confirmPasswordInput = confirmRow.inputField;
+                confirmPasswordInput.contentType = TMP_InputField.ContentType.Password;
+                
+                // Age (simple input, must be 13+)
+                var ageRow = CreateInputRow(canvas.transform, "Age", "Age (13+)", ref y);
+                ageInput = ageRow.inputField;
+                ageInput.contentType = TMP_InputField.ContentType.IntegerNumber;
+                
+                // Message label (errors/success)
+                var msgGO = new GameObject("Message");
+                msgGO.transform.SetParent(canvas.transform, false);
+                var msgRect = msgGO.AddComponent<RectTransform>();
+                msgRect.anchorMin = new Vector2(0.5f, y - 0.05f);
+                msgRect.anchorMax = new Vector2(0.5f, y - 0.05f);
+                msgRect.sizeDelta = new Vector2(400, 40);
+                msgRect.pivot = new Vector2(0.5f, 0.5f);
+                messageText = msgGO.AddComponent<TextMeshProUGUI>();
+                messageText.text = "";
+                messageText.fontSize = 18;
+                messageText.alignment = TextAlignmentOptions.Center;
+                messageText.color = new Color(1f, 0.4f, 0.4f, 1f);
+                y -= 0.1f;
+                
+                // Register button
+                registerButton = CreateButton(canvas.transform, "Register", "Create Account", y, new Color(0.6f, 0.3f, 0.1f, 1f));
+                registerButton.onClick.AddListener(OnRegisterClicked);
+                y -= 0.1f;
+                
+                // Back button
+                backButton = CreateButton(canvas.transform, "BackButton", "Back to Login", y, new Color(0.2f, 0.5f, 0.3f, 1f));
+                backButton.onClick.AddListener(() => SceneLoader.LoadScene(SceneNames.Login));
+                
+                Debug.Log("[RegisterButtonHandler] ✅ Registration form created and wired!");
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"[RegisterButtonHandler] Error creating UI: {e.Message}\n{e.StackTrace}");
+                Debug.LogError($"[RegisterButtonHandler] Error: {e.Message}\n{e.StackTrace}");
             }
+        }
+        
+        private (GameObject go, TMP_InputField inputField) CreateInputRow(Transform parent, string name, string label, ref float y)
+        {
+            y -= 0.08f;
+            var row = new GameObject(name);
+            row.transform.SetParent(parent, false);
+            var rowRect = row.AddComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0.5f, y);
+            rowRect.anchorMax = new Vector2(0.5f, y);
+            rowRect.sizeDelta = new Vector2(360, 50);
+            rowRect.pivot = new Vector2(0.5f, 0.5f);
+            
+            var inputGO = new GameObject("Input");
+            inputGO.transform.SetParent(row.transform, false);
+            var inputRect = inputGO.AddComponent<RectTransform>();
+            inputRect.anchorMin = Vector2.zero;
+            inputRect.anchorMax = Vector2.one;
+            inputRect.offsetMin = new Vector2(0, 0);
+            inputRect.offsetMax = Vector2.zero;
+            var input = inputGO.AddComponent<TMP_InputField>();
+            var inputText = inputGO.AddComponent<TextMeshProUGUI>();
+            inputText.fontSize = 18;
+            inputText.color = Color.white;
+            input.textViewport = inputRect;
+            input.textComponent = inputText;
+            input.placeholder = CreatePlaceholder(inputGO.transform, label);
+            var bgImage = inputGO.AddComponent<Image>();
+            bgImage.color = new Color(0.2f, 0.25f, 0.35f, 1f);
+            
+            return (row, input);
+        }
+        
+        private TMP_Text CreatePlaceholder(Transform parent, string text)
+        {
+            var phGO = new GameObject("Placeholder");
+            phGO.transform.SetParent(parent, false);
+            var phRect = phGO.AddComponent<RectTransform>();
+            phRect.anchorMin = Vector2.zero;
+            phRect.anchorMax = Vector2.one;
+            phRect.offsetMin = new Vector2(10, 6);
+            phRect.offsetMax = new Vector2(-10, -6);
+            var ph = phGO.AddComponent<TextMeshProUGUI>();
+            ph.text = text;
+            ph.fontSize = 18;
+            ph.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
+            return ph;
+        }
+        
+        
+        private GameObject CreateText(Transform parent, string name, string text, float y, int fontSize, Color color)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, y);
+            rect.anchorMax = new Vector2(0.5f, y);
+            rect.sizeDelta = new Vector2(500, 60);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.text = text;
+            tmp.fontSize = fontSize;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.color = color;
+            return go;
+        }
+        
+        private Button CreateButton(Transform parent, string name, string text, float y, Color bgColor)
+        {
+            var btnGO = new GameObject(name);
+            btnGO.transform.SetParent(parent, false);
+            var btnRect = btnGO.AddComponent<RectTransform>();
+            btnRect.anchorMin = new Vector2(0.5f, y);
+            btnRect.anchorMax = new Vector2(0.5f, y);
+            btnRect.sizeDelta = new Vector2(280, 50);
+            btnRect.pivot = new Vector2(0.5f, 0.5f);
+            var btnImage = btnGO.AddComponent<Image>();
+            btnImage.color = bgColor;
+            var btn = btnGO.AddComponent<Button>();
+            btn.targetGraphic = btnImage;
+            
+            var txtGO = new GameObject("Text");
+            txtGO.transform.SetParent(btnGO.transform, false);
+            var txtRect = txtGO.AddComponent<RectTransform>();
+            txtRect.anchorMin = Vector2.zero;
+            txtRect.anchorMax = Vector2.one;
+            txtRect.offsetMin = Vector2.zero;
+            txtRect.offsetMax = Vector2.zero;
+            var txt = txtGO.AddComponent<TextMeshProUGUI>();
+            txt.text = text;
+            txt.fontSize = 22;
+            txt.alignment = TextAlignmentOptions.Center;
+            txt.color = Color.white;
+            
+            return btn;
+        }
+        
+        private async void OnRegisterClicked()
+        {
+            if (isRegistering) return;
+            
+            string email = emailInput?.text?.Trim() ?? "";
+            string displayName = displayNameInput?.text?.Trim() ?? "";
+            string password = passwordInput?.text ?? "";
+            string confirmPassword = confirmPasswordInput?.text ?? "";
+            int age = 0;
+            int.TryParse(ageInput?.text?.Trim() ?? "0", out age);
+            
+            if (messageText != null) messageText.text = "";
+            
+            if (!AuthService.Exists)
+            {
+                SetMessage("Authentication service unavailable", true);
+                return;
+            }
+            
+            var validation = AuthService.Instance.ValidateRegistration(email, password, confirmPassword, age);
+            if (!validation.isValid)
+            {
+                SetMessage(validation.error, true);
+                return;
+            }
+            
+            if (string.IsNullOrEmpty(displayName))
+            {
+                SetMessage("Display name is required", true);
+                return;
+            }
+            
+            if (displayName.Length < 3 || displayName.Length > 20)
+            {
+                SetMessage("Display name must be 3–20 characters", true);
+                return;
+            }
+            
+            isRegistering = true;
+            if (registerButton != null) registerButton.interactable = false;
+            if (backButton != null) backButton.interactable = false;
+            SetMessage("Creating account...", false);
+            
+            try
+            {
+                var user = await AuthService.Instance.Register(email, password, displayName, age);
+                
+                if (user != null)
+                {
+                    SetMessage($"Welcome aboard, {user.displayName}!", false);
+                    messageText.color = new Color(0.3f, 1f, 0.5f, 1f);
+                    await System.Threading.Tasks.Task.Delay(1500);
+                    SceneLoader.LoadScene(SceneNames.MainMenu);
+                }
+                else
+                {
+                    SetMessage(AuthService.Instance.LastError ?? "Registration failed", true);
+                }
+            }
+            catch (System.Exception e)
+            {
+                SetMessage(e.Message, true);
+            }
+            finally
+            {
+                isRegistering = false;
+                if (registerButton != null) registerButton.interactable = true;
+                if (backButton != null) backButton.interactable = true;
+            }
+        }
+        
+        private void SetMessage(string text, bool isError)
+        {
+            if (messageText == null) return;
+            messageText.text = text;
+            messageText.color = isError ? new Color(1f, 0.4f, 0.4f, 1f) : new Color(0.3f, 1f, 0.5f, 1f);
         }
     }
 }

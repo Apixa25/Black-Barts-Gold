@@ -42,6 +42,9 @@ namespace BlackBartsGold.Core
             // Add UIManager
             root.AddComponent<UIManager>();
             
+            // Add AuthService (and ApiClient via its usage) - ensures real login/register work from first scene
+            root.AddComponent<AuthService>();
+            
             // Add single persistent EventSystem
             CreateEventSystem(root.transform);
             
