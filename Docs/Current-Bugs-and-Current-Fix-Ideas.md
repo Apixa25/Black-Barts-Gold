@@ -2,7 +2,7 @@
 
 Track bugs and planned fixes so we can work through them in order. Update this file as we fix or re-prioritize.
 
-**Last updated:** 2026-01-31
+**Last updated:** 2026-02-02
 
 ---
 
@@ -20,30 +20,27 @@ Track bugs and planned fixes so we can work through them in order. Update this f
 - **Fix:** In `UIManager.OnSceneLoaded`, when `SceneHasOwnUI(scene.name)` is true (Wallet, Settings, etc.), start a one-frame coroutine that then calls `EventSystemFixer.RefreshEventSystem()`. This forces the EventSystem to refresh so it retargets the new scene’s Canvas.
 - **File:** `Assets/Scripts/Core/UIManager.cs` (added `RefreshEventSystemNextFrame()` and call when scene-with-own-UI loads).
 
+### 3. Login bypasses real auth
+- **Symptom:** First screen shows "Login" and "Join the Crew"; tapping Login went straight to Main Menu with no email/password.
+- **Fix:** AuthService init in AppBootstrap; SimpleLoginController shows LoginControllerUIToolkit (email/password form) when Login clicked; form calls AuthService + dashboard API.
+- **Files:** `AppBootstrap.cs`, `SimpleLoginController.cs`, `LoginControllerUIToolkit.cs`.
+
+### 4. "Join the Crew" shows "Registration coming soon!"
+- **Symptom:** Tapping "Join the Crew" showed placeholder instead of real registration.
+- **Fix:** RegisterButtonHandler now creates full registration form and calls AuthService.Register + dashboard API.
+- **Files:** `RegisterButtonHandler.cs`.
+
 ---
 
 ## 🔴 Open bugs (in order)
 
-### 3. Settings freezes / does nothing
+### 5. Settings freezes / does nothing
 - **Symptom:** From Main Menu (or after Back from AR), tap "Settings" → app hangs or nothing happens.
 - **Fix ideas:**
   - Same as Wallet: capture ADB logs during freeze; look for null refs or blocking calls in SettingsUI.
   - Check Settings scene: SerializeField refs, Canvas, EventSystem.
   - Check SettingsUI.Start/OnEnable for blocking or missing refs.
 - **Files to check:** `Assets/Scripts/UI/SettingsUI.cs`, Settings scene setup.
-
-### 4. Login bypasses real auth
-- **Symptom:** First screen shows "Login" and "Join the Crew"; tapping Login goes straight to Start Hunting (Main Menu) with no email/password.
-- **Cause:** Login scene uses SimpleLoginController (or similar) that just loads MainMenu; no AuthService call.
-- **Fix ideas:**
-  - Add UI Toolkit login to Login scene: add GameObject "LoginUIToolkit", add component **LoginControllerUIToolkit** (see `Assets/UI Toolkit/Login/README.md`). That path calls AuthService and dashboard API.
-  - Or wire existing Login UI (if present) to AuthService.Instance.Login() instead of going straight to MainMenu.
-- **Files:** `Assets/Scripts/UI/SimpleLoginController.cs`, `Assets/UI Toolkit/Login/README.md`, Login scene.
-
-### 5. "Join the Crew" shows "Registration coming soon!"
-- **Symptom:** Tapping "Join the Crew" shows a screen that says "Registration coming soon!" with "Back to Login" (which works).
-- **Note:** This is intentional placeholder behavior. When ready for real registration, wire Register scene to AuthService.Register and dashboard API (e.g. POST /api/v1/auth/register).
-- **Files:** `Assets/Scripts/UI/SimpleRegisterController.cs`, `Assets/Scripts/UI/RegisterButtonHandler.cs`, Register scene.
 
 ### 6. Backend 500 on player location
 - **Symptom:** POST `/api/v1/player/location` returns 500 "Database error"; app retries and logs API errors (see ADB-LOG-SUMMARY.md).
