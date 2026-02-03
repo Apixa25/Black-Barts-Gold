@@ -138,7 +138,6 @@ namespace BlackBartsGold.UI
             HideModals();
             RefreshUI();
             Debug.Log($"[WalletUI] Start complete | backBtn={backButton != null} interactable={backButton?.interactable}");
-        }
             
             // Subscribe to wallet changes
             if (PlayerData.Exists)
