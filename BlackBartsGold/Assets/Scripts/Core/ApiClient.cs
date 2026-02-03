@@ -430,17 +430,33 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Handle 401 auth error
+        /// Handle 401 auth error.
+        /// For login failures (invalid credentials, email not confirmed) use backend message.
+        /// For expired tokens on other endpoints, clear session and show "Session expired".
         /// </summary>
         private AuthException HandleAuthError(string message, string errorCode)
         {
-            var exception = AuthException.SessionExpired();
-            
-            // Clear session and notify
+            // Login/register 401 = credential failure — use backend message, don't clear session
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                var m = message.ToLowerInvariant();
+                if (m.Contains("invalid") || m.Contains("verify") || m.Contains("email") || m.Contains("password") ||
+                    m.Contains("credentials") || m.Contains("confirm") || m.Contains("required"))
+                {
+                    return new AuthException(
+                        message.Trim(),
+                        401,
+                        errorCode ?? "INVALID_CREDENTIALS",
+                        shouldClearSession: false,
+                        shouldRedirectToLogin: false
+                    );
+                }
+            }
+
+            // Expired token or other 401 — clear session
             SessionManager.ClearSession();
             OnAuthExpired?.Invoke();
-            
-            return exception;
+            return AuthException.SessionExpired();
         }
         
         #endregion

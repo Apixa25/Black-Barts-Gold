@@ -94,6 +94,25 @@ So: **same code and same build order** — the difference is “which scene is i
 
 ---
 
+## Auth / registration deployment checklist (Vercel + Supabase)
+
+If registration returns "Please check your email to confirm" and login returns "Session has expired" (or "Invalid email or password"):
+
+1. **Deploy admin-dashboard to Vercel** – The register route has auto-confirm logic; it must be deployed.
+   - `git push` (if Vercel auto-deploys from main)
+   - Or: Vercel Dashboard → Deployments → Redeploy latest
+
+2. **Vercel environment variables** – Ensure these are set:
+   - `NEXT_PUBLIC_SUPABASE_URL` – Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` – Supabase anon key
+   - `SUPABASE_SERVICE_ROLE_KEY` – **Required for auto-confirm** (admin API)
+
+3. **Supabase profiles table** – Run migration `001_profiles_and_auth_trigger.sql` so new users get a profile row:
+   - Supabase Dashboard → SQL Editor → paste migration SQL → Run
+   - Or: `cd admin-dashboard && npm run supabase:db:push`
+
+---
+
 ## Quick reference – useful log patterns
 
 | What you care about     | Filter / pattern                          |

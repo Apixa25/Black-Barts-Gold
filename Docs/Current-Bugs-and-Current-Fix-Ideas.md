@@ -30,11 +30,22 @@ Track bugs and planned fixes so we can work through them in order. Update this f
 - **Fix:** RegisterButtonHandler now creates full registration form and calls AuthService.Register + dashboard API.
 - **Files:** `RegisterButtonHandler.cs`.
 
+### 5. Login 401 shows "Session has expired" instead of real error
+- **Symptom:** Invalid credentials or unconfirmed email → user saw "Session has expired".
+- **Fix:** ApiClient.HandleAuthError now uses backend error message for login failures (invalid credentials, verify email) instead of always returning SessionExpired.
+- **File:** `Assets/Scripts/Core/ApiClient.cs`
+
 ---
 
 ## 🔴 Open bugs (in order)
 
-### 5. Settings freezes / does nothing
+### 6. Registration returns "check your email" (no email received)
+- **Symptom:** Create Account succeeds but shows "Please check your email to confirm"; no email arrives; login fails.
+- **Cause:** Either (a) admin-dashboard not deployed to Vercel with auto-confirm, or (b) `SUPABASE_SERVICE_ROLE_KEY` missing in Vercel, or (c) Supabase email confirmation is on and auto-confirm fails.
+- **Fix:** Deploy admin-dashboard; ensure `SUPABASE_SERVICE_ROLE_KEY` in Vercel env; run migration `001_profiles_and_auth_trigger.sql` if profiles table missing.
+- **See:** `Docs/ADB-LOG-SUMMARY.md` – Auth deployment checklist.
+
+### 7. Settings freezes / does nothing
 - **Symptom:** From Main Menu (or after Back from AR), tap "Settings" → app hangs or nothing happens.
 - **Fix ideas:**
   - Same as Wallet: capture ADB logs during freeze; look for null refs or blocking calls in SettingsUI.
@@ -42,7 +53,7 @@ Track bugs and planned fixes so we can work through them in order. Update this f
   - Check SettingsUI.Start/OnEnable for blocking or missing refs.
 - **Files to check:** `Assets/Scripts/UI/SettingsUI.cs`, Settings scene setup.
 
-### 6. Backend 500 on player location
+### 8. Backend 500 on player location
 - **Symptom:** POST `/api/v1/player/location` returns 500 "Database error"; app retries and logs API errors (see ADB-LOG-SUMMARY.md).
 - **Fix:** Backend/admin-dashboard + Supabase: fix the player location API route and/or DB (table, RLS, migrations). Not an APK code change.
 - **References:** `Docs/ADB-LOG-SUMMARY.md`, admin-dashboard API and Supabase migrations.
