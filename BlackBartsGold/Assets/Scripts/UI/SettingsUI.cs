@@ -144,13 +144,20 @@ namespace BlackBartsGold.UI
         
         #region Unity Lifecycle
         
+        private void OnEnable()
+        {
+            Debug.Log($"[SettingsUI] OnEnable - EventSystem.current={UnityEngine.EventSystems.EventSystem.current?.name ?? "null"}");
+        }
+        
         private void Start()
         {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            Debug.Log($"[SettingsUI] ⚙️ Start - EventSystem.current={es?.name ?? "null"} backBtn={backButton != null}");
             SetupListeners();
             LoadSettings();
             UpdateAccountInfo();
             HideConfirmModal();
-            
+            Debug.Log($"[SettingsUI] Start complete | backBtn={backButton != null} interactable={backButton?.interactable}");
             // Set version
             if (versionText != null)
             {
@@ -530,6 +537,7 @@ namespace BlackBartsGold.UI
         
         private void OnBackClicked()
         {
+            Debug.Log("[SettingsUI] 🔙 BACK BUTTON CLICKED - loading MainMenu");
             SceneLoader.LoadScene(SceneNames.MainMenu);
         }
         

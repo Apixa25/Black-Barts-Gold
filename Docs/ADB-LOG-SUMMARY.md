@@ -121,3 +121,27 @@ If registration returns "Please check your email to confirm" and login returns "
 | Your app only (by PID)  | `adb logcat --pid=$(adb shell pidof com.blackbart.gold)` |
 | Auth / location / API   | Look for `PlayerLocationService`, `ApiClient`, `AuthService` in Unity tag |
 | Errors                  | Look for `W Unity` or `E Unity` and `API ERROR`, `Database error` |
+
+---
+
+## Wallet/Settings Debug Log Markers
+
+When debugging the freeze, filter ADB logs for these markers:
+
+| Marker | Meaning |
+|--------|---------|
+| `[QuickNavigation] 🔘 BUTTON CLICKED!` | User tapped Wallet or Settings - click reached handler |
+| `[QuickNavigation] ✅ Scene loaded:` | Scene load completed |
+| `[AppBootstrap] 📍 Scene loaded:` | AppBootstrap processing scene |
+| `[AppBootstrap] 📱 SceneHasOwnUI=true` | Using scene's EventSystem (not persistent) |
+| `[AppBootstrap]   → Using scene ES:` | Scene EventSystem enabled, has InputModule |
+| `[AppBootstrap] 📍 EventSystem.current after setup:` | Active EventSystem name |
+| `[UIManager] ✅ Scene 'Wallet' has its own UI` | UIManager preserved scene canvas |
+| `[WalletUI] 🪙 Start` | WalletUI initialized |
+| `[WalletUI] 🔙 BACK BUTTON CLICKED` | **Back button received click** (if missing = freeze) |
+| `[SettingsUI] ⚙️ Start` | SettingsUI initialized |
+| `[SettingsUI] 🔙 BACK BUTTON CLICKED` | **Back button received click** (if missing = freeze) |
+| `[EventSystemFixer] Awake on` | Which EventSystem has fixer |
+| `[EventSystemFixer] RefreshEventSystem` | Fixer refresh ran |
+
+**If you see `[WalletUI] Start complete` but never `[WalletUI] 🔙 BACK BUTTON CLICKED` when tapping Back, the EventSystem is not delivering the click.**

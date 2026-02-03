@@ -132,11 +132,13 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
-            Debug.Log("[WalletUI] Start - Wallet scene active, setting up UI");
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            Debug.Log($"[WalletUI] 🪙 Start - EventSystem.current={es?.name ?? "null"}");
             SetupButtons();
             HideModals();
             RefreshUI();
-            Debug.Log("[WalletUI] Start complete - buttons wired, modals hidden, UI refreshed");
+            Debug.Log($"[WalletUI] Start complete | backBtn={backButton != null} interactable={backButton?.interactable}");
+        }
             
             // Subscribe to wallet changes
             if (PlayerData.Exists)
@@ -155,7 +157,7 @@ namespace BlackBartsGold.UI
         
         private void OnEnable()
         {
-            Debug.Log("[WalletUI] OnEnable - Wallet UI active, refreshing display");
+            Debug.Log($"[WalletUI] OnEnable - Wallet active | EventSystem.current={UnityEngine.EventSystems.EventSystem.current?.name ?? "null"}");
             RefreshUI();
         }
         
@@ -612,7 +614,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void OnBackClicked()
         {
-            Debug.Log("[WalletUI] Back clicked - loading MainMenu");
+            Debug.Log("[WalletUI] 🔙 BACK BUTTON CLICKED - loading MainMenu");
             Log("Back clicked");
             SceneLoader.LoadScene(SceneNames.MainMenu);
         }

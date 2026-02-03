@@ -80,32 +80,64 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Called when any scene loads - destroys duplicate EventSystems
+        /// Scenes that have their own full UI - they should use their OWN EventSystem,
+        /// not the persistent one. Fixes Wallet/Settings freeze (Input System touch stops after scene load).
+        /// </summary>
+        private static bool SceneHasOwnUI(string sceneName)
+        {
+            return sceneName == "Login" || sceneName == "Register" ||
+                   sceneName == "MainMenu" || sceneName == "Wallet" || sceneName == "Settings";
+        }
+        
+        /// <summary>
+        /// Called when any scene loads - manages EventSystem based on scene type.
+        /// For scenes-with-own-UI: use scene's EventSystem, disable persistent (fixes touch freeze).
+        /// For ARHunt etc: use persistent, destroy scene's duplicate.
         /// </summary>
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            Debug.Log($"[AppBootstrap] Scene loaded: {scene.name}");
-            
-            // Find and destroy any EventSystems in the loaded scene
             var eventSystems = Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
+            Debug.Log($"[AppBootstrap] 📍 Scene loaded: {scene.name} | EventSystems found: {eventSystems.Length}");
             
-            foreach (var es in eventSystems)
+            if (SceneHasOwnUI(scene.name))
             {
-                if (es != _persistentEventSystem)
+                Debug.Log($"[AppBootstrap] 📱 SceneHasOwnUI=true → using scene's EventSystem");
+                if (_persistentEventSystem != null)
                 {
-                    Debug.Log($"[AppBootstrap] Destroying duplicate EventSystem: {es.gameObject.name}");
-                    Object.Destroy(es.gameObject);
+                    _persistentEventSystem.enabled = false;
+                    Debug.Log("[AppBootstrap]   → Disabled persistent EventSystem");
                 }
+                foreach (var es in eventSystems)
+                {
+                    if (es == _persistentEventSystem) continue;
+                    es.enabled = true;
+                    es.SetSelectedGameObject(null);
+                    var mod = es.GetComponent<InputSystemUIInputModule>();
+                    var hasActions = mod != null && mod.actionsAsset != null;
+                    if (mod != null) mod.enabled = true;
+                    Debug.Log($"[AppBootstrap]   → Using scene ES: {es.gameObject.name} InputModule={mod != null} actionsAsset={hasActions}");
+                }
+                Debug.Log($"[AppBootstrap] 📍 EventSystem.current after setup: {EventSystem.current?.name ?? "null"}");
             }
-            
-            // Ensure our EventSystem is active and working
-            if (_persistentEventSystem != null)
+            else
             {
-                _persistentEventSystem.enabled = true;
-                var inputModule = _persistentEventSystem.GetComponent<InputSystemUIInputModule>();
-                if (inputModule != null) inputModule.enabled = true;
-                // Clear stale selection from previous scene - prevents "frozen" Wallet/Settings UI
-                _persistentEventSystem.SetSelectedGameObject(null);
+                // ARHunt etc: use persistent, destroy scene duplicates
+                foreach (var es in eventSystems)
+                {
+                    if (es != _persistentEventSystem)
+                    {
+                        Debug.Log($"[AppBootstrap] Destroying duplicate EventSystem: {es.gameObject.name}");
+                        Object.Destroy(es.gameObject);
+                    }
+                }
+                if (_persistentEventSystem != null)
+                {
+                    _persistentEventSystem.enabled = true;
+                    _persistentEventSystem.SetSelectedGameObject(null);
+                    var inputModule = _persistentEventSystem.GetComponent<InputSystemUIInputModule>();
+                    if (inputModule != null) inputModule.enabled = true;
+                    Debug.Log("[AppBootstrap]   → Using persistent EventSystem (ARHunt etc)");
+                }
             }
         }
     }

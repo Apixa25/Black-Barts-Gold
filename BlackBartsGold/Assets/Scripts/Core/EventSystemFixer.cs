@@ -25,8 +25,7 @@ namespace BlackBartsGold.Core
         {
             eventSystem = GetComponent<EventSystem>();
             inputModule = GetComponent<InputSystemUIInputModule>();
-            Debug.Log("[EventSystemFixer] Initialized");
-            // SIMPLIFIED: Just get references, don't destroy anything
+            Debug.Log($"[EventSystemFixer] Awake on {gameObject.name} | ES={eventSystem != null} InputMod={inputModule != null} actionsAsset={inputModule?.actionsAsset != null}");
         }
 
         private void Start()
@@ -85,6 +84,8 @@ namespace BlackBartsGold.Core
         public static void RefreshEventSystem()
         {
             var fixer = FindFirstObjectByType<EventSystemFixer>();
+            var esCurrent = EventSystem.current;
+            Debug.Log($"[EventSystemFixer] RefreshEventSystem | fixerFound={fixer != null} fixerOn={fixer?.gameObject.name} EventSystem.current={esCurrent?.name ?? "null"}");
             if (fixer != null)
             {
                 fixer.FixEventSystem();

@@ -45,14 +45,13 @@ Track bugs and planned fixes so we can work through them in order. Update this f
 - **Fix:** Deploy admin-dashboard; ensure `SUPABASE_SERVICE_ROLE_KEY` in Vercel env; run migration `001_profiles_and_auth_trigger.sql` if profiles table missing.
 - **See:** `Docs/ADB-LOG-SUMMARY.md` – Auth deployment checklist.
 
-### 7. Settings / My Wallet freeze (fix attempted 2026-02-02)
+### 7. Settings / My Wallet freeze (fix v2 attempted 2026-02-02)
 - **Symptom:** From Main Menu, tap "Settings" or "My Wallet" → scene loads but screen appears frozen (no touch/click response).
-- **Cause:** Persistent EventSystem had no EventSystemFixer; stale `currentSelectedGameObject` from previous scene blocked input.
-- **Fix applied:**
-  - Added EventSystemFixer to persistent EventSystem in AppBootstrap so RefreshEventSystem() targets the correct ES.
-  - Clear `SetSelectedGameObject(null)` in AppBootstrap.OnSceneLoaded and EventSystemFixer.FixEventSystem().
-- **Files:** `AppBootstrap.cs`, `EventSystemFixer.cs`.
-- **Test:** Rebuild APK, tap My Wallet then Back, tap Settings then Back. Both should be responsive.
+- **Cause (v1):** Stale selection, EventSystem refresh – didn't fix it.
+- **Cause (v2):** Persistent EventSystem + InputSystemUIInputModule can lose touch after scene load (known Unity issue). Reusing the same EventSystem across scenes causes touch to stop.
+- **Fix v2 applied:** For scenes with own UI (MainMenu, Wallet, Settings, Login, Register), **do NOT destroy** the scene's EventSystem. Instead, **disable the persistent one** and let the scene use its own fresh EventSystem. Each scene gets a newly instantiated EventSystem, avoiding the "second scene load" touch bug.
+- **Files:** `AppBootstrap.cs`.
+- **Test:** Rebuild APK, tap My Wallet (Back should work), tap Settings (Back should work).
 
 ### 8. Backend 500 on player location
 - **Symptom:** POST `/api/v1/player/location` returns 500 "Database error"; app retries and logs API errors (see ADB-LOG-SUMMARY.md).
