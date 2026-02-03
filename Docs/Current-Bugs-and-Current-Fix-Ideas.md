@@ -45,12 +45,12 @@ Track bugs and planned fixes so we can work through them in order. Update this f
 - **Fix:** Deploy admin-dashboard; ensure `SUPABASE_SERVICE_ROLE_KEY` in Vercel env; run migration `001_profiles_and_auth_trigger.sql` if profiles table missing.
 - **See:** `Docs/ADB-LOG-SUMMARY.md` – Auth deployment checklist.
 
-### 7. Settings / My Wallet freeze (fix v4 – EventSystemFixer + dual-ES 2026-02-02)
+### 7. Settings / My Wallet freeze (fix v5 – panel navigation 2026-02-03)
 - **Symptom:** From Main Menu, tap "Settings" or "My Wallet" → scene loads but screen appears frozen (no touch/click response).
-- **Cause (v3, found via ADB logs):** **GameBootstrapper** was destroying "duplicate" EventSystems for ALL scenes. It keeps `eventSystems[0]` and destroys the rest. For MainMenu/Wallet/Settings, we have 2: persistent (disabled) + scene's (the one we want). GameBootstrapper was destroying the scene's EventSystem, leaving only the disabled persistent one → no input.
-- **Fix v3 applied:** GameBootstrapper now **skips** FixEventSystem for scenes-with-own-UI (Login, Register, MainMenu, Wallet, Settings). AppBootstrap already configures those; GameBootstrapper was undoing it.
-- **Files:** `GameBootstrapper.cs`.
-- **Test:** Rebuild APK, tap My Wallet (Back should work), tap Settings (Back should work).
+- **Cause (root):** Unity Input System stops working after a scene is loaded (known bug on Android). Loading Wallet/Settings as separate scenes triggers this.
+- **Fix v5 applied:** **Panel-based navigation** (market standard). Wallet and Settings are now UIManager **panels** shown as overlays—no scene load. QuickNavigation calls `UIManager.ShowWallet()` / `ShowSettings()` instead of LoadScene. Back button shows UIManager's mainMenuPanel.
+- **Files:** `QuickNavigation.cs`, `UIManager.cs`.
+- **Test:** Rebuild APK, tap My Wallet (should show panel, Back works), tap Settings (should show panel, Back works).
 
 ### 8. Backend 500 on player location
 - **Symptom:** POST `/api/v1/player/location` returns 500 "Database error"; app retries and logs API errors (see ADB-LOG-SUMMARY.md).
