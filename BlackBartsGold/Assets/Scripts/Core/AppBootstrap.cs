@@ -62,6 +62,7 @@ namespace BlackBartsGold.Core
             eventSystemGO.transform.SetParent(parent);
             
             _persistentEventSystem = eventSystemGO.AddComponent<EventSystem>();
+            eventSystemGO.AddComponent<EventSystemFixer>(); // Ensures RefreshEventSystem() finds our persistent ES
             var inputSystemModule = eventSystemGO.AddComponent<InputSystemUIInputModule>();
             
             // Assign UI Input Actions so the module gets mouse (Editor) and touch (device) input.
@@ -103,6 +104,8 @@ namespace BlackBartsGold.Core
                 _persistentEventSystem.enabled = true;
                 var inputModule = _persistentEventSystem.GetComponent<InputSystemUIInputModule>();
                 if (inputModule != null) inputModule.enabled = true;
+                // Clear stale selection from previous scene - prevents "frozen" Wallet/Settings UI
+                _persistentEventSystem.SetSelectedGameObject(null);
             }
         }
     }

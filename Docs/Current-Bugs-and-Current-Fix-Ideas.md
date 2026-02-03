@@ -45,13 +45,14 @@ Track bugs and planned fixes so we can work through them in order. Update this f
 - **Fix:** Deploy admin-dashboard; ensure `SUPABASE_SERVICE_ROLE_KEY` in Vercel env; run migration `001_profiles_and_auth_trigger.sql` if profiles table missing.
 - **See:** `Docs/ADB-LOG-SUMMARY.md` – Auth deployment checklist.
 
-### 7. Settings freezes / does nothing
-- **Symptom:** From Main Menu (or after Back from AR), tap "Settings" → app hangs or nothing happens.
-- **Fix ideas:**
-  - Same as Wallet: capture ADB logs during freeze; look for null refs or blocking calls in SettingsUI.
-  - Check Settings scene: SerializeField refs, Canvas, EventSystem.
-  - Check SettingsUI.Start/OnEnable for blocking or missing refs.
-- **Files to check:** `Assets/Scripts/UI/SettingsUI.cs`, Settings scene setup.
+### 7. Settings / My Wallet freeze (fix attempted 2026-02-02)
+- **Symptom:** From Main Menu, tap "Settings" or "My Wallet" → scene loads but screen appears frozen (no touch/click response).
+- **Cause:** Persistent EventSystem had no EventSystemFixer; stale `currentSelectedGameObject` from previous scene blocked input.
+- **Fix applied:**
+  - Added EventSystemFixer to persistent EventSystem in AppBootstrap so RefreshEventSystem() targets the correct ES.
+  - Clear `SetSelectedGameObject(null)` in AppBootstrap.OnSceneLoaded and EventSystemFixer.FixEventSystem().
+- **Files:** `AppBootstrap.cs`, `EventSystemFixer.cs`.
+- **Test:** Rebuild APK, tap My Wallet then Back, tap Settings then Back. Both should be responsive.
 
 ### 8. Backend 500 on player location
 - **Symptom:** POST `/api/v1/player/location` returns 500 "Database error"; app retries and logs API errors (see ADB-LOG-SUMMARY.md).
