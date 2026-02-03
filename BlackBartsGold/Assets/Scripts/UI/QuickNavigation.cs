@@ -114,6 +114,10 @@ namespace BlackBartsGold.UI
             Debug.Log($"[QuickNavigation] 🔘 BUTTON CLICKED! target={sceneName} button={gameObject.name} " +
                 $"interactable={button != null && button.interactable} EventSystem.current={es?.name ?? "null"}");
             
+            // PANEL NAVIGATION: Wallet & Settings use UIManager panels (no scene load = no touch freeze)
+            if (sceneTarget == SceneTarget.Wallet && TryShowWalletPanel()) return;
+            if (sceneTarget == SceneTarget.Settings && TryShowSettingsPanel()) return;
+            
             try
             {
                 StartCoroutine(LoadSceneAsync(sceneName));
@@ -123,6 +127,28 @@ namespace BlackBartsGold.UI
                 Debug.LogError($"[QuickNavigation] ❌ Failed to load scene '{sceneName}': {e.Message}");
                 SceneManager.LoadScene(sceneName);
             }
+        }
+        
+        /// <summary>
+        /// Show Wallet as panel overlay (avoids scene load → avoids Input System touch freeze on Android).
+        /// </summary>
+        private bool TryShowWalletPanel()
+        {
+            if (Core.UIManager.Instance == null) return false;
+            Debug.Log("[QuickNavigation] 📱 Using panel navigation: ShowWallet (no scene load)");
+            Core.UIManager.Instance.ShowWallet();
+            return true;
+        }
+        
+        /// <summary>
+        /// Show Settings as panel overlay (avoids scene load → avoids Input System touch freeze on Android).
+        /// </summary>
+        private bool TryShowSettingsPanel()
+        {
+            if (Core.UIManager.Instance == null) return false;
+            Debug.Log("[QuickNavigation] 📱 Using panel navigation: ShowSettings (no scene load)");
+            Core.UIManager.Instance.ShowSettings();
+            return true;
         }
         
         private System.Collections.IEnumerator LoadSceneAsync(string sceneName)

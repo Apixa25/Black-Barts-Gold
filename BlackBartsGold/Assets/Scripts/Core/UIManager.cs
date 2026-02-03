@@ -820,22 +820,41 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Show the Wallet panel
+        /// Show the Wallet panel (panel overlay - no scene load, avoids touch freeze on Android).
         /// </summary>
         public void ShowWallet()
         {
-            Debug.Log("[UIManager] Showing Wallet");
+            Debug.Log("[UIManager] Showing Wallet (panel overlay)");
+            EnableUIManagerCanvas(); // Ensure overlay visible when called from MainMenu scene
             HideAllPanels();
             if (walletPanel != null) walletPanel.SetActive(true);
             currentPanel = walletPanel;
+            RefreshWalletPanelBalance();
         }
         
         /// <summary>
-        /// Show the Settings panel
+        /// Update the Wallet panel's balance text from PlayerData.
+        /// </summary>
+        private void RefreshWalletPanelBalance()
+        {
+            if (walletPanel == null) return;
+            var balanceTransform = walletPanel.transform.Find("Balance");
+            if (balanceTransform == null) return;
+            var tmp = balanceTransform.GetComponent<TMP_Text>();
+            if (tmp == null) return;
+            if (PlayerData.Exists && PlayerData.Instance.Wallet != null)
+                tmp.text = $"${PlayerData.Instance.Wallet.total:F2} BBG";
+            else
+                tmp.text = "$0.00 BBG";
+        }
+        
+        /// <summary>
+        /// Show the Settings panel (panel overlay - no scene load, avoids touch freeze on Android).
         /// </summary>
         public void ShowSettings()
         {
-            Debug.Log("[UIManager] Showing Settings");
+            Debug.Log("[UIManager] Showing Settings (panel overlay)");
+            EnableUIManagerCanvas(); // Ensure overlay visible when called from MainMenu scene
             HideAllPanels();
             if (settingsPanel != null) settingsPanel.SetActive(true);
             currentPanel = settingsPanel;
