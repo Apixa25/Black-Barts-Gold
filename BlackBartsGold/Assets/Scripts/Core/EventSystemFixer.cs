@@ -79,34 +79,40 @@ namespace BlackBartsGold.Core
         }
 
         /// <summary>
-        /// Call this from other scripts if input stops working
+        /// Call this from other scripts if input stops working.
+        /// CRITICAL: Only refresh EventSystem.current (the ACTIVE one). Do NOT use FindFirstObjectByType
+        /// — that can return the fixer on the DISABLED persistent EventSystem, and running FixEventSystem
+        /// on it would re-enable the persistent ES, creating 2 active EventSystems → touch breaks on Android.
         /// </summary>
         public static void RefreshEventSystem()
         {
-            var fixer = FindFirstObjectByType<EventSystemFixer>();
             var esCurrent = EventSystem.current;
-            Debug.Log($"[EventSystemFixer] RefreshEventSystem | fixerFound={fixer != null} fixerOn={fixer?.gameObject.name} EventSystem.current={esCurrent?.name ?? "null"}");
+            Debug.Log($"[EventSystemFixer] RefreshEventSystem | EventSystem.current={esCurrent?.name ?? "null"}");
+            if (esCurrent == null)
+            {
+                Debug.LogWarning("[EventSystemFixer] EventSystem.current is null - cannot refresh");
+                return;
+            }
+            // Only fix the ACTIVE EventSystem — never touch the disabled persistent one
+            var fixer = esCurrent.GetComponent<EventSystemFixer>();
             if (fixer != null)
             {
                 fixer.FixEventSystem();
             }
             else
             {
-                // Fallback if no EventSystemFixer found; refresh EventSystem.current directly
-                Debug.Log("[EventSystemFixer] No EventSystemFixer component found - using EventSystem.current fallback");
-                var eventSystem = EventSystem.current;
-                if (eventSystem != null)
+                // No fixer on current ES — refresh it directly
+                esCurrent.SetSelectedGameObject(null);
+                esCurrent.enabled = false;
+                esCurrent.enabled = true;
+                var inputModule = esCurrent.GetComponent<InputSystemUIInputModule>();
+                if (inputModule != null)
                 {
-                    eventSystem.SetSelectedGameObject(null); // Clear stale selection
-                    eventSystem.enabled = false;
-                    eventSystem.enabled = true;
-                    eventSystem.UpdateModules();
-                    Debug.Log("[EventSystemFixer] Refreshed EventSystem.current (persistent)");
+                    inputModule.enabled = false;
+                    inputModule.enabled = true;
                 }
-                else
-                {
-                    Debug.LogWarning("[EventSystemFixer] EventSystem.current is null - cannot refresh");
-                }
+                esCurrent.UpdateModules();
+                Debug.Log("[EventSystemFixer] Refreshed EventSystem.current (no fixer component)");
             }
         }
     }
