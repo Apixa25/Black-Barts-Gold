@@ -54,9 +54,10 @@ namespace BlackBartsGold.Core
                 inputModule = GetComponent<InputSystemUIInputModule>();
             }
 
-            // Disable and re-enable to force refresh
+            // Clear stale selection from previous scene - prevents "frozen" UI (Wallet, Settings)
             if (eventSystem != null)
             {
+                eventSystem.SetSelectedGameObject(null);
                 Debug.Log("[EventSystemFixer] Refreshing EventSystem...");
                 eventSystem.enabled = false;
                 eventSystem.enabled = true;
@@ -90,11 +91,12 @@ namespace BlackBartsGold.Core
             }
             else
             {
-                // Persistent EventSystem (AppBootstrap) has no fixer; refresh EventSystem.current directly
+                // Fallback if no EventSystemFixer found; refresh EventSystem.current directly
                 Debug.Log("[EventSystemFixer] No EventSystemFixer component found - using EventSystem.current fallback");
                 var eventSystem = EventSystem.current;
                 if (eventSystem != null)
                 {
+                    eventSystem.SetSelectedGameObject(null); // Clear stale selection
                     eventSystem.enabled = false;
                     eventSystem.enabled = true;
                     eventSystem.UpdateModules();
