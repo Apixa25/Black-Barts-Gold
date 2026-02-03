@@ -73,151 +73,96 @@ export async function POST(request: NextRequest): Promise<NextResponse<RegisterR
       )
     }
 
-    // Create Supabase client
-    const supabase = createPublicClient()
+    // Use Admin API to create user with email_confirm: true — no email verification needed
+    const serviceClient = createServiceRoleClient()
 
-    // Attempt to sign up
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: createData, error: createError } = await serviceClient.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          full_name: displayName || null,
-          age: age || null,
-        },
-        // For mobile apps, we might want to skip email confirmation
-        // This can be configured in Supabase dashboard
-      }
+      email_confirm: true,
+      user_metadata: {
+        full_name: displayName || null,
+        age: age || null,
+      },
     })
 
-    if (authError) {
-      console.error('[Auth Register] Supabase auth error:', authError.message)
-      
-      // Map common errors to user-friendly messages
+    if (createError) {
+      console.error('[Auth Register] createUser error:', createError.message)
+
       let errorMessage = 'Registration failed'
-      if (authError.message.includes('already registered') || 
-          authError.message.includes('already exists')) {
+      if (createError.message.includes('already') || createError.message.includes('exists') || createError.message.includes('registered')) {
         errorMessage = 'An account with this email already exists'
-      } else if (authError.message.includes('Password')) {
+      } else if (createError.message.includes('Password') || createError.message.includes('password')) {
         errorMessage = 'Password does not meet requirements'
-      } else if (authError.message.includes('rate limit')) {
+      } else if (createError.message.includes('rate limit') || createError.message.includes('limit')) {
         errorMessage = 'Too many registration attempts. Please try again later'
+      } else if (createError.message.includes('invalid') || createError.message.includes('format')) {
+        errorMessage = 'Invalid email format'
       }
-      
+
       return NextResponse.json(
         { success: false, error: errorMessage },
         { status: 400 }
       )
     }
 
-    if (!authData.user) {
+    if (!createData.user) {
       return NextResponse.json(
         { success: false, error: 'Registration failed - no user created' },
         { status: 400 }
       )
     }
 
-    // If we have a session, user is auto-confirmed (configured in Supabase)
-    if (authData.session) {
-      // Update profile with additional data using service role
-      try {
-        const serviceClient = createServiceRoleClient()
-        await serviceClient
-          .from('profiles')
-          .update({
-            full_name: displayName || null,
-          })
-          .eq('id', authData.user.id)
-      } catch (updateError) {
-        console.error('[Auth Register] Profile update error:', updateError)
-        // Don't fail registration if profile update fails
-      }
-
-      console.log(`[Auth Register] User ${email} registered and logged in`)
-
-      return NextResponse.json({
-        success: true,
-        token: authData.session.access_token,
-        refreshToken: authData.session.refresh_token,
-        expiresAt: authData.session.expires_at,
-        user: {
-          id: authData.user.id,
-          email: authData.user.email || email,
-          displayName: displayName || null,
-          avatarUrl: null,
-          role: 'user',
-          createdAt: authData.user.created_at,
-        }
-      })
+    // Update profile with display name
+    try {
+      await serviceClient
+        .from('profiles')
+        .update({ full_name: displayName || null })
+        .eq('id', createData.user.id)
+    } catch (updateError) {
+      console.error('[Auth Register] Profile update error:', updateError)
+      // Don't fail registration if profile update fails
     }
 
-    // No session = Supabase requires email confirmation. For mobile, auto-confirm and sign in.
-    console.log(`[Auth Register] User ${email} - no session. Auto-confirming for mobile...`)
+    // Sign in to get session tokens for the mobile app
+    const supabase = createPublicClient()
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-    try {
-      const serviceClient = createServiceRoleClient()
-      await serviceClient.auth.admin.updateUserById(authData.user.id, { email_confirm: true })
-
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (signInError || !signInData.session) {
-        console.error('[Auth Register] Auto-confirm worked but sign-in failed:', signInError?.message)
-        return NextResponse.json({
-          success: true,
-          emailConfirmationRequired: true,
-          user: {
-            id: authData.user.id,
-            email: authData.user.email || email,
-            displayName: displayName || null,
-            avatarUrl: null,
-            role: 'user',
-            createdAt: authData.user.created_at,
-          }
-        })
-      }
-
-      // Update profile
-      try {
-        const serviceClient2 = createServiceRoleClient()
-        await serviceClient2.from('profiles').update({ full_name: displayName || null }).eq('id', authData.user.id)
-      } catch {
-        /* ignore */
-      }
-
-      console.log(`[Auth Register] User ${email} auto-confirmed and logged in`)
-
-      return NextResponse.json({
-        success: true,
-        token: signInData.session.access_token,
-        refreshToken: signInData.session.refresh_token,
-        expiresAt: signInData.session.expires_at,
-        user: {
-          id: signInData.user.id,
-          email: signInData.user.email || email,
-          displayName: displayName || null,
-          avatarUrl: null,
-          role: 'user',
-          createdAt: signInData.user.created_at,
-        }
-      })
-    } catch (autoConfirmError) {
-      console.error('[Auth Register] Auto-confirm failed:', autoConfirmError)
+    if (signInError || !signInData?.session) {
+      console.error('[Auth Register] Sign-in after create failed:', signInError?.message)
       return NextResponse.json({
         success: true,
         emailConfirmationRequired: true,
         user: {
-          id: authData.user.id,
-          email: authData.user.email || email,
+          id: createData.user.id,
+          email: createData.user.email || email,
           displayName: displayName || null,
           avatarUrl: null,
           role: 'user',
-          createdAt: authData.user.created_at,
+          createdAt: createData.user.created_at,
         }
       })
     }
+
+    console.log(`[Auth Register] User ${email} registered and logged in`)
+
+    return NextResponse.json({
+      success: true,
+      token: signInData.session.access_token,
+      refreshToken: signInData.session.refresh_token,
+      expiresAt: signInData.session.expires_at,
+      user: {
+        id: signInData.user.id,
+        email: signInData.user.email || email,
+        displayName: displayName || null,
+        avatarUrl: null,
+        role: 'user',
+        createdAt: signInData.user.created_at,
+      }
+    })
 
   } catch (error) {
     console.error('[Auth Register] Unexpected error:', error)
