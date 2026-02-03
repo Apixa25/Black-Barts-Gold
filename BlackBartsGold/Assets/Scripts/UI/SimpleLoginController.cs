@@ -3,25 +3,33 @@
 // Black Bart's Gold - Simple Login Screen Controller
 // Path: Assets/Scripts/UI/SimpleLoginController.cs
 // ============================================================================
-// SIMPLIFIED: Sets up UI visually and handles navigation.
+// Sets up login UI: shows "Login" / "Join the Crew" buttons. When Login clicked,
+// shows inline email/password form and calls AuthService. No UI Toolkit dependency.
 // ============================================================================
 
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
-using System;
+using BlackBartsGold.Core;
 
 namespace BlackBartsGold.UI
 {
     /// <summary>
-    /// Simple login controller that sets up and handles the login UI.
+    /// Login controller: two-button home screen, then inline email/password form.
     /// </summary>
     public class SimpleLoginController : MonoBehaviour
     {
         private Button loginButton;
         private Button createAccountButton;
         private Canvas canvas;
+        private GameObject loginFormContainer;
+        private TMP_InputField emailInput;
+        private TMP_InputField passwordInput;
+        private TMP_Text messageText;
+        private Button signInButton;
+        private Button backButton;
+        private bool isLoggingIn;
         
         private void Awake()
         {
@@ -51,9 +59,14 @@ namespace BlackBartsGold.UI
                 return;
             }
             
-            // Ensure canvas is Screen Space - Overlay
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 100; // On top of everything
+            canvas.sortingOrder = 100;
+            
+            var scaler = canvas.GetComponent<CanvasScaler>();
+            if (scaler == null) scaler = canvas.gameObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080f, 1920f);
+            scaler.matchWidthOrHeight = 0.5f;
             
             // Setup Background (stretch to fill)
             SetupBackground();
@@ -234,30 +247,201 @@ namespace BlackBartsGold.UI
         {
             Debug.Log("[SimpleLoginController] 🔑 LOGIN CLICKED - Showing email/password form...");
             
-            // Find or create LoginUIToolkit and add the real login form (calls AuthService + API)
-            var loginUIToolkit = GameObject.Find("LoginUIToolkit");
-            if (loginUIToolkit == null)
-            {
-                loginUIToolkit = new GameObject("LoginUIToolkit");
-                Debug.Log("[SimpleLoginController] Created LoginUIToolkit GameObject.");
-            }
+            if (loginFormContainer != null) return;
             
-            // Use reflection to add LoginControllerUIToolkit (avoids compile-time dependency issues)
-            var toolkitType = Type.GetType("BlackBartsGold.UI.LoginControllerUIToolkit, Assembly-CSharp");
-            if (toolkitType == null)
-            {
-                Debug.LogError("[SimpleLoginController] LoginControllerUIToolkit type not found. Ensure the script compiles.");
-                return;
-            }
+            // Hide main buttons
+            if (loginButton != null) loginButton.gameObject.SetActive(false);
+            if (createAccountButton != null) createAccountButton.gameObject.SetActive(false);
             
-            var existing = loginUIToolkit.GetComponent(toolkitType);
-            if (existing == null)
-            {
-                loginUIToolkit.AddComponent(toolkitType);
-                Debug.Log("[SimpleLoginController] Added LoginControllerUIToolkit - showing email/password form.");
-            }
+            // Build inline login form (uGUI - works on device, no UI Toolkit)
+            ShowLoginForm();
+        }
+        
+        private void ShowLoginForm()
+        {
+            loginFormContainer = new GameObject("LoginFormContainer");
+            loginFormContainer.transform.SetParent(canvas.transform, false);
+            var rect = loginFormContainer.AddComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
             
-            loginUIToolkit.SetActive(true);
+            float y = 0.7f;
+            var emailRow = CreateLoginInputRow(loginFormContainer.transform, "Email", "Email", ref y);
+            emailInput = emailRow;
+            emailInput.contentType = TMP_InputField.ContentType.EmailAddress;
+            
+            var passRow = CreateLoginInputRow(loginFormContainer.transform, "Password", "Password", ref y);
+            passwordInput = passRow;
+            passwordInput.contentType = TMP_InputField.ContentType.Password;
+            
+            var msgGO = new GameObject("Message");
+            msgGO.transform.SetParent(loginFormContainer.transform, false);
+            var msgRect = msgGO.AddComponent<RectTransform>();
+            msgRect.anchorMin = new Vector2(0.5f, y - 0.05f);
+            msgRect.anchorMax = new Vector2(0.5f, y - 0.05f);
+            msgRect.sizeDelta = new Vector2(500, 50);
+            msgRect.pivot = new Vector2(0.5f, 0.5f);
+            messageText = msgGO.AddComponent<TextMeshProUGUI>();
+            messageText.text = "";
+            messageText.fontSize = 32;
+            messageText.alignment = TextAlignmentOptions.Center;
+            messageText.color = new Color(1f, 0.4f, 0.4f, 1f);
+            y -= 0.12f;
+            
+            signInButton = CreateLoginButton(loginFormContainer.transform, "Sign In", y, new Color(0.2f, 0.5f, 0.3f, 1f));
+            signInButton.onClick.AddListener(OnSignInClicked);
+            y -= 0.12f;
+            
+            backButton = CreateLoginButton(loginFormContainer.transform, "Back", y, new Color(0.4f, 0.4f, 0.4f, 1f));
+            backButton.onClick.AddListener(HideLoginForm);
+            
+            Debug.Log("[SimpleLoginController] Login form shown.");
+        }
+        
+        private TMP_InputField CreateLoginInputRow(Transform parent, string name, string label, ref float y)
+        {
+            y -= 0.12f;
+            var row = new GameObject(name);
+            row.transform.SetParent(parent, false);
+            var rowRect = row.AddComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0.5f, y);
+            rowRect.anchorMax = new Vector2(0.5f, y);
+            rowRect.sizeDelta = new Vector2(450, 75);
+            rowRect.pivot = new Vector2(0.5f, 0.5f);
+            row.AddComponent<Image>().color = new Color(0.2f, 0.25f, 0.35f, 1f);
+            
+            var inputGO = new GameObject("Input");
+            inputGO.transform.SetParent(row.transform, false);
+            var inputRect = inputGO.AddComponent<RectTransform>();
+            inputRect.anchorMin = Vector2.zero;
+            inputRect.anchorMax = Vector2.one;
+            inputRect.offsetMin = new Vector2(12, 8);
+            inputRect.offsetMax = new Vector2(-12, -8);
+            var input = inputGO.AddComponent<TMP_InputField>();
+            
+            var textArea = new GameObject("Text Area");
+            textArea.transform.SetParent(inputGO.transform, false);
+            var taRect = textArea.AddComponent<RectTransform>();
+            taRect.anchorMin = Vector2.zero;
+            taRect.anchorMax = Vector2.one;
+            taRect.offsetMin = Vector2.zero;
+            taRect.offsetMax = Vector2.zero;
+            textArea.AddComponent<RectMask2D>();
+            
+            var textGO = new GameObject("Text");
+            textGO.transform.SetParent(textArea.transform, false);
+            var tr = textGO.AddComponent<RectTransform>();
+            tr.anchorMin = new Vector2(0, 0.5f);
+            tr.anchorMax = new Vector2(1, 0.5f);
+            tr.offsetMin = new Vector2(0, -18);
+            tr.offsetMax = new Vector2(0, 18);
+            var it = textGO.AddComponent<TextMeshProUGUI>();
+            it.fontSize = 32;
+            it.color = Color.white;
+            
+            var phGO = new GameObject("Placeholder");
+            phGO.transform.SetParent(textArea.transform, false);
+            var phR = phGO.AddComponent<RectTransform>();
+            phR.anchorMin = new Vector2(0, 0.5f);
+            phR.anchorMax = new Vector2(1, 0.5f);
+            phR.offsetMin = new Vector2(0, -18);
+            phR.offsetMax = new Vector2(0, 18);
+            var ph = phGO.AddComponent<TextMeshProUGUI>();
+            ph.text = label;
+            ph.fontSize = 32;
+            ph.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
+            
+            input.textComponent = it;
+            input.textViewport = taRect;
+            input.placeholder = ph;
+            input.targetGraphic = row.GetComponent<Image>();
+            return input;
+        }
+        
+        private Button CreateLoginButton(Transform parent, string text, float y, Color bgColor)
+        {
+            var go = new GameObject("Btn_" + text);
+            go.transform.SetParent(parent, false);
+            var r = go.AddComponent<RectTransform>();
+            r.anchorMin = new Vector2(0.5f, y);
+            r.anchorMax = new Vector2(0.5f, y);
+            r.sizeDelta = new Vector2(380, 85);
+            r.pivot = new Vector2(0.5f, 0.5f);
+            var img = go.AddComponent<Image>();
+            img.color = bgColor;
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            var txtGO = new GameObject("Text");
+            txtGO.transform.SetParent(go.transform, false);
+            var tr = txtGO.AddComponent<RectTransform>();
+            tr.anchorMin = Vector2.zero;
+            tr.anchorMax = Vector2.one;
+            tr.offsetMin = Vector2.zero;
+            tr.offsetMax = Vector2.zero;
+            var tmp = txtGO.AddComponent<TextMeshProUGUI>();
+            tmp.text = text;
+            tmp.fontSize = 38;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.color = Color.white;
+            return btn;
+        }
+        
+        private async void OnSignInClicked()
+        {
+            if (isLoggingIn) return;
+            string email = emailInput?.text?.Trim() ?? "";
+            string password = passwordInput?.text ?? "";
+            
+            if (messageText != null) messageText.text = "";
+            if (!AuthService.Exists) { SetLoginMessage("Auth unavailable"); return; }
+            var v = AuthService.Instance.ValidateLogin(email, password);
+            if (!v.isValid) { SetLoginMessage(v.error); return; }
+            
+            isLoggingIn = true;
+            signInButton.interactable = false;
+            backButton.interactable = false;
+            SetLoginMessage("Signing in...");
+            
+            try
+            {
+                var user = await AuthService.Instance.Login(email, password);
+                if (user != null)
+                {
+                    SceneLoader.LoadScene(SceneNames.MainMenu);
+                }
+                else
+                {
+                    SetLoginMessage(AuthService.Instance.LastError ?? "Login failed");
+                }
+            }
+            catch (System.Exception e)
+            {
+                SetLoginMessage(e.Message);
+            }
+            finally
+            {
+                isLoggingIn = false;
+                signInButton.interactable = true;
+                backButton.interactable = true;
+            }
+        }
+        
+        private void SetLoginMessage(string msg)
+        {
+            if (messageText != null) messageText.text = msg;
+        }
+        
+        private void HideLoginForm()
+        {
+            if (loginFormContainer != null)
+            {
+                Destroy(loginFormContainer);
+                loginFormContainer = null;
+            }
+            if (loginButton != null) loginButton.gameObject.SetActive(true);
+            if (createAccountButton != null) createAccountButton.gameObject.SetActive(true);
         }
         
         private void OnCreateAccountClicked()

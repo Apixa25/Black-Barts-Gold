@@ -46,8 +46,21 @@ namespace BlackBartsGold.UI
                     var canvasGO = new GameObject("RegisterCanvas");
                     canvas = canvasGO.AddComponent<Canvas>();
                     canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                    canvasGO.AddComponent<CanvasScaler>();
+                    var scaler = canvasGO.AddComponent<CanvasScaler>();
+                    scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                    scaler.referenceResolution = new Vector2(1080f, 1920f);
+                    scaler.matchWidthOrHeight = 0.5f;
                     canvasGO.AddComponent<GraphicRaycaster>();
+                }
+                else
+                {
+                    var scaler = canvas.GetComponent<CanvasScaler>();
+                    if (scaler != null)
+                    {
+                        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                        scaler.referenceResolution = new Vector2(1080f, 1920f);
+                        scaler.matchWidthOrHeight = 0.5f;
+                    }
                 }
                 
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -69,8 +82,8 @@ namespace BlackBartsGold.UI
                 panelRect.offsetMax = Vector2.zero;
                 panel.AddComponent<Image>().color = new Color(0.1f, 0.15f, 0.25f, 1f);
                 
-                // Title
-                var title = CreateText(canvas.transform, "Title", "Join the Crew!", 0.88f, 48, new Color(1f, 0.84f, 0f, 1f));
+                // Title - large and readable on mobile
+                var title = CreateText(canvas.transform, "Title", "Join the Crew!", 0.88f, 56, new Color(1f, 0.84f, 0f, 1f));
                 
                 // Create scroll container for form fields
                 float y = 0.78f;
@@ -105,11 +118,11 @@ namespace BlackBartsGold.UI
                 var msgRect = msgGO.AddComponent<RectTransform>();
                 msgRect.anchorMin = new Vector2(0.5f, y - 0.05f);
                 msgRect.anchorMax = new Vector2(0.5f, y - 0.05f);
-                msgRect.sizeDelta = new Vector2(400, 40);
+                msgRect.sizeDelta = new Vector2(500, 60);
                 msgRect.pivot = new Vector2(0.5f, 0.5f);
                 messageText = msgGO.AddComponent<TextMeshProUGUI>();
                 messageText.text = "";
-                messageText.fontSize = 18;
+                messageText.fontSize = 36;
                 messageText.alignment = TextAlignmentOptions.Center;
                 messageText.color = new Color(1f, 0.4f, 0.4f, 1f);
                 y -= 0.1f;
@@ -133,51 +146,72 @@ namespace BlackBartsGold.UI
         
         private (GameObject go, TMP_InputField inputField) CreateInputRow(Transform parent, string name, string label, ref float y)
         {
-            y -= 0.08f;
+            y -= 0.07f;
             var row = new GameObject(name);
             row.transform.SetParent(parent, false);
             var rowRect = row.AddComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0.5f, y);
             rowRect.anchorMax = new Vector2(0.5f, y);
-            rowRect.sizeDelta = new Vector2(360, 50);
+            rowRect.sizeDelta = new Vector2(500, 80);
             rowRect.pivot = new Vector2(0.5f, 0.5f);
             
+            // Background on ROW (only one Graphic per object - Image here)
+            var bgImage = row.AddComponent<Image>();
+            bgImage.color = new Color(0.2f, 0.25f, 0.35f, 1f);
+            
+            // Input field - proper TMP_InputField hierarchy
             var inputGO = new GameObject("Input");
             inputGO.transform.SetParent(row.transform, false);
             var inputRect = inputGO.AddComponent<RectTransform>();
             inputRect.anchorMin = Vector2.zero;
             inputRect.anchorMax = Vector2.one;
-            inputRect.offsetMin = new Vector2(0, 0);
-            inputRect.offsetMax = Vector2.zero;
+            inputRect.offsetMin = new Vector2(12, 8);
+            inputRect.offsetMax = new Vector2(-12, -8);
+            
             var input = inputGO.AddComponent<TMP_InputField>();
-            var inputText = inputGO.AddComponent<TextMeshProUGUI>();
-            inputText.fontSize = 18;
+            
+            // Text Area (viewport)
+            var textAreaGO = new GameObject("Text Area");
+            textAreaGO.transform.SetParent(inputGO.transform, false);
+            var textAreaRect = textAreaGO.AddComponent<RectTransform>();
+            textAreaRect.anchorMin = Vector2.zero;
+            textAreaRect.anchorMax = Vector2.one;
+            textAreaRect.offsetMin = Vector2.zero;
+            textAreaRect.offsetMax = Vector2.zero;
+            textAreaGO.AddComponent<RectMask2D>();
+            
+            // Text (what user types)
+            var textGO = new GameObject("Text");
+            textGO.transform.SetParent(textAreaGO.transform, false);
+            var textRect = textGO.AddComponent<RectTransform>();
+            textRect.anchorMin = new Vector2(0, 0.5f);
+            textRect.anchorMax = new Vector2(1, 0.5f);
+            textRect.offsetMin = new Vector2(0, -20);
+            textRect.offsetMax = new Vector2(0, 20);
+            var inputText = textGO.AddComponent<TextMeshProUGUI>();
+            inputText.fontSize = 36;
             inputText.color = Color.white;
-            input.textViewport = inputRect;
+            
+            // Placeholder
+            var phGO = new GameObject("Placeholder");
+            phGO.transform.SetParent(textAreaGO.transform, false);
+            var phRect = phGO.AddComponent<RectTransform>();
+            phRect.anchorMin = new Vector2(0, 0.5f);
+            phRect.anchorMax = new Vector2(1, 0.5f);
+            phRect.offsetMin = new Vector2(0, -20);
+            phRect.offsetMax = new Vector2(0, 20);
+            var placeholder = phGO.AddComponent<TextMeshProUGUI>();
+            placeholder.text = label;
+            placeholder.fontSize = 36;
+            placeholder.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
+            
             input.textComponent = inputText;
-            input.placeholder = CreatePlaceholder(inputGO.transform, label);
-            var bgImage = inputGO.AddComponent<Image>();
-            bgImage.color = new Color(0.2f, 0.25f, 0.35f, 1f);
+            input.textViewport = textAreaRect;
+            input.placeholder = placeholder;
+            input.targetGraphic = bgImage;
             
             return (row, input);
         }
-        
-        private TMP_Text CreatePlaceholder(Transform parent, string text)
-        {
-            var phGO = new GameObject("Placeholder");
-            phGO.transform.SetParent(parent, false);
-            var phRect = phGO.AddComponent<RectTransform>();
-            phRect.anchorMin = Vector2.zero;
-            phRect.anchorMax = Vector2.one;
-            phRect.offsetMin = new Vector2(10, 6);
-            phRect.offsetMax = new Vector2(-10, -6);
-            var ph = phGO.AddComponent<TextMeshProUGUI>();
-            ph.text = text;
-            ph.fontSize = 18;
-            ph.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
-            return ph;
-        }
-        
         
         private GameObject CreateText(Transform parent, string name, string text, float y, int fontSize, Color color)
         {
@@ -186,7 +220,7 @@ namespace BlackBartsGold.UI
             var rect = go.AddComponent<RectTransform>();
             rect.anchorMin = new Vector2(0.5f, y);
             rect.anchorMax = new Vector2(0.5f, y);
-            rect.sizeDelta = new Vector2(500, 60);
+            rect.sizeDelta = new Vector2(600, 80);
             rect.pivot = new Vector2(0.5f, 0.5f);
             var tmp = go.AddComponent<TextMeshProUGUI>();
             tmp.text = text;
@@ -203,7 +237,7 @@ namespace BlackBartsGold.UI
             var btnRect = btnGO.AddComponent<RectTransform>();
             btnRect.anchorMin = new Vector2(0.5f, y);
             btnRect.anchorMax = new Vector2(0.5f, y);
-            btnRect.sizeDelta = new Vector2(280, 50);
+            btnRect.sizeDelta = new Vector2(420, 90);
             btnRect.pivot = new Vector2(0.5f, 0.5f);
             var btnImage = btnGO.AddComponent<Image>();
             btnImage.color = bgColor;
@@ -219,7 +253,7 @@ namespace BlackBartsGold.UI
             txtRect.offsetMax = Vector2.zero;
             var txt = txtGO.AddComponent<TextMeshProUGUI>();
             txt.text = text;
-            txt.fontSize = 22;
+            txt.fontSize = 42;
             txt.alignment = TextAlignmentOptions.Center;
             txt.color = Color.white;
             
