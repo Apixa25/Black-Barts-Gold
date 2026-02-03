@@ -117,9 +117,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<RegisterR
       )
     }
 
-    // Check if email confirmation is required
-    const emailConfirmationRequired = !authData.session
-
     // If we have a session, user is auto-confirmed (configured in Supabase)
     if (authData.session) {
       // Update profile with additional data using service role
@@ -154,21 +151,73 @@ export async function POST(request: NextRequest): Promise<NextResponse<RegisterR
       })
     }
 
-    // Email confirmation required
-    console.log(`[Auth Register] User ${email} registered - email confirmation required`)
+    // No session = Supabase requires email confirmation. For mobile, auto-confirm and sign in.
+    console.log(`[Auth Register] User ${email} - no session. Auto-confirming for mobile...`)
 
-    return NextResponse.json({
-      success: true,
-      emailConfirmationRequired: true,
-      user: {
-        id: authData.user.id,
-        email: authData.user.email || email,
-        displayName: displayName || null,
-        avatarUrl: null,
-        role: 'user',
-        createdAt: authData.user.created_at,
+    try {
+      const serviceClient = createServiceRoleClient()
+      await serviceClient.auth.admin.updateUserById(authData.user.id, { email_confirm: true })
+
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError || !signInData.session) {
+        console.error('[Auth Register] Auto-confirm worked but sign-in failed:', signInError?.message)
+        return NextResponse.json({
+          success: true,
+          emailConfirmationRequired: true,
+          user: {
+            id: authData.user.id,
+            email: authData.user.email || email,
+            displayName: displayName || null,
+            avatarUrl: null,
+            role: 'user',
+            createdAt: authData.user.created_at,
+          }
+        })
       }
-    })
+
+      // Update profile
+      try {
+        const serviceClient2 = createServiceRoleClient()
+        await serviceClient2.from('profiles').update({ full_name: displayName || null }).eq('id', authData.user.id)
+      } catch {
+        /* ignore */
+      }
+
+      console.log(`[Auth Register] User ${email} auto-confirmed and logged in`)
+
+      return NextResponse.json({
+        success: true,
+        token: signInData.session.access_token,
+        refreshToken: signInData.session.refresh_token,
+        expiresAt: signInData.session.expires_at,
+        user: {
+          id: signInData.user.id,
+          email: signInData.user.email || email,
+          displayName: displayName || null,
+          avatarUrl: null,
+          role: 'user',
+          createdAt: signInData.user.created_at,
+        }
+      })
+    } catch (autoConfirmError) {
+      console.error('[Auth Register] Auto-confirm failed:', autoConfirmError)
+      return NextResponse.json({
+        success: true,
+        emailConfirmationRequired: true,
+        user: {
+          id: authData.user.id,
+          email: authData.user.email || email,
+          displayName: displayName || null,
+          avatarUrl: null,
+          role: 'user',
+          createdAt: authData.user.created_at,
+        }
+      })
+    }
 
   } catch (error) {
     console.error('[Auth Register] Unexpected error:', error)
