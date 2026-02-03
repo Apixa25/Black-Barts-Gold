@@ -76,11 +76,26 @@ namespace BlackBartsGold.Core
             FixEventSystem();
         }
 
+        /// <summary>
+        /// Scenes that use their own EventSystem - AppBootstrap handles these.
+        /// Do NOT destroy "duplicates" here or we kill the scene's ES and break input.
+        /// </summary>
+        private static bool SceneHasOwnUI(string sceneName)
+        {
+            return sceneName == "Login" || sceneName == "Register" ||
+                   sceneName == "MainMenu" || sceneName == "Wallet" || sceneName == "Settings";
+        }
+
         private void FixEventSystem()
         {
-            // Find all EventSystems
+            var sceneName = SceneManager.GetActiveScene().name;
+            if (SceneHasOwnUI(sceneName))
+            {
+                Debug.Log($"[GameBootstrapper] Scene '{sceneName}' has own UI - skipping (AppBootstrap handles EventSystem)");
+                return;
+            }
+
             var eventSystems = FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
-            
             Debug.Log($"[GameBootstrapper] Found {eventSystems.Length} EventSystem(s)");
 
             if (eventSystems.Length == 0)
@@ -90,7 +105,6 @@ namespace BlackBartsGold.Core
                 return;
             }
 
-            // Keep only one EventSystem
             EventSystem keepThis = eventSystems[0];
             for (int i = 1; i < eventSystems.Length; i++)
             {
@@ -98,20 +112,16 @@ namespace BlackBartsGold.Core
                 Destroy(eventSystems[i].gameObject);
             }
 
-            // Force refresh the EventSystem
             if (keepThis != null)
             {
                 keepThis.enabled = false;
                 keepThis.enabled = true;
-                
-                // Also refresh input module
                 var inputModule = keepThis.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
                 if (inputModule != null)
                 {
                     inputModule.enabled = false;
                     inputModule.enabled = true;
                 }
-                
                 keepThis.UpdateModules();
                 Debug.Log("[GameBootstrapper] EventSystem refreshed");
             }
