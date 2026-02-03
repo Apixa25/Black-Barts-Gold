@@ -45,12 +45,11 @@ Track bugs and planned fixes so we can work through them in order. Update this f
 - **Fix:** Deploy admin-dashboard; ensure `SUPABASE_SERVICE_ROLE_KEY` in Vercel env; run migration `001_profiles_and_auth_trigger.sql` if profiles table missing.
 - **See:** `Docs/ADB-LOG-SUMMARY.md` – Auth deployment checklist.
 
-### 7. Settings / My Wallet freeze (fix v2 attempted 2026-02-02)
+### 7. Settings / My Wallet freeze (fix v3 – GameBootstrapper conflict 2026-02-02)
 - **Symptom:** From Main Menu, tap "Settings" or "My Wallet" → scene loads but screen appears frozen (no touch/click response).
-- **Cause (v1):** Stale selection, EventSystem refresh – didn't fix it.
-- **Cause (v2):** Persistent EventSystem + InputSystemUIInputModule can lose touch after scene load (known Unity issue). Reusing the same EventSystem across scenes causes touch to stop.
-- **Fix v2 applied:** For scenes with own UI (MainMenu, Wallet, Settings, Login, Register), **do NOT destroy** the scene's EventSystem. Instead, **disable the persistent one** and let the scene use its own fresh EventSystem. Each scene gets a newly instantiated EventSystem, avoiding the "second scene load" touch bug.
-- **Files:** `AppBootstrap.cs`.
+- **Cause (v3, found via ADB logs):** **GameBootstrapper** was destroying "duplicate" EventSystems for ALL scenes. It keeps `eventSystems[0]` and destroys the rest. For MainMenu/Wallet/Settings, we have 2: persistent (disabled) + scene's (the one we want). GameBootstrapper was destroying the scene's EventSystem, leaving only the disabled persistent one → no input.
+- **Fix v3 applied:** GameBootstrapper now **skips** FixEventSystem for scenes-with-own-UI (Login, Register, MainMenu, Wallet, Settings). AppBootstrap already configures those; GameBootstrapper was undoing it.
+- **Files:** `GameBootstrapper.cs`.
 - **Test:** Rebuild APK, tap My Wallet (Back should work), tap Settings (Back should work).
 
 ### 8. Backend 500 on player location
