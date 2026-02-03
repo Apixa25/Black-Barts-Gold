@@ -104,8 +104,11 @@ namespace BlackBartsGold.Core
                 Debug.Log($"[AppBootstrap] 📱 SceneHasOwnUI=true → using scene's EventSystem");
                 if (_persistentEventSystem != null)
                 {
-                    _persistentEventSystem.enabled = false;
-                    Debug.Log("[AppBootstrap]   → Disabled persistent EventSystem");
+                    // DESTROY persistent — having 2 EventSystems (even one disabled) can break touch on Android.
+                    // We'll recreate it when loading ARHunt etc.
+                    Object.Destroy(_persistentEventSystem.gameObject);
+                    _persistentEventSystem = null;
+                    Debug.Log("[AppBootstrap]   → Destroyed persistent EventSystem (will recreate for ARHunt)");
                 }
                 foreach (var es in eventSystems)
                 {
@@ -121,7 +124,17 @@ namespace BlackBartsGold.Core
             }
             else
             {
-                // ARHunt etc: use persistent, destroy scene duplicates
+                // ARHunt etc: need persistent EventSystem — recreate if we destroyed it earlier
+                if (_persistentEventSystem == null)
+                {
+                    var root = GameObject.Find("[BlackBartsGold]");
+                    if (root != null)
+                    {
+                        CreateEventSystem(root.transform);
+                        Debug.Log("[AppBootstrap]   → Recreated persistent EventSystem for ARHunt");
+                    }
+                }
+                // Destroy scene's duplicate, use persistent
                 foreach (var es in eventSystems)
                 {
                     if (es != _persistentEventSystem)
