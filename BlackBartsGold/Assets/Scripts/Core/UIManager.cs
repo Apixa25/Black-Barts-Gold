@@ -417,7 +417,8 @@ namespace BlackBartsGold.Core
             // Check if this scene has its own dedicated UI
             if (SceneHasOwnUI(scene.name))
             {
-                Debug.Log($"[UIManager] ✅ Scene '{scene.name}' has its own UI");
+                var es = UnityEngine.EventSystems.EventSystem.current;
+                Debug.Log($"[UIManager] ✅ Scene '{scene.name}' has its own UI | EventSystem.current={es?.name ?? "null"}");
                 Debug.Log("[UIManager] ➡️ DISABLING UIManager canvas entirely");
                 DisableUIManagerCanvas();
                 
@@ -429,7 +430,8 @@ namespace BlackBartsGold.Core
                     if (canvas != _ourCanvas && !canvas.transform.IsChildOf(transform))
                     {
                         preservedCount++;
-                        Debug.Log($"[UIManager] 🎨 Preserving scene canvas: {canvas.gameObject.name}");
+                        var raycaster = canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>();
+                        Debug.Log($"[UIManager] 🎨 Preserving canvas: {canvas.gameObject.name} enabled={canvas.enabled} raycaster={raycaster != null}");
                     }
                 }
                 Debug.Log($"[UIManager] Total scene canvases preserved: {preservedCount}");
@@ -498,11 +500,13 @@ namespace BlackBartsGold.Core
         private IEnumerator RefreshEventSystemNextFrame()
         {
             yield return null; // Wait one frame so the new Canvas is fully active
+            var esBefore = UnityEngine.EventSystems.EventSystem.current;
             EventSystemFixer.RefreshEventSystem();
-            Debug.Log("[UIManager] EventSystem refreshed (frame 1) for scene-with-own-UI");
-            yield return null; // Second frame - double-refresh for stubborn devices
+            var esAfter = UnityEngine.EventSystems.EventSystem.current;
+            Debug.Log($"[UIManager] EventSystem refresh frame 1 | before={esBefore?.name} after={esAfter?.name}");
+            yield return null;
             EventSystemFixer.RefreshEventSystem();
-            Debug.Log("[UIManager] EventSystem refreshed (frame 2) for scene-with-own-UI");
+            Debug.Log($"[UIManager] EventSystem refresh frame 2 | current={UnityEngine.EventSystems.EventSystem.current?.name}");
         }
         
         /// <summary>

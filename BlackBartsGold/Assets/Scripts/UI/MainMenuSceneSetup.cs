@@ -147,7 +147,9 @@ namespace BlackBartsGold.UI
         private void SetupWalletButton()
         {
             var btn = transform.Find("WalletButton");
-            if (btn == null) return;
+            if (btn == null) { Debug.Log("[MainMenuSceneSetup] ⚠️ WalletButton not found"); return; }
+            var btnComp = btn.GetComponent<Button>();
+            Debug.Log($"[MainMenuSceneSetup] WalletButton found interactable={btnComp?.interactable}");
 
             var rect = btn.GetComponent<RectTransform>();
             if (rect != null)
@@ -171,7 +173,9 @@ namespace BlackBartsGold.UI
         private void SetupSettingsButton()
         {
             var btn = transform.Find("SettingsButton");
-            if (btn == null) return;
+            if (btn == null) { Debug.Log("[MainMenuSceneSetup] ⚠️ SettingsButton not found"); return; }
+            var btnComp = btn.GetComponent<Button>();
+            Debug.Log($"[MainMenuSceneSetup] SettingsButton found interactable={btnComp?.interactable}");
 
             var rect = btn.GetComponent<RectTransform>();
             if (rect != null)

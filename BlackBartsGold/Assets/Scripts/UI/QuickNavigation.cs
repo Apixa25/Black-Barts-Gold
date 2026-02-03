@@ -110,41 +110,40 @@ namespace BlackBartsGold.UI
         public void OnClick()
         {
             string sceneName = useSceneEnum ? sceneTarget.ToString() : targetScene;
-            Debug.Log($"[QuickNavigation] Button clicked! Loading scene: {sceneName}");
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            Debug.Log($"[QuickNavigation] 🔘 BUTTON CLICKED! target={sceneName} button={gameObject.name} " +
+                $"interactable={button != null && button.interactable} EventSystem.current={es?.name ?? "null"}");
             
             try
             {
-                // Use async loading for smoother transitions
                 StartCoroutine(LoadSceneAsync(sceneName));
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"[QuickNavigation] Failed to load scene '{sceneName}': {e.Message}");
-                // Fallback to direct load
+                Debug.LogError($"[QuickNavigation] ❌ Failed to load scene '{sceneName}': {e.Message}");
                 SceneManager.LoadScene(sceneName);
             }
         }
         
         private System.Collections.IEnumerator LoadSceneAsync(string sceneName)
         {
-            Debug.Log($"[QuickNavigation] Starting async load of: {sceneName}");
+            Debug.Log($"[QuickNavigation] 📂 Starting async load of: {sceneName}");
             
             AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName);
             
             if (asyncLoad == null)
             {
-                Debug.LogError($"[QuickNavigation] Failed to start async load for: {sceneName}");
+                Debug.LogError($"[QuickNavigation] ❌ asyncLoad is null for: {sceneName}");
                 SceneManager.LoadScene(sceneName);
                 yield break;
             }
             
             while (!asyncLoad.isDone)
             {
-                Debug.Log($"[QuickNavigation] Loading progress: {asyncLoad.progress * 100}%");
                 yield return null;
             }
             
-            Debug.Log($"[QuickNavigation] Scene loaded successfully: {sceneName}");
+            Debug.Log($"[QuickNavigation] ✅ Scene loaded: {sceneName} | EventSystem.current={UnityEngine.EventSystems.EventSystem.current?.name ?? "null"}");
         }
         
         /// <summary>
