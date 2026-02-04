@@ -56,6 +56,27 @@ interface UsePlayerTrackingResult {
 }
 
 /**
+ * Compute tracking stats from active players list
+ */
+function computeStatsFromPlayers(players: ActivePlayer[]): PlayerTrackingStats {
+  const zoneCounts: Record<string, number> = {}
+  players.forEach((p) => {
+    const zoneId = p.current_zone_id ?? 'none'
+    zoneCounts[zoneId] = (zoneCounts[zoneId] ?? 0) + 1
+  })
+  return {
+    total_active_players: players.filter((p) => p.activity_status === 'active').length,
+    total_idle_players: players.filter((p) => p.activity_status === 'idle').length,
+    total_players_today: players.length,
+    players_in_ar_mode: players.filter((p) => p.is_ar_active).length,
+    players_by_zone: zoneCounts,
+    suspicious_players: players.filter((p) => p.movement_type === 'suspicious').length,
+    average_session_minutes: 0,
+    total_distance_traveled_km: 0,
+  }
+}
+
+/**
  * Transform raw player location data to ActivePlayer format
  */
 function transformToActivePlayer(
@@ -285,6 +306,7 @@ export function usePlayerTracking(
       }
       
       setPlayers(transformed)
+      setStats(computeStatsFromPlayers(transformed))
       setError(null)
       
     } catch (err) {
@@ -336,19 +358,19 @@ export function usePlayerTracking(
 
             setPlayers(prev => {
               const index = prev.findIndex((p: ActivePlayer) => p.user_id === activePlayer.user_id)
-              if (index >= 0) {
-                // Update existing
-                const updated = [...prev]
-                updated[index] = activePlayer
-                return updated
-              } else {
-                // Add new
-                return [...prev, activePlayer]
-              }
+              const next = index >= 0
+                ? [...prev.slice(0, index), activePlayer, ...prev.slice(index + 1)]
+                : [...prev, activePlayer]
+              setStats(computeStatsFromPlayers(next))
+              return next
             })
           } else if (payload.eventType === 'DELETE') {
             const oldLocation = payload.old as PlayerLocation
-            setPlayers(prev => prev.filter((p: ActivePlayer) => p.user_id !== oldLocation.user_id))
+            setPlayers(prev => {
+              const next = prev.filter((p: ActivePlayer) => p.user_id !== oldLocation.user_id)
+              setStats(computeStatsFromPlayers(next))
+              return next
+            })
           }
         }
       )
