@@ -75,19 +75,33 @@ export function SettingsPageClient({ user, profile, systemStats }: SettingsPageC
   const handleSaveProfile = async () => {
     setIsSavingProfile(true)
     
-    const { error } = await supabase
+    // Update profiles table (used by Live Players map, Users table, etc.)
+    const { error: profileError } = await supabase
       .from("profiles")
       .update({ full_name: fullName || null })
       .eq("id", user.id)
 
-    setIsSavingProfile(false)
-
-    if (error) {
-      toast.error("Failed to update profile", { description: error.message })
+    if (profileError) {
+      setIsSavingProfile(false)
+      toast.error("Failed to update profile", { description: profileError.message })
       return
     }
 
-    toast.success("Profile updated! 🤠")
+    // Also sync to auth.users so Supabase Auth > Users shows the display name
+    const { error: authError } = await supabase.auth.updateUser({
+      data: { full_name: fullName || null },
+    })
+
+    setIsSavingProfile(false)
+
+    if (authError) {
+      // Profile was updated; auth sync failed (non-blocking)
+      toast.success("Profile updated! 🤠", {
+        description: "Display name may not appear in Supabase Auth until next login.",
+      })
+    } else {
+      toast.success("Profile updated! 🤠")
+    }
     router.refresh()
   }
 
