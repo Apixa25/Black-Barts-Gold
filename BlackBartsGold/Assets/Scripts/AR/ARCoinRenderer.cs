@@ -693,10 +693,10 @@ namespace BlackBartsGold.AR
                 float easeT = 1f - Mathf.Pow(1f - materializeProgress, 3f);
                 transform.localScale = baseScale * easeT;
                 
-                // Gentle spin during materialization (same axis as visible spin)
+                // Gentle spin during materialization (clockwise, same as visible spin)
                 if (coinVisual != null)
                 {
-                    spinAngle += 180f * Time.deltaTime;
+                    spinAngle -= 180f * Time.deltaTime;
                     coinVisual.localRotation = Quaternion.Euler(0, 0, spinAngle);
                 }
             }
@@ -765,9 +765,9 @@ namespace BlackBartsGold.AR
             
             // ================================================================
             // SPIN ANIMATION (on visual child) - rotate around local Z so coin
-            // spins in plane (Quad: normal Z, no tilt; Cylinder would use 90° X)
+            // spins in plane, clockwise (negative Z so face spins CW to camera).
             // ================================================================
-            spinAngle += spinSpeed * Time.deltaTime;
+            spinAngle -= spinSpeed * Time.deltaTime;
             coinVisual.localRotation = Quaternion.Euler(0, 0, spinAngle);
             
             // ================================================================
@@ -900,10 +900,10 @@ namespace BlackBartsGold.AR
                 // Shrink
                 transform.localScale = Vector3.Lerp(startScale, Vector3.zero, easeT);
                 
-                // Fast spin (same axis as idle spin - around local Z toward camera)
+                // Fast spin clockwise (same axis as idle spin - around local Z)
                 if (coinVisual != null)
                 {
-                    coinVisual.Rotate(0, 0, 720f * Time.deltaTime, Space.Self);
+                    coinVisual.Rotate(0, 0, -720f * Time.deltaTime, Space.Self);
                 }
                 
                 yield return null;
