@@ -69,7 +69,7 @@ namespace BlackBartsGold.AR
         
         [Header("Prefab")]
         [SerializeField]
-        [Tooltip("Coin prefab to instantiate (optional - creates default if null)")]
+        [Tooltip("Required. Assign BBGoldCoin prefab (Assets/Prefabs/Coins/BBGoldCoin).")]
         private GameObject coinPrefab;
         
         [Header("Settings")]
@@ -621,23 +621,17 @@ namespace BlackBartsGold.AR
             }
             else
             {
-                // Create new
-                if (coinPrefab != null)
+                // Create new from prefab only (no fallback - we always use the real coin prefab)
+                if (coinPrefab == null)
                 {
-                    GameObject coinObj = Instantiate(coinPrefab);
-                    coin = coinObj.GetComponent<CoinController>();
-                    
-                    if (coin == null)
-                    {
-                        coin = coinObj.AddComponent<CoinController>();
-                    }
+                    Debug.LogError("[CoinManager] Coin prefab is not assigned. Assign BBGoldCoin prefab in CoinManager.");
+                    return null;
                 }
-                else
-                {
-                    // Create default coin
-                    GameObject coinObj = CreateDefaultCoinObject();
-                    coin = coinObj.GetComponent<CoinController>();
-                }
+                
+                GameObject coinObj = Instantiate(coinPrefab);
+                coin = coinObj.GetComponent<CoinController>();
+                if (coin == null)
+                    coin = coinObj.AddComponent<CoinController>();
             }
             
             return coin;
@@ -648,51 +642,6 @@ namespace BlackBartsGold.AR
             coin.gameObject.SetActive(false);
             coin.transform.SetParent(coinsParent);
             coinPool.Enqueue(coin);
-        }
-        
-        /// <summary>
-        /// Create a default coin object with new components
-        /// </summary>
-        private GameObject CreateDefaultCoinObject()
-        {
-            GameObject coin = new GameObject("Coin");
-            
-            // Create visual - flat coin (Quad to match BBGoldCoin prefab, not Sphere)
-            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            visual.name = "CoinModel";
-            visual.transform.SetParent(coin.transform);
-            visual.transform.localPosition = Vector3.zero;
-            visual.transform.localScale = new Vector3(0.3f, 0.3f, 1f); // flat disc like prefab
-            
-            // Gold unlit material (mobile compatible)
-            MeshRenderer renderer = visual.GetComponent<MeshRenderer>();
-            if (renderer != null)
-            {
-                Shader shader = Shader.Find("Unlit/Color");
-                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (shader == null) shader = Shader.Find("Standard");
-                
-                renderer.material = new Material(shader);
-                renderer.material.color = DisplaySettings.goldColor;
-            }
-            
-            // Remove visual's collider
-            Collider visualCol = visual.GetComponent<Collider>();
-            if (visualCol != null) Destroy(visualCol);
-            
-            // Add collider to parent
-            SphereCollider col = coin.AddComponent<SphereCollider>();
-            col.radius = 0.2f;
-            
-            // Add new components (CoinController will add required components in Awake)
-            coin.AddComponent<CoinController>();
-            
-            // Tag
-            coin.tag = "Coin";
-            
-            Log("Created default coin with new architecture");
-            
-            return coin;
         }
         
         #endregion
