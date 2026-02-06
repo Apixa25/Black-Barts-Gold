@@ -657,12 +657,12 @@ namespace BlackBartsGold.AR
         {
             GameObject coin = new GameObject("Coin");
             
-            // Create visual - gold sphere
-            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            // Create visual - flat coin (Quad to match BBGoldCoin prefab, not Sphere)
+            GameObject visual = GameObject.CreatePrimitive(PrimitiveType.Quad);
             visual.name = "CoinModel";
             visual.transform.SetParent(coin.transform);
             visual.transform.localPosition = Vector3.zero;
-            visual.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f); // 30cm diameter
+            visual.transform.localScale = new Vector3(0.3f, 0.3f, 1f); // flat disc like prefab
             
             // Gold unlit material (mobile compatible)
             MeshRenderer renderer = visual.GetComponent<MeshRenderer>();
