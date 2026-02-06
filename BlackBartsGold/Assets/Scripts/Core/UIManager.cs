@@ -1874,10 +1874,10 @@ namespace BlackBartsGold.Core
             containerRect.anchorMax = new Vector2(1, 1);
             containerRect.pivot = new Vector2(1, 1);
             containerRect.anchoredPosition = new Vector2(-20, -20);
-            containerRect.sizeDelta = new Vector2(300, 300); // Slightly smaller for cleaner look
+            containerRect.sizeDelta = new Vector2(600, 600); // 2x bigger for AR view visibility
             
             _miniMapContainer = containerRect;
-            _miniMapRadius = 130f; // Adjusted for new size
+            _miniMapRadius = 260f; // 2x radius to match container
             
             // Dark background (shows while map loads)
             var bgImage = mapContainer.AddComponent<Image>();
@@ -1947,7 +1947,7 @@ namespace BlackBartsGold.Core
             var ringRect = rangeRing.AddComponent<RectTransform>();
             ringRect.anchorMin = new Vector2(0.5f, 0.5f);
             ringRect.anchorMax = new Vector2(0.5f, 0.5f);
-            ringRect.sizeDelta = new Vector2(260, 260);
+            ringRect.sizeDelta = new Vector2(520, 520); // 2x for bigger mini-map
             var ringImage = rangeRing.AddComponent<Image>();
             ringImage.color = new Color(1, 1, 1, 0.3f);
             ringImage.raycastTarget = false;
@@ -1961,7 +1961,7 @@ namespace BlackBartsGold.Core
             var innerRect = innerRing.AddComponent<RectTransform>();
             innerRect.anchorMin = new Vector2(0.5f, 0.5f);
             innerRect.anchorMax = new Vector2(0.5f, 0.5f);
-            innerRect.sizeDelta = new Vector2(130, 130);
+            innerRect.sizeDelta = new Vector2(260, 260); // 2x for bigger mini-map
             var innerImage = innerRing.AddComponent<Image>();
             innerImage.color = new Color(1, 1, 1, 0.2f);
             innerImage.raycastTarget = false;
@@ -1972,7 +1972,7 @@ namespace BlackBartsGold.Core
             var playerRect = playerDot.AddComponent<RectTransform>();
             playerRect.anchorMin = new Vector2(0.5f, 0.5f);
             playerRect.anchorMax = new Vector2(0.5f, 0.5f);
-            playerRect.sizeDelta = new Vector2(24, 24);
+            playerRect.sizeDelta = new Vector2(48, 48); // 2x for bigger mini-map
             var playerImage = playerDot.AddComponent<Image>();
             playerImage.color = new Color(0.2f, 0.6f, 1f); // Blue
             playerImage.raycastTarget = false;
@@ -1984,7 +1984,7 @@ namespace BlackBartsGold.Core
             var glowRect = playerGlow.AddComponent<RectTransform>();
             glowRect.anchorMin = new Vector2(0.5f, 0.5f);
             glowRect.anchorMax = new Vector2(0.5f, 0.5f);
-            glowRect.sizeDelta = new Vector2(40, 40);
+            glowRect.sizeDelta = new Vector2(80, 80); // 2x for bigger mini-map
             var glowImage = playerGlow.AddComponent<Image>();
             glowImage.color = new Color(0.2f, 0.6f, 1f, 0.3f);
             glowImage.raycastTarget = false;
@@ -1994,8 +1994,8 @@ namespace BlackBartsGold.Core
             var dirIndicator = new GameObject("DirectionIndicator");
             dirIndicator.transform.SetParent(playerDot.transform, false);
             var dirRect = dirIndicator.AddComponent<RectTransform>();
-            dirRect.anchoredPosition = new Vector2(0, 18);
-            dirRect.sizeDelta = new Vector2(12, 12);
+            dirRect.anchoredPosition = new Vector2(0, 36); // 2x for bigger mini-map
+            dirRect.sizeDelta = new Vector2(24, 24);
             var dirImage = dirIndicator.AddComponent<Image>();
             dirImage.color = new Color(0.2f, 0.6f, 1f);
             dirImage.raycastTarget = false;
@@ -2173,7 +2173,7 @@ namespace BlackBartsGold.Core
                 dot = dotObj.AddComponent<RectTransform>();
                 dot.anchorMin = new Vector2(0.5f, 0.5f);
                 dot.anchorMax = new Vector2(0.5f, 0.5f);
-                dot.sizeDelta = new Vector2(24, 24);
+                dot.sizeDelta = new Vector2(48, 48); // 2x for bigger mini-map
                 var dotImage = dotObj.AddComponent<Image>();
                 dotImage.color = GoldColor;
                 dotImage.raycastTarget = false;
