@@ -1,25 +1,27 @@
 [Licensing::Module] Trying to connect to existing licensing client channel...
 Built from '6000.3/staging' branch; Version is '6000.3.4f1 (fdd3b8998ec4) revision 16634808'; Using compiler version '194234433'; Build Type 'Release'
-[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Admin" at "2026-02-06T01:06:27.8474205Z"
 OS: 'Windows 11  (10.0.26200) Core' Language: 'en' Physical Memory: 16236 MB
 BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
 System  architecture: x64
 Process architecture: x64
-Date: 2026-02-06T01:06:27Z
+Date: 2026-02-06T03:00:43Z
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-Admin" at "2026-02-06T03:00:43.2498253Z"
+Error creating external process 'C:/Program Files/Unity/Hub/Editor/6000.3.4f1/Editor/Data/Resources/PackageManager/Server/UnityPackageManager.exe' : The system cannot find the path specified.
+Error cleaning up external process: The handle is invalid.
+[Package Manager] Cannot start server process [path: `C:/Program Files/Unity/Hub/Editor/6000.3.4f1/Editor/Data/Resources/PackageManager/Server/UnityPackageManager.exe`]
 
 COMMAND LINE ARGUMENTS:
 C:\Program Files\Unity\Hub\Editor\6000.3.4f1\Editor\Unity.exe
 -quit
 -batchmode
--noUpm
 -projectPath
-C:\Users\Admin\Black-Barts-Gold\BlackBartsGold
+c:\Users\Admin\Black-Barts-Gold\BlackBartsGold
 -buildTarget
 Android
 -executeMethod
 BuildScript.BuildAndroid
 -logFile
-C:\Users\Admin\Black-Barts-Gold\build_log.txt
-Successfully changed project path to: C:\Users\Admin\Black-Barts-Gold\BlackBartsGold
+c:\Users\Admin\Black-Barts-Gold\build_log.txt
+Successfully changed project path to: c:\Users\Admin\Black-Barts-Gold\BlackBartsGold
 C:/Users/Admin/Black-Barts-Gold/BlackBartsGold
 Exiting without the bug reporter. Application will terminate with return code 1

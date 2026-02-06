@@ -236,7 +236,8 @@ namespace BlackBartsGold.AR
             }
             if (meshRenderer != null)
             {
-                string meshName = meshRenderer.sharedMesh != null ? meshRenderer.sharedMesh.name : "null";
+                var meshFilter = meshRenderer.GetComponent<MeshFilter>();
+                string meshName = (meshFilter != null && meshFilter.sharedMesh != null) ? meshFilter.sharedMesh.name : "null";
                 string texName = (meshRenderer.sharedMaterial != null && meshRenderer.sharedMaterial.mainTexture != null)
                     ? meshRenderer.sharedMaterial.mainTexture.name : "null";
                 Debug.Log($"[ARCoinRenderer]   Mesh: {meshName}, MainTex: {texName}");
