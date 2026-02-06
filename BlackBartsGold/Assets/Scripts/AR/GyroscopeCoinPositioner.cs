@@ -40,6 +40,8 @@ namespace BlackBartsGold.AR
         [Header("Debug")]
         [SerializeField] private bool debugMode = true;
         
+        private float lastRotationLogTime = -999f;
+        
         // Target coin data
         private double targetLatitude;
         private double targetLongitude;
@@ -539,6 +541,13 @@ namespace BlackBartsGold.AR
             if (lookDir.sqrMagnitude > 0.01f)
             {
                 transform.rotation = Quaternion.LookRotation(-lookDir, Vector3.up);
+                // Debug: log lookDir and resulting rotation (throttled every 0.5s)
+                if (debugMode && Time.realtimeSinceStartup - lastRotationLogTime >= 0.5f)
+                {
+                    lastRotationLogTime = Time.realtimeSinceStartup;
+                    Vector3 euler = transform.eulerAngles;
+                    Debug.Log($"[GyroscopeCoinPositioner] ROTATION | lookDir=({lookDir.x:F2},{lookDir.y:F2},{lookDir.z:F2}) resultEuler=({euler.x:F1},{euler.y:F1},{euler.z:F1})");
+                }
             }
         }
         
