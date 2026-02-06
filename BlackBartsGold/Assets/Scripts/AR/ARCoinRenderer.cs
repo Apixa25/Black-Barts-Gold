@@ -95,7 +95,8 @@ namespace BlackBartsGold.AR
         
         [Header("Animation")]
         [SerializeField]
-        private float spinSpeed = 45f;
+        [Tooltip("Degrees per second around the axis facing the camera (slow spin in plane)")]
+        private float spinSpeed = 36f;
         
         [SerializeField]
         private float bobAmplitude = 0.05f;
@@ -671,11 +672,11 @@ namespace BlackBartsGold.AR
                 float easeT = 1f - Mathf.Pow(1f - materializeProgress, 3f);
                 transform.localScale = baseScale * easeT;
                 
-                // Gentle spin during materialization
+                // Gentle spin during materialization (same axis as visible spin)
                 if (coinVisual != null)
                 {
-                    spinAngle += 360f * Time.deltaTime;
-                    coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 0);
+                    spinAngle += 180f * Time.deltaTime;
+                    coinVisual.localRotation = Quaternion.Euler(0, 0, spinAngle);
                 }
             }
         }
@@ -729,10 +730,11 @@ namespace BlackBartsGold.AR
             }
             
             // ================================================================
-            // SPIN ANIMATION (on visual child)
+            // SPIN ANIMATION (on visual child) - rotate around local Z so coin
+            // spins in plane (Quad: normal Z, no tilt; Cylinder would use 90° X)
             // ================================================================
             spinAngle += spinSpeed * Time.deltaTime;
-            coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 0);
+            coinVisual.localRotation = Quaternion.Euler(0, 0, spinAngle);
             
             // ================================================================
             // BOB ANIMATION
@@ -864,10 +866,10 @@ namespace BlackBartsGold.AR
                 // Shrink
                 transform.localScale = Vector3.Lerp(startScale, Vector3.zero, easeT);
                 
-                // Fast spin
+                // Fast spin (same axis as idle spin - around local Z toward camera)
                 if (coinVisual != null)
                 {
-                    coinVisual.Rotate(0, 720f * Time.deltaTime, 0);
+                    coinVisual.Rotate(0, 0, 720f * Time.deltaTime, Space.Self);
                 }
                 
                 yield return null;
