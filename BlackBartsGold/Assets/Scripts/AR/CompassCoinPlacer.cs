@@ -49,6 +49,7 @@ namespace BlackBartsGold.AR
         private double targetLat;
         private double targetLon;
         private float lastLogTime;
+        private float lastRotationLogTime = -999f;
         
         // Smoothed heading to reduce jitter
         private float smoothedHeading = 0f;
@@ -398,6 +399,13 @@ namespace BlackBartsGold.AR
             if (lookDir.sqrMagnitude > 0.01f)
             {
                 coinTransform.rotation = Quaternion.LookRotation(-lookDir, Vector3.up);
+                // Debug: log lookDir and resulting rotation (throttled every 0.5s)
+                if (logEnabled && Time.realtimeSinceStartup - lastRotationLogTime >= 0.5f)
+                {
+                    lastRotationLogTime = Time.realtimeSinceStartup;
+                    Vector3 euler = coinTransform.eulerAngles;
+                    Debug.Log($"[CompassCoinPlacer] ROTATION | lookDir=({lookDir.x:F2},{lookDir.y:F2},{lookDir.z:F2}) resultEuler=({euler.x:F1},{euler.y:F1},{euler.z:F1})");
+                }
             }
         }
     }

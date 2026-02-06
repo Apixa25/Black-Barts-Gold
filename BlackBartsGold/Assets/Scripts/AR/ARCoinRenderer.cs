@@ -172,6 +172,9 @@ namespace BlackBartsGold.AR
         // Collection range tracking
         private bool wasInCollectionRange = false;
         
+        // Debug: throttle periodic visual state logs (every 2.5s when visible)
+        private float nextVisualLogTime = 0f;
+        
         #endregion
         
         #region Unity Lifecycle
@@ -222,6 +225,23 @@ namespace BlackBartsGold.AR
             Debug.Log($"[ARCoinRenderer]   - MeshRenderer: {meshRenderer != null}");
             Debug.Log($"[ARCoinRenderer]   - MaterializeDist: {Settings.materializationDistance}m");
             Debug.Log($"[ARCoinRenderer]   - CollectionDist: {Settings.collectionDistance}m");
+            
+            // Debug: prefab/hierarchy and mesh/material (so we can verify Quad + BB texture in build)
+            Debug.Log($"[ARCoinRenderer] === PREFAB/HIERARCHY ===");
+            Debug.Log($"[ARCoinRenderer]   Root: name={gameObject.name}, childCount={transform.childCount}, localScale={transform.localScale}");
+            if (transform.childCount > 0)
+            {
+                Transform ch = transform.GetChild(0);
+                Debug.Log($"[ARCoinRenderer]   Child0: name={ch.name}, localPos={ch.localPosition}, localEuler={ch.localEulerAngles}, localScale={ch.localScale}");
+            }
+            if (meshRenderer != null)
+            {
+                string meshName = meshRenderer.sharedMesh != null ? meshRenderer.sharedMesh.name : "null";
+                string texName = (meshRenderer.sharedMaterial != null && meshRenderer.sharedMaterial.mainTexture != null)
+                    ? meshRenderer.sharedMaterial.mainTexture.name : "null";
+                Debug.Log($"[ARCoinRenderer]   Mesh: {meshName}, MainTex: {texName}");
+            }
+            Debug.Log($"[ARCoinRenderer] === END PREFAB/HIERARCHY ===");
         }
         
         private void Update()
@@ -702,6 +722,19 @@ namespace BlackBartsGold.AR
             if (debugMode && Time.frameCount % 180 == 0)
             {
                 Debug.Log($"[ARCoinRenderer] Visible coin at {transform.position}, Camera at {cameraTransform?.position}, AR dist={ARDistance:F1}m, UseGyro={useGyroPositioning}");
+            }
+            
+            // Debug: periodic root/child transform state (every 2.5s) so we can reason from logs
+            if (debugMode && Time.realtimeSinceStartup >= nextVisualLogTime)
+            {
+                nextVisualLogTime = Time.realtimeSinceStartup + 2.5f;
+                Vector3 rootEuler = transform.eulerAngles;
+                Vector3 rootScale = transform.lossyScale;
+                Vector3 childPos = coinVisual.localPosition;
+                Vector3 childEuler = coinVisual.localEulerAngles;
+                Vector3 childScale = coinVisual.localScale;
+                string rotationBy = useGyroPositioning ? "Placer" : "Renderer";
+                Debug.Log($"[ARCoinRenderer] VISUAL STATE | rootPos={transform.position} rootEuler=({rootEuler.x:F1},{rootEuler.y:F1},{rootEuler.z:F1}) rootScale=({rootScale.x:F2},{rootScale.y:F2},{rootScale.z:F2}) rotationBy={rotationBy} | childLocalPos={childPos} childLocalEuler=({childEuler.x:F1},{childEuler.y:F1},{childEuler.z:F1}) childLocalScale=({childScale.x:F2},{childScale.y:F2},{childScale.z:F2})");
             }
             
             // ================================================================
