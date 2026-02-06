@@ -186,6 +186,10 @@ namespace BlackBartsGold.AR
         {
             if (!hasTarget || arCamera == null) return;
             
+            // When GyroscopeCoinPositioner is active, it owns position/rotation - don't fight it
+            var gyroPlacer = GetComponent<GyroscopeCoinPositioner>();
+            if (gyroPlacer != null && gyroPlacer.enabled) return;
+            
             // Get player location
             LocationData playerLoc = null;
             if (GPSManager.Exists)
