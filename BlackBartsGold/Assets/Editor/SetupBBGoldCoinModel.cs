@@ -154,8 +154,11 @@ public static class SetupBBGoldCoinModel
         }
 
         // Configure Standard shader properties for a shiny gold coin
+        // Use WHITE tint so the basecolor texture shows its natural gold appearance.
+        // The old gold tint (1, 0.84, 0) was killing the blue channel, making the coin
+        // look reddish/copper instead of the rich gold in the texture.
         mat.SetTexture("_MainTex", baseColor);
-        mat.SetColor("_Color", new Color(1f, 0.84f, 0f, 1f)); // Treasure Gold tint
+        mat.SetColor("_Color", Color.white);
 
         // Metallic workflow
         mat.SetFloat("_Metallic", 0.85f);
