@@ -95,8 +95,8 @@ namespace BlackBartsGold.AR
         
         [Header("Animation")]
         [SerializeField]
-        [Tooltip("Degrees per second around the axis facing the camera (slow spin in plane)")]
-        private float spinSpeed = 36f;
+        [Tooltip("Degrees per second around the Y axis (slow top-like spin)")]
+        private float spinSpeed = 15f;
         
         [SerializeField]
         private float bobAmplitude = 0.05f;
@@ -693,11 +693,11 @@ namespace BlackBartsGold.AR
                 float easeT = 1f - Mathf.Pow(1f - materializeProgress, 3f);
                 transform.localScale = baseScale * easeT;
                 
-                // Gentle spin during materialization (clockwise, same as visible spin)
+                // Gentle spin during materialization (Y-axis, same as visible spin)
                 if (coinVisual != null)
                 {
-                    spinAngle -= 180f * Time.deltaTime;
-                    coinVisual.localRotation = Quaternion.Euler(0, 0, spinAngle);
+                    spinAngle += 180f * Time.deltaTime;
+                    coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 0);
                 }
             }
         }
@@ -764,11 +764,11 @@ namespace BlackBartsGold.AR
             }
             
             // ================================================================
-            // SPIN ANIMATION (on visual child) - rotate around local Z so coin
-            // spins in plane, clockwise (negative Z so face spins CW to camera).
+            // SPIN ANIMATION (on visual child) - rotate around local Y axis so
+            // coin spins like a top/turntable, facing the user as it turns.
             // ================================================================
-            spinAngle -= spinSpeed * Time.deltaTime;
-            coinVisual.localRotation = Quaternion.Euler(0, 0, spinAngle);
+            spinAngle += spinSpeed * Time.deltaTime;
+            coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 0);
             
             // ================================================================
             // BOB ANIMATION
@@ -822,14 +822,25 @@ namespace BlackBartsGold.AR
         {
             if (meshRenderer == null || meshRenderer.material == null) return;
             
-            Color targetColor = Settings.goldColor;
+            // If the material already has a basecolor texture, use white tint
+            // so the texture shows through naturally (no gold wash-out).
+            // Only apply goldColor tint when there's no texture assigned.
+            bool hasTexture = meshRenderer.material.mainTexture != null;
             
             if (CurrentMode == CoinDisplayMode.Collectible)
             {
-                targetColor = Settings.inRangeColor;
+                meshRenderer.material.color = Settings.inRangeColor;
             }
-            
-            meshRenderer.material.color = targetColor;
+            else if (hasTexture)
+            {
+                // Let the PBR texture speak for itself
+                meshRenderer.material.color = Color.white;
+            }
+            else
+            {
+                // Fallback: no texture, use the gold tint
+                meshRenderer.material.color = Settings.goldColor;
+            }
         }
         
         #endregion
@@ -900,10 +911,10 @@ namespace BlackBartsGold.AR
                 // Shrink
                 transform.localScale = Vector3.Lerp(startScale, Vector3.zero, easeT);
                 
-                // Fast spin clockwise (same axis as idle spin - around local Z)
+                // Fast spin (same Y axis as idle spin - like a top speeding up)
                 if (coinVisual != null)
                 {
-                    coinVisual.Rotate(0, 0, -720f * Time.deltaTime, Space.Self);
+                    coinVisual.Rotate(0, 720f * Time.deltaTime, 0, Space.Self);
                 }
                 
                 yield return null;
