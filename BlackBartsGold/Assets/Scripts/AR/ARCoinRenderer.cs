@@ -604,7 +604,7 @@ namespace BlackBartsGold.AR
             // If AR state is not tracking OR camera hasn't moved in a while, use gyro
             bool shouldUseGyro = !arTracking || cameraStationaryTime > CAMERA_STATIONARY_THRESHOLD;
             
-            // Switch to gyro if needed (but don't switch back to AR once we're on gyro)
+            // Switch to gyro if needed
             if (shouldUseGyro && !useGyroPositioning)
             {
                 Debug.LogWarning($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: *** SWITCHING TO GYRO ***");
@@ -625,6 +625,22 @@ namespace BlackBartsGold.AR
                     {
                         Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Found existing GyroscopeCoinPositioner component");
                     }
+                }
+            }
+            
+            // Switch BACK to AR tracking if camera starts moving again
+            // (means ARCore recovered or was just slow to initialize)
+            if (!shouldUseGyro && useGyroPositioning && arTracking && cameraMoved > 0.01f)
+            {
+                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: *** SWITCHING BACK TO AR TRACKING ***");
+                Debug.Log($"[ARCoinRenderer]   Camera is moving again! cameraMoved={cameraMoved:F4}m, arState={arState}");
+                useGyroPositioning = false;
+                
+                // Disable gyroscope positioner so it doesn't fight AR tracking
+                if (gyroPositioner != null)
+                {
+                    gyroPositioner.enabled = false;
+                    Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: GyroscopeCoinPositioner DISABLED (AR tracking active)");
                 }
             }
         }

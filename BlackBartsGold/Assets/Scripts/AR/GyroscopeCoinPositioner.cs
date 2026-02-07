@@ -36,10 +36,6 @@ namespace BlackBartsGold.AR
         [SerializeField] private float displayDistance = 4f;
         [SerializeField] private float smoothSpeed = 5f;
         
-        [Header("Vertical Positioning")]
-        [Tooltip("Phone tilt angle (degrees from vertical) at which the coin appears centered on screen. ~25° is a typical phone-holding angle.")]
-        [SerializeField] private float referencePitch = 25f;
-        
         [Header("Debug")]
         [SerializeField] private bool debugMode = true;
         
@@ -74,10 +70,7 @@ namespace BlackBartsGold.AR
         private float headingSmoothVelocity = 0f;
         private const float HEADING_SMOOTH_TIME = 0.3f; // Smooth over 0.3 seconds
         
-        // Smoothed pitch for vertical positioning
-        private float smoothedPitch = 25f; // Start at typical holding angle
-        private float pitchSmoothVelocity = 0f;
-        private const float PITCH_SMOOTH_TIME = 0.2f; // Faster response for natural feel
+        // No pitch tracking needed — Pokemon GO style keeps coin at eye level
         
         private void Start()
         {
@@ -497,40 +490,6 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
-        /// Get the device's pitch (vertical tilt) using gravity or accelerometer sensors.
-        /// Returns degrees from vertical: 0° = phone perfectly vertical (looking at horizon),
-        /// positive = tilted back (looking up), negative = tilted forward (looking down).
-        /// A typical phone-holding angle is ~20-30°.
-        /// </summary>
-        private float GetDevicePitch()
-        {
-            // Method 1: Gravity sensor (most stable, filtered)
-            if (gravitySensor != null && gravitySensor.enabled)
-            {
-                Vector3 g = gravitySensor.gravity.ReadValue();
-                if (g.sqrMagnitude > 0.5f)
-                {
-                    // g.y = -1 when phone vertical, g.z tells us tilt direction
-                    // Positive result = tilted back (top of phone away from user)
-                    return Mathf.Atan2(g.z, -g.y) * Mathf.Rad2Deg;
-                }
-            }
-            
-            // Method 2: Accelerometer (noisier but widely available)
-            if (accelSensor != null && accelSensor.enabled)
-            {
-                Vector3 a = accelSensor.acceleration.ReadValue();
-                if (a.sqrMagnitude > 0.5f)
-                {
-                    return Mathf.Atan2(a.z, -a.y) * Mathf.Rad2Deg;
-                }
-            }
-            
-            // Fallback: assume neutral holding angle
-            return referencePitch;
-        }
-        
-        /// <summary>
         /// Position the coin based on relative bearing.
         /// Coin appears in front of camera when pointing at target.
         /// </summary>
@@ -539,24 +498,10 @@ namespace BlackBartsGold.AR
             if (cameraTransform == null) return;
             
             // ================================================================
-            // VERTICAL POSITIONING - Pitch-aware (matches phone's vertical tilt)
-            // Just like horizontal uses compass heading, vertical uses gravity pitch.
-            // The coin appears centered when phone is at referencePitch (~25°).
-            // Tilting up/down moves the coin to track with the real camera feed.
-            // ================================================================
-            float rawPitch = GetDevicePitch();
-            smoothedPitch = Mathf.SmoothDamp(smoothedPitch, rawPitch, ref pitchSmoothVelocity, PITCH_SMOOTH_TIME);
-            
-            // How far the phone deviates from the "neutral" holding angle
-            float pitchDelta = smoothedPitch - referencePitch;
-            
-            // Convert pitch delta to a Y offset in world space
-            // tan(pitchDelta) * displayDistance = how much higher/lower to place the coin
-            float verticalOffset = Mathf.Tan(pitchDelta * Mathf.Deg2Rad) * displayDistance;
-            verticalOffset = Mathf.Clamp(verticalOffset, -2f, 2f); // Safety clamp
-            
-            // ================================================================
-            // HORIZONTAL POSITIONING - Bearing-based (same as before)
+            // POKEMON GO STYLE — coin stays at camera eye level (Y = camera Y).
+            // No pitch tracking.  Only horizontal compass heading moves the coin.
+            // This keeps the coin vertically centered on screen regardless of
+            // how the user holds / tilts the phone.
             // ================================================================
             
             // Use gyroscope rotation directly to determine where coin should appear
@@ -568,9 +513,9 @@ namespace BlackBartsGold.AR
                 // Get the direction where the coin should appear (relative to phone)
                 Vector3 coinDirection = bearingRot * Vector3.forward;
                 
-                // Position in world space relative to camera
+                // Position in world space relative to camera — same Y (eye level)
                 Vector3 targetPos = cameraTransform.position + coinDirection * displayDistance;
-                targetPos.y = cameraTransform.position.y + verticalOffset;
+                targetPos.y = cameraTransform.position.y;
                 
                 // Smooth movement
                 transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * smoothSpeed);
@@ -582,7 +527,7 @@ namespace BlackBartsGold.AR
                 float x = Mathf.Sin(radians) * displayDistance;
                 float z = Mathf.Cos(radians) * displayDistance;
                 
-                Vector3 targetPos = cameraTransform.position + new Vector3(x, verticalOffset, z);
+                Vector3 targetPos = cameraTransform.position + new Vector3(x, 0f, z);
                 transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * smoothSpeed);
             }
             

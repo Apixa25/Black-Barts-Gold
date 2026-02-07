@@ -8,6 +8,7 @@
 // ============================================================================
 
 using UnityEngine;
+using UnityEngine.XR;
 using UnityEngine.XR.ARFoundation;
 
 namespace BlackBartsGold.AR
@@ -62,6 +63,16 @@ namespace BlackBartsGold.AR
             {
                 Debug.LogError("[ARTrackingDebug] NO CAMERA FOUND!");
             }
+            
+            // Log XR subsystem state at startup
+            bool xrEnabled = XRSettings.enabled;
+            string xrDevice = XRSettings.loadedDeviceName;
+            Debug.Log($"[ARTrackingDebug] XR SUBSYSTEM: enabled={xrEnabled}, device='{xrDevice}'");
+            if (!xrEnabled)
+            {
+                Debug.LogWarning("[ARTrackingDebug] XR IS NOT ENABLED! ARCore may not be initialized. " +
+                                 "Check XR Plug-in Management settings (Edit > Project Settings > XR Plug-in Management).");
+            }
         }
         
         private void Update()
@@ -84,11 +95,18 @@ namespace BlackBartsGold.AR
                 sessionState = ARSession.state.ToString();
             }
             
-            Debug.Log($"[ARTrackingDebug] Camera: pos={currentPos}, rot={currentRot:F0}, moved={movedDistance:F2}m, ARState={sessionState}");
+            bool xrEnabled = XRSettings.enabled;
+            string xrDevice = XRSettings.loadedDeviceName;
+            
+            Debug.Log($"[ARTrackingDebug] Camera: pos={currentPos}, rot={currentRot:F0}, moved={movedDistance:F2}m, ARState={sessionState}, XREnabled={xrEnabled}, XRDevice='{xrDevice}'");
             
             if (movedDistance < 0.001f && frameCount > 180)
             {
                 Debug.LogWarning("[ARTrackingDebug] Camera position NOT CHANGING - AR tracking may not be working!");
+                if (!xrEnabled)
+                {
+                    Debug.LogError("[ARTrackingDebug] XR SUBSYSTEM IS DISABLED - this is why the camera isn't moving!");
+                }
             }
             
             lastLoggedPosition = currentPos;
