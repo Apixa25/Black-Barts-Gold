@@ -191,10 +191,23 @@ namespace BlackBartsGold.AR
             UpdateGPSData();
             
             // If position is locked, only smoothly maintain position
-            // (ARCoinRenderer handles the materialized position)
+            // BUT: if GyroscopeCoinPositioner is active, it owns position — don't fight it!
+            // (Fighting caused a visible glitch every 0.5s as both scripts set transform.position)
             if (IsPositionLocked)
             {
-                // Gentle smooth damp to target
+                // Check if GyroscopeCoinPositioner is actively controlling position
+                var gyroPositioner = GetComponent<GyroscopeCoinPositioner>();
+                if (gyroPositioner != null && gyroPositioner.enabled)
+                {
+                    // GyroscopeCoinPositioner owns position — skip SmoothDamp to prevent jitter
+                    if (debugMode && Time.frameCount % 300 == 0)
+                    {
+                        Debug.Log($"[ARCoinPositioner] Position update SKIPPED — GyroscopeCoinPositioner is active");
+                    }
+                    return;
+                }
+                
+                // No gyro positioner — gently hold position via smooth damp
                 transform.position = Vector3.SmoothDamp(
                     transform.position,
                     targetPosition,

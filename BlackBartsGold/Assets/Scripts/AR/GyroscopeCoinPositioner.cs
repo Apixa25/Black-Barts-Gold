@@ -34,7 +34,7 @@ namespace BlackBartsGold.AR
     {
         [Header("Settings")]
         [SerializeField] private float displayDistance = 4f;
-        [SerializeField] private float smoothSpeed = 5f;
+        [SerializeField] private float smoothSpeed = 8f;
         
         [Header("Debug")]
         [SerializeField] private bool debugMode = true;

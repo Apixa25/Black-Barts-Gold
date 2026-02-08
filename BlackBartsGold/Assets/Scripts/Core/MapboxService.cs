@@ -113,6 +113,9 @@ namespace BlackBartsGold.Core
             DontDestroyOnLoad(gameObject);
             
             Log("MapboxService initialized!");
+            // Diagnostic: always log style at startup (visible in ADB logcat)
+            string styleId = GetStyleId(mapStyle);
+            Debug.Log($"[Mapbox] STARTUP mapStyle={mapStyle} styleId={styleId} customStyleId={customStyleId}");
         }
         
         private void OnDestroy()
@@ -300,7 +303,7 @@ namespace BlackBartsGold.Core
             string styleId = GetStyleId(mapStyle);
             string url = $"https://api.mapbox.com/styles/v1/{styleId}/static/{longitude},{latitude},{zoom},{bearing}/{width}x{height}@2x?access_token={accessToken}";
             
-            Log($"Fetching map tile: zoom={zoom}, size={width}x{height}");
+            Log($"Fetching map tile: zoom={zoom}, size={width}x{height}, styleId={styleId}");
             
             // Fetch from Mapbox
             using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))

@@ -187,8 +187,8 @@ namespace BlackBartsGold.AR
             // Random bob phase
             bobOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
             
-            // Cache base scale
-            baseScale = transform.localScale;
+            // Cache base scale at 2x size for better visibility at all ranges
+            baseScale = transform.localScale * 2f;
             
             // Auto-find visual
             if (coinVisual == null && transform.childCount > 0)
@@ -498,6 +498,14 @@ namespace BlackBartsGold.AR
             CheckAndEnableGyroPositioning();
             Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: UseGyroPositioning={useGyroPositioning}, GyroPositioner={(gyroPositioner != null ? "present" : "NULL")}");
             
+            // ARCoinRenderer now owns positioning — disable CompassCoinPlacer to prevent fights
+            var compassPlacer = GetComponent<CompassCoinPlacer>();
+            if (compassPlacer != null && compassPlacer.enabled)
+            {
+                compassPlacer.enabled = false;
+                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: CompassCoinPlacer DISABLED (ARCoinRenderer owns positioning)");
+            }
+            
             // Calculate materialized position - in front of camera at comfortable distance
             Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Calculating materialized position, camera={(cameraTransform != null ? cameraTransform.position.ToString() : "NULL")}");
             CalculateMaterializedPosition();
@@ -770,7 +778,8 @@ namespace BlackBartsGold.AR
                 if (coinVisual != null)
                 {
                     spinAngle += 180f * Time.deltaTime;
-                    coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 0);
+                    // Z=90 corrects coin model being imported 90° CCW
+                    coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 90);
                 }
             }
         }
@@ -841,13 +850,15 @@ namespace BlackBartsGold.AR
             // coin spins like a top/turntable, facing the user as it turns.
             // ================================================================
             spinAngle += spinSpeed * Time.deltaTime;
-            coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 0);
+            // Z=90 corrects coin model being imported 90° CCW (Black Bart was on his side)
+            coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 90);
             
             // ================================================================
-            // BOB ANIMATION
+            // BOB ANIMATION (disabled for jitter testing)
             // ================================================================
-            float bobY = Mathf.Sin((Time.time * bobFrequency * Mathf.PI) + bobOffset) * bobAmplitude;
-            coinVisual.localPosition = new Vector3(0, bobY, 0);
+            // float bobY = Mathf.Sin((Time.time * bobFrequency * Mathf.PI) + bobOffset) * bobAmplitude;
+            // coinVisual.localPosition = new Vector3(0, bobY, 0);
+            coinVisual.localPosition = Vector3.zero;
             
             // ================================================================
             // POSITION TRANSITION
