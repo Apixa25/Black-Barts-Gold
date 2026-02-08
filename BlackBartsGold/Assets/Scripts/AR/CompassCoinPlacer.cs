@@ -426,9 +426,11 @@ namespace BlackBartsGold.AR
             float rawPitch = GetDevicePitch();
             smoothedPitch = Mathf.SmoothDamp(smoothedPitch, rawPitch, ref pitchSmoothVelocity, PITCH_SMOOTH_TIME);
             
-            // Convert pitch to Y offset (tilt up = coin goes up, tilt down = coin goes down)
+            // Convert pitch to Y offset — WORLD-ANCHORED behavior:
+            // Tilt phone up → coin drops below center (stays in world while view rises)
+            // Tilt phone down → coin rises above center (stays in world while view drops)
             float pitchRad = smoothedPitch * Mathf.Deg2Rad;
-            float yOffset = Mathf.Clamp(Mathf.Tan(pitchRad) * displayDistance * -1f, -3f, 3f);
+            float yOffset = Mathf.Clamp(Mathf.Tan(pitchRad) * displayDistance, -3f, 3f);
             
             // Target position relative to camera WITH pitch-based Y offset
             Vector3 camPos = arCamera.transform.position;

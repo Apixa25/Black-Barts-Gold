@@ -564,12 +564,12 @@ namespace BlackBartsGold.AR
             smoothedPitch = Mathf.SmoothDamp(smoothedPitch, rawPitch, ref pitchSmoothVelocity, PITCH_SMOOTH_TIME);
             
             // Convert pitch to Y offset
-            // Phone held at ~90° to ground (normal AR hold) = 0 offset
-            // Tilt up = positive Y offset (coin goes up)
-            // Tilt down = negative Y offset (coin goes down)
-            // Scale: every 10° of tilt = ~0.7m of vertical movement at 4m distance
+            // WORLD-ANCHORED: coin stays put, phone tilts past it
+            // Tilt phone up (look up) → pitch negative → yOffset negative → coin drops below center
+            // Tilt phone down (look down) → pitch positive → yOffset positive → coin rises above center
+            // This simulates a fixed-in-world coin viewed from a tilting camera
             float pitchRad = smoothedPitch * Mathf.Deg2Rad;
-            float yOffset = Mathf.Tan(pitchRad) * displayDistance * -1f;
+            float yOffset = Mathf.Tan(pitchRad) * displayDistance;
             
             // Clamp Y offset to prevent extreme values
             yOffset = Mathf.Clamp(yOffset, -3f, 3f);

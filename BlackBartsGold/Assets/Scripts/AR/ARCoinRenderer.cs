@@ -579,6 +579,14 @@ namespace BlackBartsGold.AR
                     gyroPositioner = gameObject.AddComponent<GyroscopeCoinPositioner>();
                     Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: GyroscopeCoinPositioner ADDED");
                 }
+                
+                // Disable CompassCoinPlacer so it doesn't fight with GyroscopeCoinPositioner
+                var compassPlacer = GetComponent<CompassCoinPlacer>();
+                if (compassPlacer != null && compassPlacer.enabled)
+                {
+                    compassPlacer.enabled = false;
+                    Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: CompassCoinPlacer DISABLED (gyro active)");
+                }
             }
             else
             {
@@ -666,6 +674,14 @@ namespace BlackBartsGold.AR
                     {
                         Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: Found existing GyroscopeCoinPositioner component");
                     }
+                }
+                
+                // Disable CompassCoinPlacer so it doesn't fight with GyroscopeCoinPositioner
+                var compassPlacer = GetComponent<CompassCoinPlacer>();
+                if (compassPlacer != null && compassPlacer.enabled)
+                {
+                    compassPlacer.enabled = false;
+                    Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: CompassCoinPlacer DISABLED (gyro active)");
                 }
             }
             
