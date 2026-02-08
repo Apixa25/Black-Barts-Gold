@@ -187,8 +187,9 @@ namespace BlackBartsGold.AR
             // Random bob phase
             bobOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
             
-            // Cache base scale at 2x size for better visibility at all ranges
-            baseScale = transform.localScale * 2f;
+            // Cache base scale at 4x size for better visibility at all ranges
+            // (user requested 2x on top of original 2x = 4x total)
+            baseScale = transform.localScale * 4f;
             
             // Auto-find visual
             if (coinVisual == null && transform.childCount > 0)
