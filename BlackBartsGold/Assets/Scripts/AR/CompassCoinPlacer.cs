@@ -375,6 +375,42 @@ namespace BlackBartsGold.AR
             return result;
         }
         
+        // Smoothed pitch for vertical positioning
+        private float smoothedPitch = 0f;
+        private float pitchSmoothVelocity = 0f;
+        private const float PITCH_SMOOTH_TIME = 0.15f;
+        
+        /// <summary>
+        /// Get device pitch from attitude sensor for vertical coin movement.
+        /// </summary>
+        private float GetDevicePitch()
+        {
+            if (attitudeSensor != null && attitudeSensor.enabled)
+            {
+                Quaternion attitude = attitudeSensor.attitude.ReadValue();
+                if (attitude.x != 0 || attitude.y != 0 || attitude.z != 0)
+                {
+                    Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
+                    Quaternion deviceRot = rotFix * new Quaternion(attitude.x, attitude.y, -attitude.z, -attitude.w);
+                    float pitch = deviceRot.eulerAngles.x;
+                    if (pitch > 180f) pitch -= 360f;
+                    return pitch;
+                }
+            }
+            
+            if (gravitySensor != null && gravitySensor.enabled)
+            {
+                Vector3 gravity = gravitySensor.gravity.ReadValue();
+                if (gravity.sqrMagnitude > 0.01f)
+                {
+                    float pitch = Mathf.Atan2(-gravity.z, -gravity.y) * Mathf.Rad2Deg;
+                    return pitch;
+                }
+            }
+            
+            return 0f;
+        }
+        
         private void PositionCoin(float relativeBearing)
         {
             // Convert to radians
@@ -386,9 +422,17 @@ namespace BlackBartsGold.AR
             float x = Mathf.Sin(rad) * displayDistance;
             float z = Mathf.Cos(rad) * displayDistance;
             
-            // Target position relative to camera
+            // Get pitch for vertical positioning
+            float rawPitch = GetDevicePitch();
+            smoothedPitch = Mathf.SmoothDamp(smoothedPitch, rawPitch, ref pitchSmoothVelocity, PITCH_SMOOTH_TIME);
+            
+            // Convert pitch to Y offset (tilt up = coin goes up, tilt down = coin goes down)
+            float pitchRad = smoothedPitch * Mathf.Deg2Rad;
+            float yOffset = Mathf.Clamp(Mathf.Tan(pitchRad) * displayDistance * -1f, -3f, 3f);
+            
+            // Target position relative to camera WITH pitch-based Y offset
             Vector3 camPos = arCamera.transform.position;
-            Vector3 targetPos = camPos + new Vector3(x, displayHeight, z);
+            Vector3 targetPos = camPos + new Vector3(x, displayHeight + yOffset, z);
             
             // Smooth movement
             coinTransform.position = Vector3.Lerp(
@@ -403,12 +447,12 @@ namespace BlackBartsGold.AR
             if (lookDir.sqrMagnitude > 0.01f)
             {
                 coinTransform.rotation = Quaternion.LookRotation(-lookDir, Vector3.up);
-                // Debug: log lookDir and resulting rotation (throttled every 0.5s)
+                // Debug: log pitch and resulting position (throttled every 0.5s)
                 if (logEnabled && Time.realtimeSinceStartup - lastRotationLogTime >= 0.5f)
                 {
                     lastRotationLogTime = Time.realtimeSinceStartup;
                     Vector3 euler = coinTransform.eulerAngles;
-                    Debug.Log($"[CompassCoinPlacer] ROTATION | lookDir=({lookDir.x:F2},{lookDir.y:F2},{lookDir.z:F2}) resultEuler=({euler.x:F1},{euler.y:F1},{euler.z:F1})");
+                    Debug.Log($"[CompassCoinPlacer] POS | pitch={smoothedPitch:F1}° yOff={yOffset:F2}m coinY={coinTransform.position.y:F2} | lookDir=({lookDir.x:F2},{lookDir.y:F2},{lookDir.z:F2}) euler=({euler.x:F1},{euler.y:F1},{euler.z:F1})");
                 }
             }
         }

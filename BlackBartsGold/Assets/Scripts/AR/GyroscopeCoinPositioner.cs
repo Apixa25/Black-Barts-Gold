@@ -493,16 +493,86 @@ namespace BlackBartsGold.AR
         /// Position the coin based on relative bearing.
         /// Coin appears in front of camera when pointing at target.
         /// </summary>
+        // Smoothed pitch for vertical positioning
+        private float smoothedPitch = 0f;
+        private float pitchSmoothVelocity = 0f;
+        private const float PITCH_SMOOTH_TIME = 0.15f;
+        
+        /// <summary>
+        /// Get device pitch (tilt up/down) from attitude sensor.
+        /// Returns degrees: 0 = phone held upright, positive = tilted back (looking up),
+        /// negative = tilted forward (looking down).
+        /// </summary>
+        private float GetDevicePitch()
+        {
+            if (attitudeSensor != null && attitudeSensor.enabled)
+            {
+                Quaternion attitude = attitudeSensor.attitude.ReadValue();
+                if (attitude.x != 0 || attitude.y != 0 || attitude.z != 0)
+                {
+                    // Convert attitude to pitch angle
+                    // Apply Android coordinate fix (same as heading)
+                    Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
+                    Quaternion deviceRot = rotFix * new Quaternion(attitude.x, attitude.y, -attitude.z, -attitude.w);
+                    
+                    // Extract pitch from the device rotation
+                    float pitch = deviceRot.eulerAngles.x;
+                    
+                    // Normalize to -180 to 180 range
+                    if (pitch > 180f) pitch -= 360f;
+                    
+                    return pitch;
+                }
+            }
+            
+            // Fallback: use gravity sensor to estimate pitch
+            if (gravitySensor != null && gravitySensor.enabled)
+            {
+                Vector3 gravity = gravitySensor.gravity.ReadValue();
+                if (gravity.sqrMagnitude > 0.01f)
+                {
+                    // Calculate pitch from gravity vector
+                    // When phone is vertical (screen facing user): gravity.y ≈ -1, gravity.z ≈ 0
+                    // When phone tilts back (looking up): gravity.z becomes more negative
+                    // When phone tilts forward (looking down): gravity.z becomes more positive
+                    float pitch = Mathf.Atan2(-gravity.z, -gravity.y) * Mathf.Rad2Deg;
+                    return pitch;
+                }
+            }
+            
+            return 0f;
+        }
+        
         private void PositionCoin(float relativeBearing)
         {
             if (cameraTransform == null) return;
             
             // ================================================================
-            // POKEMON GO STYLE — coin stays at camera eye level (Y = camera Y).
-            // No pitch tracking.  Only horizontal compass heading moves the coin.
-            // This keeps the coin vertically centered on screen regardless of
-            // how the user holds / tilts the phone.
+            // ENHANCED AR POSITIONING — coin responds to BOTH horizontal heading
+            // AND vertical pitch (tilt up/down).
+            //
+            // Horizontal: Compass heading moves coin left/right (already worked)
+            // Vertical: Device pitch moves coin up/down (NEW!)
+            //
+            // When you tilt phone up → coin moves up on screen
+            // When you tilt phone down → coin moves down on screen
+            // This gives a much more immersive "looking around" AR feel.
             // ================================================================
+            
+            // Get device pitch for vertical positioning
+            float rawPitch = GetDevicePitch();
+            smoothedPitch = Mathf.SmoothDamp(smoothedPitch, rawPitch, ref pitchSmoothVelocity, PITCH_SMOOTH_TIME);
+            
+            // Convert pitch to Y offset
+            // Phone held at ~90° to ground (normal AR hold) = 0 offset
+            // Tilt up = positive Y offset (coin goes up)
+            // Tilt down = negative Y offset (coin goes down)
+            // Scale: every 10° of tilt = ~0.7m of vertical movement at 4m distance
+            float pitchRad = smoothedPitch * Mathf.Deg2Rad;
+            float yOffset = Mathf.Tan(pitchRad) * displayDistance * -1f;
+            
+            // Clamp Y offset to prevent extreme values
+            yOffset = Mathf.Clamp(yOffset, -3f, 3f);
             
             // Use gyroscope rotation directly to determine where coin should appear
             if (gyroEnabled && gyro != null)
@@ -513,9 +583,9 @@ namespace BlackBartsGold.AR
                 // Get the direction where the coin should appear (relative to phone)
                 Vector3 coinDirection = bearingRot * Vector3.forward;
                 
-                // Position in world space relative to camera — same Y (eye level)
+                // Position in world space relative to camera WITH pitch-based Y offset
                 Vector3 targetPos = cameraTransform.position + coinDirection * displayDistance;
-                targetPos.y = cameraTransform.position.y;
+                targetPos.y = cameraTransform.position.y + yOffset;
                 
                 // Smooth movement
                 transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * smoothSpeed);
@@ -527,7 +597,7 @@ namespace BlackBartsGold.AR
                 float x = Mathf.Sin(radians) * displayDistance;
                 float z = Mathf.Cos(radians) * displayDistance;
                 
-                Vector3 targetPos = cameraTransform.position + new Vector3(x, 0f, z);
+                Vector3 targetPos = cameraTransform.position + new Vector3(x, yOffset, z);
                 transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * smoothSpeed);
             }
             
@@ -537,12 +607,12 @@ namespace BlackBartsGold.AR
             if (lookDir.sqrMagnitude > 0.01f)
             {
                 transform.rotation = Quaternion.LookRotation(-lookDir, Vector3.up);
-                // Debug: log lookDir and resulting rotation (throttled every 0.5s)
+                // Debug: log lookDir, pitch, and resulting rotation (throttled every 0.5s)
                 if (debugMode && Time.realtimeSinceStartup - lastRotationLogTime >= 0.5f)
                 {
                     lastRotationLogTime = Time.realtimeSinceStartup;
                     Vector3 euler = transform.eulerAngles;
-                    Debug.Log($"[GyroscopeCoinPositioner] ROTATION | lookDir=({lookDir.x:F2},{lookDir.y:F2},{lookDir.z:F2}) resultEuler=({euler.x:F1},{euler.y:F1},{euler.z:F1})");
+                    Debug.Log($"[GyroscopeCoinPositioner] POS | pitch={smoothedPitch:F1}° yOffset={yOffset:F2}m coinY={transform.position.y:F2} camY={cameraTransform.position.y:F2} | lookDir=({lookDir.x:F2},{lookDir.y:F2},{lookDir.z:F2}) euler=({euler.x:F1},{euler.y:F1},{euler.z:F1})");
                 }
             }
         }
