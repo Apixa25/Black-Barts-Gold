@@ -121,6 +121,8 @@ namespace BlackBartsGold.AR
         
         private void Awake()
         {
+            Debug.Log($"[CoinController] ===== AWAKE T+{Time.realtimeSinceStartup:F2}s on '{gameObject.name}' =====");
+            
             // Get required components
             coinRenderer = GetComponent<ARCoinRenderer>();
             if (coinRenderer == null)
@@ -168,6 +170,15 @@ namespace BlackBartsGold.AR
             {
                 gameObject.layer = coinLayer;
             }
+            
+            // Log full component inventory
+            Debug.Log($"[CoinController] Components on '{gameObject.name}':");
+            Debug.Log($"[CoinController]   ARCoinRenderer: {coinRenderer != null}");
+            Debug.Log($"[CoinController]   ARCoinPositioner: {coinPositioner != null}");
+            Debug.Log($"[CoinController]   CompassCoinPlacer: {compassPlacer != null}");
+            Debug.Log($"[CoinController]   CoinModel: {(coinModel != null ? coinModel.name : "NULL")}");
+            Debug.Log($"[CoinController]   ChildCount: {transform.childCount}");
+            Debug.Log($"[CoinController]   Position: {transform.position}, Scale: {transform.localScale}");
         }
         
         private void Start()
@@ -221,13 +232,28 @@ namespace BlackBartsGold.AR
             CoinData = coinData;
             IsLocked = locked;
             
-            Log($"Initialized: {coinData.id}, Value: {coinData.GetDisplayValue()}, Locked: {locked}");
+            Debug.Log($"[CoinController] ===== INITIALIZE T+{Time.realtimeSinceStartup:F2}s =====");
+            Debug.Log($"[CoinController]   CoinID: {coinData.id}");
+            Debug.Log($"[CoinController]   Value: {coinData.GetDisplayValue()}");
+            Debug.Log($"[CoinController]   GPS: ({coinData.latitude:F6}, {coinData.longitude:F6})");
+            Debug.Log($"[CoinController]   Locked: {locked}");
+            Debug.Log($"[CoinController]   HeightOffset: {coinData.heightOffset}");
             
             // Initialize positioner with GPS coordinates
             if (coinPositioner != null)
             {
                 coinPositioner.Initialize(coinData);
+                Debug.Log($"[CoinController]   Positioner initialized, GPSDist={coinPositioner.GPSDistance:F1}m");
             }
+            else
+            {
+                Debug.LogError("[CoinController]   Positioner is NULL! Cannot track GPS position.");
+            }
+            
+            // Check AR tracking state at initialization time
+            var arState = UnityEngine.XR.ARFoundation.ARSession.state;
+            Debug.Log($"[CoinController]   AR State at init: {arState}");
+            Debug.Log($"[CoinController] ===== END INITIALIZE =====");
             
             // Update visuals
             UpdateVisualState();

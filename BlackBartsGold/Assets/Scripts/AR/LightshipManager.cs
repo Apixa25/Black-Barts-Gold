@@ -15,8 +15,11 @@
 // ============================================================================
 
 using UnityEngine;
+using UnityEngine.XR;
 using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.Management;
 using Unity.XR.CoreUtils;
+using System.Collections.Generic;
 
 namespace BlackBartsGold.AR
 {
@@ -99,8 +102,15 @@ namespace BlackBartsGold.AR
         
         private void Start()
         {
-            Log("LightshipManager Start - Initializing AR features...");
+            Debug.Log($"[ARManager] T+{Time.realtimeSinceStartup:F2}s: Start() - Initializing AR features...");
+            
+            // Log XR initialization state before we do anything
+            LogXRSubsystemState("BEFORE_INIT");
+            
             Initialize();
+            
+            // Log XR state again after initialization
+            LogXRSubsystemState("AFTER_INIT");
         }
         
         private void Initialize()
@@ -121,7 +131,16 @@ namespace BlackBartsGold.AR
                 return;
             }
             
-            Log($"AR Camera: {arCamera.name}");
+            Debug.Log($"[ARManager] AR Camera: {arCamera.name}, pos={arCamera.transform.position}, parent={(arCamera.transform.parent != null ? arCamera.transform.parent.name : "none")}");
+            
+            // Log camera components for debugging
+            var components = arCamera.GetComponents<Component>();
+            Debug.Log($"[ARManager] Camera components ({components.Length}):");
+            foreach (var comp in components)
+            {
+                if (comp != null)
+                    Debug.Log($"[ARManager]   - {comp.GetType().Name} (enabled={(comp is Behaviour b ? b.enabled.ToString() : "n/a")})");
+            }
             
             // Setup features
             if (enableOcclusion) SetupOcclusion();
@@ -318,6 +337,76 @@ namespace BlackBartsGold.AR
         {
             showMeshVisualization = show;
             Log($"Mesh visualization: {show}");
+        }
+        
+        #endregion
+        
+        #region XR Subsystem Diagnostics
+        
+        /// <summary>
+        /// Log detailed XR subsystem state - helps diagnose Lightship/ARCore initialization issues
+        /// </summary>
+        private void LogXRSubsystemState(string context)
+        {
+            Debug.Log($"[ARManager] === XR SUBSYSTEM STATE ({context}) T+{Time.realtimeSinceStartup:F2}s ===");
+            
+            // Active XR Loader
+            string loaderName = "NONE";
+            string loaderType = "N/A";
+            if (XRGeneralSettings.Instance?.Manager?.activeLoader != null)
+            {
+                var loader = XRGeneralSettings.Instance.Manager.activeLoader;
+                loaderName = loader.name;
+                loaderType = loader.GetType().FullName;
+            }
+            Debug.Log($"[ARManager]   Active XR Loader: {loaderName} ({loaderType})");
+            
+            // AR Session state
+            Debug.Log($"[ARManager]   ARSession.state: {ARSession.state}");
+            
+            // Running subsystems - enumerate ALL of them
+            var sessionSubs = new List<UnityEngine.XR.ARSubsystems.XRSessionSubsystem>();
+            SubsystemManager.GetSubsystems(sessionSubs);
+            Debug.Log($"[ARManager]   XRSessionSubsystems: {sessionSubs.Count}");
+            foreach (var s in sessionSubs)
+                Debug.Log($"[ARManager]     Session: running={s.running}, trackingState={s.trackingState}");
+            
+            var cameraSubs = new List<UnityEngine.XR.ARSubsystems.XRCameraSubsystem>();
+            SubsystemManager.GetSubsystems(cameraSubs);
+            Debug.Log($"[ARManager]   XRCameraSubsystems: {cameraSubs.Count}");
+            foreach (var s in cameraSubs)
+                Debug.Log($"[ARManager]     Camera: running={s.running}");
+            
+            var inputSubs = new List<XRInputSubsystem>();
+            SubsystemManager.GetSubsystems(inputSubs);
+            Debug.Log($"[ARManager]   XRInputSubsystems: {inputSubs.Count}");
+            foreach (var s in inputSubs)
+                Debug.Log($"[ARManager]     Input: running={s.running}, trackingOriginMode={s.GetTrackingOriginMode()}");
+            
+            var planeSubs = new List<UnityEngine.XR.ARSubsystems.XRPlaneSubsystem>();
+            SubsystemManager.GetSubsystems(planeSubs);
+            Debug.Log($"[ARManager]   XRPlaneSubsystems: {planeSubs.Count}");
+            
+            var depthSubs = new List<UnityEngine.XR.ARSubsystems.XRPointCloudSubsystem>();
+            SubsystemManager.GetSubsystems(depthSubs);
+            Debug.Log($"[ARManager]   XRDepthSubsystems: {depthSubs.Count}");
+            
+            // XR Input Devices (what TrackedPoseDriver needs)
+            var allDevices = new List<InputDevice>();
+            InputDevices.GetDevices(allDevices);
+            Debug.Log($"[ARManager]   XR Input Devices: {allDevices.Count}");
+            foreach (var dev in allDevices)
+            {
+                Debug.Log($"[ARManager]     [{dev.role}] '{dev.name}' valid={dev.isValid}");
+            }
+            
+            if (allDevices.Count == 0)
+            {
+                Debug.LogWarning($"[ARManager]   ⚠️ NO XR INPUT DEVICES! TrackedPoseDriver will NOT receive pose data!");
+                Debug.LogWarning($"[ARManager]   This means the camera position will NOT update from ARCore tracking.");
+            }
+            
+            Debug.Log($"[ARManager] === END XR SUBSYSTEM STATE ({context}) ===");
         }
         
         #endregion

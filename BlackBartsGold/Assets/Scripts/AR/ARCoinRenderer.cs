@@ -20,8 +20,11 @@
 // ============================================================================
 
 using UnityEngine;
+using UnityEngine.XR;
+using UnityEngine.XR.Management;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Location;
@@ -530,9 +533,40 @@ namespace BlackBartsGold.AR
             
             Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: ARSession.state={arSession}, arTracking={arTracking}");
             
-            if (!arTracking)
+            // ================================================================
+            // NEW: Check if XR is actually providing tracked device data
+            // ARSession.state=SessionTracking doesn't mean camera pose is updating!
+            // We need XR Input Devices for TrackedPoseDriver to work.
+            // ================================================================
+            var xrDevices = new List<InputDevice>();
+            InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, xrDevices);
+            bool hasXRDevice = xrDevices.Count > 0;
+            
+            // Also check if camera has actually moved (strongest proof of 6DOF)
+            bool cameraHasMoved = false;
+            if (cameraTransform != null)
             {
-                Debug.LogWarning($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: AR NOT TRACKING! Enabling gyroscope positioning...");
+                cameraHasMoved = Vector3.Distance(cameraTransform.position, Vector3.zero) > 0.1f ||
+                                 cameraTransform.rotation != Quaternion.identity;
+            }
+            
+            Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: TRACKING CHECK:");
+            Debug.Log($"[ARCoinRenderer]   ARSession.state={arSession} (tracking={arTracking})");
+            Debug.Log($"[ARCoinRenderer]   XR CenterEye Devices={xrDevices.Count} (has={hasXRDevice})");
+            Debug.Log($"[ARCoinRenderer]   Camera has moved from origin={cameraHasMoved}");
+            Debug.Log($"[ARCoinRenderer]   Camera pos={cameraTransform?.position}, rot={cameraTransform?.eulerAngles}");
+            
+            // Active XR loader
+            string loaderName = XRGeneralSettings.Instance?.Manager?.activeLoader?.name ?? "NONE";
+            Debug.Log($"[ARCoinRenderer]   Active XR Loader: {loaderName}");
+            
+            // Decision: use gyro if AR is not tracking OR if there are no XR devices
+            bool shouldUseGyro = !arTracking || (!hasXRDevice && !cameraHasMoved);
+            
+            if (shouldUseGyro)
+            {
+                Debug.LogWarning($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: DECISION → USE GYRO POSITIONING");
+                Debug.LogWarning($"[ARCoinRenderer]   Reason: arTracking={arTracking}, hasXRDevice={hasXRDevice}, cameraHasMoved={cameraHasMoved}");
                 useGyroPositioning = true;
                 
                 // Add gyroscope positioner if not present
@@ -548,7 +582,8 @@ namespace BlackBartsGold.AR
             }
             else
             {
-                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: AR IS TRACKING! Using AR positioning (no gyro fallback)");
+                Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: DECISION → USE AR TRACKING (6DOF!)");
+                Debug.Log($"[ARCoinRenderer]   arTracking={arTracking}, hasXRDevice={hasXRDevice}, cameraHasMoved={cameraHasMoved}");
                 useGyroPositioning = false;
                 Debug.Log("[ARCoinRenderer] AR tracking working - using AR camera positioning");
             }
@@ -594,10 +629,16 @@ namespace BlackBartsGold.AR
             // Periodic AR status logging (every 3 seconds = ~180 frames at 60fps)
             if (Time.frameCount % 180 == 0)
             {
+                // Check XR devices
+                var xrDevices = new List<InputDevice>();
+                InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, xrDevices);
+                string loaderName = XRGeneralSettings.Instance?.Manager?.activeLoader?.name ?? "NoLoader";
+                
                 Debug.Log($"[ARCoinRenderer] T+{Time.realtimeSinceStartup:F2}s: AR CHECK - " +
                           $"State={arState}, Tracking={arTracking}, " +
                           $"CamStationary={cameraStationaryTime:F1}s (threshold={CAMERA_STATIONARY_THRESHOLD}s), " +
                           $"CamMoved={cameraMoved:F4}m, UseGyro={useGyroPositioning}, " +
+                          $"XRDevices={xrDevices.Count}, Loader={loaderName}, " +
                           $"CamPos={cameraTransform.position}, CamRot={cameraTransform.eulerAngles}");
             }
             

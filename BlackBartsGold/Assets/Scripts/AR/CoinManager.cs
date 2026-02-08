@@ -201,6 +201,8 @@ namespace BlackBartsGold.AR
             }
             _instance = this;
             
+            Debug.Log($"[CoinManager] ===== AWAKE T+{Time.realtimeSinceStartup:F2}s =====");
+            
             // Create coins parent
             if (coinsParent == null)
             {
@@ -208,11 +210,17 @@ namespace BlackBartsGold.AR
                 coinsParent = parent.transform;
             }
             
+            // Log prefab status
+            Debug.Log($"[CoinManager]   CoinPrefab: {(coinPrefab != null ? coinPrefab.name : "*** NOT ASSIGNED ***")}");
+            Debug.Log($"[CoinManager]   DisplaySettings: {(displaySettings != null ? "assigned" : "using defaults")}");
+            
             Log("CoinManager initialized with SINGLE-TARGET architecture");
         }
         
         private void Start()
         {
+            Debug.Log($"[CoinManager] T+{Time.realtimeSinceStartup:F2}s: Start()");
+            
             // Initialize compass heading for positioning
             ARCoinPositioner.CaptureInitialCompassHeading();
             
@@ -226,6 +234,9 @@ namespace BlackBartsGold.AR
             {
                 Debug.LogWarning("[CoinManager] ARRaycastController not found - tap-to-collect won't work!");
             }
+            
+            // Log AR session state
+            Debug.Log($"[CoinManager]   AR Session State: {UnityEngine.XR.ARFoundation.ARSession.state}");
             
             // Start in map view mode
             SetHuntMode(HuntMode.MapView);
@@ -485,13 +496,22 @@ namespace BlackBartsGold.AR
         /// </summary>
         private CoinController SpawnTargetCoin(Coin coinData)
         {
+            Debug.Log($"[CoinManager] ===== SPAWNING TARGET COIN T+{Time.realtimeSinceStartup:F2}s =====");
+            Debug.Log($"[CoinManager]   CoinID: {coinData.id}");
+            Debug.Log($"[CoinManager]   Value: {coinData.GetDisplayValue()}");
+            Debug.Log($"[CoinManager]   GPS: ({coinData.latitude:F6}, {coinData.longitude:F6})");
+            Debug.Log($"[CoinManager]   Prefab: {(coinPrefab != null ? coinPrefab.name : "NULL!")}");
+            Debug.Log($"[CoinManager]   Pool size: {coinPool.Count}");
+            
             // Get or create coin object
             CoinController coin = GetCoinFromPool();
             if (coin == null)
             {
-                Debug.LogError("[CoinManager] Failed to get coin from pool");
+                Debug.LogError("[CoinManager] Failed to get coin from pool - prefab may not be assigned!");
                 return null;
             }
+            
+            Debug.Log($"[CoinManager]   Got coin object: '{coin.gameObject.name}', from={(coinPool.Count > 0 ? "pool" : "instantiate")}");
             
             // Configure
             coin.transform.SetParent(coinsParent);
@@ -508,7 +528,15 @@ namespace BlackBartsGold.AR
             coin.OnEnteredRange += HandleCoinEnteredRange;
             coin.OnMaterialized += HandleCoinMaterialized;
             
-            Log($"Spawned TARGET coin: {coinData.id}, Value: {coinData.GetDisplayValue()}");
+            // Log coin hierarchy after spawn
+            Debug.Log($"[CoinManager]   Spawned at pos={coin.transform.position}, scale={coin.transform.localScale}");
+            Debug.Log($"[CoinManager]   ChildCount: {coin.transform.childCount}");
+            for (int i = 0; i < coin.transform.childCount; i++)
+            {
+                var child = coin.transform.GetChild(i);
+                Debug.Log($"[CoinManager]     Child[{i}]: '{child.name}', active={child.gameObject.activeSelf}");
+            }
+            Debug.Log($"[CoinManager] ===== END SPAWN =====");
             
             OnCoinSpawned?.Invoke(coin);
             

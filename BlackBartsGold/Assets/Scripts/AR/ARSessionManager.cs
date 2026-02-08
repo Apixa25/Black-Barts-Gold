@@ -9,8 +9,11 @@
 // ============================================================================
 
 using UnityEngine;
+using UnityEngine.XR;
 using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.Management;
 using System;
+using System.Collections.Generic;
 
 namespace BlackBartsGold.AR
 {
@@ -145,6 +148,8 @@ namespace BlackBartsGold.AR
             }
             _instance = this;
             
+            Debug.Log($"[ARSessionManager] ===== AWAKE T+{Time.realtimeSinceStartup:F2}s =====");
+            
             // Find ARSession if not assigned
             if (arSession == null)
             {
@@ -155,12 +160,23 @@ namespace BlackBartsGold.AR
             {
                 LogError("❌ ARSession not found! AR features will not work.");
             }
+            else
+            {
+                Debug.Log($"[ARSessionManager] ARSession found: {arSession.gameObject.name}, enabled={arSession.enabled}");
+            }
+            
+            // Log XR Plug-in Management state at startup
+            LogXRInitState("AWAKE");
         }
         
         private void OnEnable()
         {
+            Debug.Log($"[ARSessionManager] OnEnable T+{Time.realtimeSinceStartup:F2}s - subscribing to ARSession.stateChanged");
             // Subscribe to AR session state changes
             ARSession.stateChanged += OnARSessionStateChanged;
+            
+            // Log current state immediately
+            Debug.Log($"[ARSessionManager] Current ARSession.state={ARSession.state} at OnEnable");
         }
         
         private void OnDisable()
@@ -206,7 +222,11 @@ namespace BlackBartsGold.AR
             PreviousState = CurrentState;
             CurrentState = args.state;
             
-            Log($"🔄 AR State: {PreviousState} → {CurrentState}");
+            Debug.Log($"[ARSessionManager] ===== AR STATE CHANGE T+{Time.realtimeSinceStartup:F2}s =====");
+            Debug.Log($"[ARSessionManager] 🔄 {PreviousState} → {CurrentState}");
+            
+            // Log XR subsystem state on EVERY state change (critical for diagnosing init issues)
+            LogXRInitState($"STATE_CHANGE_{CurrentState}");
             
             // Check for tracking established/lost
             if (CurrentState == ARSessionState.SessionTracking && 
@@ -426,6 +446,120 @@ namespace BlackBartsGold.AR
             ARCoinPositioner.ResetCompassHeading();
             CaptureInitialCompassForWorldAnchoring();
             Log("🧭 Compass heading recaptured");
+        }
+        
+        #endregion
+        
+        #region XR Diagnostics
+        
+        /// <summary>
+        /// Log comprehensive XR initialization state.
+        /// Uses the MODERN XR Plug-in Management APIs (not legacy XRSettings).
+        /// </summary>
+        private void LogXRInitState(string context)
+        {
+            Debug.Log($"[ARSessionManager] --- XR STATE ({context}) ---");
+            
+            // 1. XR General Settings & Loader
+            if (XRGeneralSettings.Instance != null)
+            {
+                var manager = XRGeneralSettings.Instance.Manager;
+                if (manager != null)
+                {
+                    var loader = manager.activeLoader;
+                    Debug.Log($"[ARSessionManager]   XR Manager: initComplete={manager.isInitializationComplete}");
+                    Debug.Log($"[ARSessionManager]   Active Loader: {(loader != null ? loader.name : "NONE")}");
+                    Debug.Log($"[ARSessionManager]   Loader Type: {(loader != null ? loader.GetType().FullName : "N/A")}");
+                    
+                    // List all configured loaders
+                    if (manager.activeLoaders != null)
+                    {
+                        Debug.Log($"[ARSessionManager]   Configured Loaders ({manager.activeLoaders.Count}):");
+                        foreach (var l in manager.activeLoaders)
+                        {
+                            Debug.Log($"[ARSessionManager]     - {l.name} ({l.GetType().Name})");
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("[ARSessionManager]   XR Manager is NULL!");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[ARSessionManager]   XRGeneralSettings.Instance is NULL!");
+            }
+            
+            // 2. XR Input Devices (what TrackedPoseDriver reads from)
+            var centerEyeDevices = new List<InputDevice>();
+            InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, centerEyeDevices);
+            var headDevices = new List<InputDevice>();
+            InputDevices.GetDevicesAtXRNode(XRNode.Head, headDevices);
+            var allDevices = new List<InputDevice>();
+            InputDevices.GetDevices(allDevices);
+            
+            Debug.Log($"[ARSessionManager]   XR Input: CenterEye={centerEyeDevices.Count}, Head={headDevices.Count}, Total={allDevices.Count}");
+            
+            foreach (var dev in allDevices)
+            {
+                string posInfo = "noPos";
+                string rotInfo = "noRot";
+                if (dev.TryGetFeatureValue(CommonUsages.devicePosition, out Vector3 pos))
+                    posInfo = $"pos={pos}";
+                if (dev.TryGetFeatureValue(CommonUsages.deviceRotation, out Quaternion rot))
+                    rotInfo = $"rot={rot.eulerAngles}";
+                Debug.Log($"[ARSessionManager]     [{dev.role}] '{dev.name}' valid={dev.isValid} {posInfo} {rotInfo}");
+            }
+            
+            // 3. Camera position (is it actually changing?)
+            if (Camera.main != null)
+            {
+                Debug.Log($"[ARSessionManager]   Main Camera: pos={Camera.main.transform.position}, rot={Camera.main.transform.eulerAngles}");
+            }
+            
+            // 4. XR Origin configuration
+            var xrOrigin = FindFirstObjectByType<Unity.XR.CoreUtils.XROrigin>();
+            if (xrOrigin != null)
+            {
+                Debug.Log($"[ARSessionManager]   XR Origin: camera={(xrOrigin.Camera != null ? xrOrigin.Camera.name : "NULL")}, " +
+                          $"trackingOrigin={xrOrigin.RequestedTrackingOriginMode}, " +
+                          $"cameraYOffset={xrOrigin.CameraYOffset:F2}");
+                
+                // Check Camera Offset child
+                var cameraOffset = xrOrigin.CameraFloorOffsetObject;
+                if (cameraOffset != null)
+                {
+                    Debug.Log($"[ARSessionManager]   Camera Offset: '{cameraOffset.name}', pos={cameraOffset.transform.localPosition}");
+                }
+                else
+                {
+                    Debug.LogWarning("[ARSessionManager]   Camera Offset Object: NULL (this may cause tracking issues!)");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[ARSessionManager]   XR Origin: NOT FOUND!");
+            }
+            
+            // 5. TrackedPoseDriver on camera
+            if (Camera.main != null)
+            {
+                var tpd = Camera.main.GetComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
+                if (tpd != null)
+                {
+                    Debug.Log($"[ARSessionManager]   TrackedPoseDriver: enabled={tpd.enabled}, type={tpd.trackingType}, update={tpd.updateType}");
+                }
+                else
+                {
+                    Debug.LogWarning("[ARSessionManager]   TrackedPoseDriver: NOT on Main Camera!");
+                }
+            }
+            
+            // 6. Note about legacy API (in case anyone reads these logs)
+            Debug.Log($"[ARSessionManager]   [INFO] XRSettings.enabled={XRSettings.enabled} (LEGACY API - ignore this, always false with XR Plug-in Management)");
+            
+            Debug.Log($"[ARSessionManager] --- END XR STATE ({context}) ---");
         }
         
         #endregion

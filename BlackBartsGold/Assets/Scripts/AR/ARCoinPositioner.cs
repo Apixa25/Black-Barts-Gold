@@ -16,7 +16,10 @@
 // ============================================================================
 
 using UnityEngine;
+using UnityEngine.XR;
+using UnityEngine.XR.Management;
 using System.Collections;
+using System.Collections.Generic;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core.Models;
 
@@ -150,6 +153,19 @@ namespace BlackBartsGold.AR
         
         private void Start()
         {
+            Debug.Log($"[ARCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Start() on '{gameObject.name}'");
+            Debug.Log($"[ARCoinPositioner]   GPS Target: ({latitude:F6}, {longitude:F6})");
+            Debug.Log($"[ARCoinPositioner]   HasInitialHeading: {_hasInitialHeading}, InitialHeading: {_initialCompassHeading:F0}°");
+            
+            // Log AR tracking state
+            var arState = UnityEngine.XR.ARFoundation.ARSession.state;
+            Debug.Log($"[ARCoinPositioner]   AR Session State: {arState}");
+            
+            // Log XR tracking devices (are we getting 6DOF?)
+            var devices = new List<InputDevice>();
+            InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, devices);
+            Debug.Log($"[ARCoinPositioner]   XR CenterEye Devices: {devices.Count} (need >0 for 6DOF tracking)");
+            
             // Enable compass
             Input.compass.enabled = true;
             
@@ -161,6 +177,8 @@ namespace BlackBartsGold.AR
             
             // Initial GPS calculation
             UpdateGPSData();
+            
+            Debug.Log($"[ARCoinPositioner]   Initial GPSDistance: {GPSDistance:F1}m, GPSBearing: {GPSBearing:F0}°");
         }
         
         private void Update()
