@@ -37,7 +37,9 @@ namespace BlackBartsGold.Core
         
         [Header("Map Style")]
         [Tooltip("Mapbox style ID - see mapbox.com/studio for options")]
-        [SerializeField] private MapStyle mapStyle = MapStyle.Outdoors; // Better contrast than Streets
+        [SerializeField] private MapStyle mapStyle = MapStyle.Custom; // Custom high-contrast style
+        [Tooltip("Custom style ID when MapStyle.Custom is selected - format: username/style-id")]
+        [SerializeField] private string customStyleId = "stevensills2/cmld26kz2000301st3vnmfft9";
         
         [Header("Cache Settings")]
         [SerializeField] private bool enableCache = true;
@@ -53,6 +55,7 @@ namespace BlackBartsGold.Core
         
         public enum MapStyle
         {
+            Custom,         // stevensills2/cmld26kz2000301st3vnmfft9 - high contrast, better building/road visibility
             Streets,        // mapbox/streets-v12
             Outdoors,       // mapbox/outdoors-v12
             Light,          // mapbox/light-v11
@@ -65,6 +68,8 @@ namespace BlackBartsGold.Core
         
         private string GetStyleId(MapStyle style)
         {
+            if (style == MapStyle.Custom && !string.IsNullOrEmpty(customStyleId))
+                return customStyleId;
             return style switch
             {
                 MapStyle.Streets => "mapbox/streets-v12",

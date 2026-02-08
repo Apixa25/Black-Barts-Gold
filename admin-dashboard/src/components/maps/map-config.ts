@@ -24,12 +24,13 @@ export const DEFAULT_CENTER = {
   zoom: 12,
 }
 
-// Map style - using Mapbox Streets with custom Western color overlay
-// We'll use a sepia-toned style for the Western theme
-export const MAP_STYLE = "mapbox://styles/mapbox/streets-v12"
+// Map style - custom high-contrast style for better building/road visibility
+// Created in Mapbox Studio: stevensills2/cmld26kz2000301st3vnmfft9
+export const MAP_STYLE = "mapbox://styles/stevensills2/cmld26kz2000301st3vnmfft9"
 
 // Alternative styles for different views
 export const MAP_STYLES = {
+  custom: "mapbox://styles/stevensills2/cmld26kz2000301st3vnmfft9",
   streets: "mapbox://styles/mapbox/streets-v12",
   satellite: "mapbox://styles/mapbox/satellite-streets-v12",
   dark: "mapbox://styles/mapbox/dark-v11",

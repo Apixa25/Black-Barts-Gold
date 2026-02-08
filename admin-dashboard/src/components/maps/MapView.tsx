@@ -130,9 +130,12 @@ export function MapView({
     zoom: initialCenter?.zoom ?? DEFAULT_CENTER.zoom,
   })
 
-  // Map style
+  // Map style (derives initial key from MAP_STYLE so dropdown matches displayed style)
   const [mapStyle, setMapStyle] = useState<string>(MAP_STYLE)
-  const [currentStyleKey, setCurrentStyleKey] = useState<MapStyleKey>("streets")
+  const [currentStyleKey, setCurrentStyleKey] = useState<MapStyleKey>(() => {
+    const key = Object.entries(MAP_STYLES).find(([, v]) => v === MAP_STYLE)?.[0] as MapStyleKey
+    return key ?? "custom"
+  })
 
   // Filter state - show all statuses by default
   const [visibleStatuses, setVisibleStatuses] = useState<CoinStatus[]>([

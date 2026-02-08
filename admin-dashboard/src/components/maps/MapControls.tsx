@@ -143,6 +143,7 @@ export function MapControls({
           <Layers className="h-4 w-4" />
         </SelectTrigger>
         <SelectContent align="end">
+          <SelectItem value="custom">🎯 High Contrast</SelectItem>
           <SelectItem value="streets">🗺️ Streets</SelectItem>
           <SelectItem value="satellite">🛰️ Satellite</SelectItem>
           <SelectItem value="outdoors">🏔️ Outdoors</SelectItem>
