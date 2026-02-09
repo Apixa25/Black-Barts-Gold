@@ -251,38 +251,42 @@ namespace BlackBartsGold.AR
             }
             Debug.Log($"[ARCoinRenderer] === END PREFAB/HIERARCHY ===");
             
-            // ── FIX GOLD COLOR ──────────────────────────────────────────────
-            // The Standard shader with high _Metallic (1.0) looks dark/reddish in AR
-            // because there's no skybox/environment reflections to light metallic surfaces.
-            // Fix: reduce metallic so albedo texture shows through + add warm gold emission
-            // so the coin always pops with a vibrant gold look.
+            // ── FIX GOLD COLOR (or preserve full-color texture) ───────────────
+            // Gold coins: tint + emission so they read as treasure gold in AR.
+            // Full-color coins (e.g. Color BB with skin, silver, etc.): use white _Color
+            // so the basecolor texture shows through without washing out.
             if (meshRenderer != null && meshRenderer.material != null)
             {
                 Material mat = meshRenderer.material;
+                bool isFullColorCoin = IsFullColorCoinMaterial(mat);
                 
-                // Lower metallic so the gold texture shows; moderate value works in AR and Editor
                 mat.SetFloat("_Metallic", 0.4f);
                 mat.SetFloat("_Glossiness", 0.65f);
-                
-                // Rich gold emission (warm, saturated) — reads as treasure gold, not washed-out yellow
-                Color goldEmission = new Color(0.98f, 0.76f, 0.2f, 1f);
-                mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", goldEmission);
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                 
-                // Warm saturated gold base (toward #FFD700) — not pale yellow
-                mat.SetColor("_Color", new Color(1f, 0.82f, 0.28f, 1f));
+                if (isFullColorCoin)
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", Color.black);
+                    mat.SetColor("_Color", Color.white);
+                    Debug.Log($"[ARCoinRenderer] 🎨 FULL-COLOR COIN: _Color=white, no emission (texture drives look)");
+                }
+                else
+                {
+                    Color goldEmission = new Color(0.98f, 0.76f, 0.2f, 1f);
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", goldEmission);
+                    mat.SetColor("_Color", new Color(1f, 0.82f, 0.28f, 1f));
+                    Debug.Log($"[ARCoinRenderer] 🪙 GOLD FIX APPLIED: Metallic=0.4, Glossiness=0.65, Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2})");
+                }
                 
-                Debug.Log($"[ARCoinRenderer] 🪙 GOLD FIX APPLIED: Metallic=0.4, Glossiness=0.65, Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2})");
-                
-                // ── COLOR DIAG: read back so we can verify on device (ADB) what actually got set
                 bool isInstance = (mat != meshRenderer.sharedMaterial);
                 Color readColor = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.clear;
                 Color readEmission = mat.HasProperty("_EmissionColor") ? mat.GetColor("_EmissionColor") : Color.clear;
                 float readMetallic = mat.HasProperty("_Metallic") ? mat.GetFloat("_Metallic") : -1f;
                 float readGloss = mat.HasProperty("_Glossiness") ? mat.GetFloat("_Glossiness") : -1f;
                 string shaderName = mat.shader != null ? mat.shader.name : "null";
-                Debug.Log($"[ARCoinRenderer] 🎨 GOLD FIX READBACK: _Color=({readColor.r:F2},{readColor.g:F2},{readColor.b:F2},{readColor.a:F2}) _EmissionColor=({readEmission.r:F2},{readEmission.g:F2},{readEmission.b:F2}) _Metallic={readMetallic:F2} _Glossiness={readGloss:F2} shader={shaderName} isInstance={isInstance}");
+                Debug.Log($"[ARCoinRenderer] 🎨 READBACK: _Color=({readColor.r:F2},{readColor.g:F2},{readColor.b:F2}) _Emission=({readEmission.r:F2},{readEmission.g:F2},{readEmission.b:F2}) _Metallic={readMetallic:F2} _Gloss={readGloss:F2} shader={shaderName} isInstance={isInstance}");
             }
             // One-time log so ADB can confirm this build uses the device orientation (X=270, Z=180)
             Debug.Log("[ARCoinRenderer] COIN ROTATION BUILD: Using X=270, Z=180 for upright Black Bart on device");
@@ -952,6 +956,17 @@ namespace BlackBartsGold.AR
         }
         
         /// <summary>
+        /// True if this material is for a full-color coin (e.g. Color BB with skin, silver, etc.).
+        /// We use white _Color and no emission so the basecolor texture drives the look.
+        /// </summary>
+        private static bool IsFullColorCoinMaterial(Material mat)
+        {
+            if (mat == null) return false;
+            string name = mat.name ?? "";
+            return name.IndexOf("ColorBB", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+        
+        /// <summary>
         /// Update coin color based on current state
         /// </summary>
         private void UpdateColorForState()
@@ -961,35 +976,38 @@ namespace BlackBartsGold.AR
             Material mat = meshRenderer.material;
             bool hasTexture = mat.mainTexture != null;
             
+            bool isFullColorCoin = IsFullColorCoinMaterial(mat);
+            
             if (CurrentMode == CoinDisplayMode.Collectible)
             {
                 mat.color = Settings.inRangeColor;
-                // Rich gold emission for collectible pulse
-                Color collectEmission = new Color(0.98f, 0.76f, 0.2f, 1f);
+                Color collectEmission = isFullColorCoin ? Color.black : new Color(0.98f, 0.76f, 0.2f, 1f);
                 mat.SetColor("_EmissionColor", collectEmission);
             }
             else if (hasTexture)
             {
-                // Warm saturated gold (toward #FFD700), not pale yellow
-                Color setColor = new Color(1f, 0.82f, 0.28f, 1f);
-                mat.color = setColor;
-                // Rich gold emission so it reads as treasure gold in AR and Editor
-                Color goldEmission = new Color(0.98f, 0.76f, 0.2f, 1f);
-                mat.SetColor("_EmissionColor", goldEmission);
+                if (isFullColorCoin)
+                {
+                    mat.SetColor("_Color", Color.white);
+                    mat.SetColor("_EmissionColor", Color.black);
+                }
+                else
+                {
+                    mat.SetColor("_Color", new Color(1f, 0.82f, 0.28f, 1f));
+                    mat.SetColor("_EmissionColor", new Color(0.98f, 0.76f, 0.2f, 1f));
+                }
                 
-                // COLOR DIAG: log periodically so we can see on device if values stick or get overwritten
                 if (Time.realtimeSinceStartup >= nextColorDiagTime)
                 {
                     nextColorDiagTime = Time.realtimeSinceStartup + 3f;
                     Color readColor = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.clear;
                     Color readEmission = mat.HasProperty("_EmissionColor") ? mat.GetColor("_EmissionColor") : Color.clear;
-                    Debug.Log($"[ARCoinRenderer] 🎨 COLOR DIAG (Visible+texture): Set _Color=({setColor.r:F2},{setColor.g:F2},{setColor.b:F2}) _Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2}) | ReadBack _Color=({readColor.r:F2},{readColor.g:F2},{readColor.b:F2}) _EmissionColor=({readEmission.r:F2},{readEmission.g:F2},{readEmission.b:F2}) shader={mat.shader?.name ?? "null"}");
+                    Debug.Log($"[ARCoinRenderer] 🎨 COLOR DIAG (Visible+texture): fullColor={isFullColorCoin} _Color=({readColor.r:F2},{readColor.g:F2},{readColor.b:F2}) _Emission=({readEmission.r:F2},{readEmission.g:F2},{readEmission.b:F2}) shader={mat.shader?.name ?? "null"}");
                 }
             }
             else
             {
-                // Fallback: no texture, use the gold tint
-                mat.color = Settings.goldColor;
+                mat.color = isFullColorCoin ? Color.white : Settings.goldColor;
             }
         }
         

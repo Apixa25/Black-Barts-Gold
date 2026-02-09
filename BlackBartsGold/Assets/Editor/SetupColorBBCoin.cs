@@ -187,7 +187,8 @@ public static class SetupColorBBCoin
         }
 
         mat.SetTexture("_MainTex", baseColor);
-        mat.SetColor("_Color", new Color(1f, 0.82f, 0.28f, 1f));
+        // White _Color so the full-color basecolor texture (skin, silver, gold, etc.) shows through
+        mat.SetColor("_Color", Color.white);
         mat.SetFloat("_Metallic", 0.4f);
         mat.SetFloat("_Glossiness", 0.65f);
         if (metallic != null)
@@ -200,7 +201,7 @@ public static class SetupColorBBCoin
             mat.EnableKeyword("_NORMALMAP");
         }
         mat.EnableKeyword("_EMISSION");
-        mat.SetColor("_EmissionColor", new Color(0.98f, 0.76f, 0.2f, 1f));
+        mat.SetColor("_EmissionColor", Color.black);
         mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
         mat.EnableKeyword("_METALLICGLOSSMAP");
         mat.SetFloat("_SpecularHighlights", 1f);
