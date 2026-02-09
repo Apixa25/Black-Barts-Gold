@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // MapboxService.cs
 // Black Bart's Gold - Mapbox Map Tile Service
 // Path: Assets/Scripts/Core/MapboxService.cs
@@ -33,6 +33,7 @@ namespace BlackBartsGold.Core
         #region Configuration
         
         [Header("Mapbox Configuration")]
+        [Tooltip("Set in Inspector or leave empty to use MAPBOX_ACCESS_TOKEN from environment. Never commit real tokens.")]
         [SerializeField] private string accessToken = "";
         
         [Header("Map Style")]
@@ -48,6 +49,10 @@ namespace BlackBartsGold.Core
         
         [Header("Debug")]
         [SerializeField] private bool debugMode = true;
+        
+        /// <summary>Token from Inspector, or MAPBOX_ACCESS_TOKEN env var. Keeps secrets out of source control.</summary>
+        private string EffectiveAccessToken =>
+            !string.IsNullOrEmpty(accessToken) ? accessToken : (Environment.GetEnvironmentVariable("MAPBOX_ACCESS_TOKEN") ?? "");
         
         #endregion
         
@@ -207,7 +212,7 @@ namespace BlackBartsGold.Core
             }
             
             // Retina (@2x) for high DPI displays
-            string url = $"https://api.mapbox.com/styles/v1/{styleId}/static/{markerOverlay}{centerLng},{centerLat},{zoom},0/{width}x{height}@2x?access_token={accessToken}";
+            string url = $"https://api.mapbox.com/styles/v1/{styleId}/static/{markerOverlay}{centerLng},{centerLat},{zoom},0/{width}x{height}@2x?access_token={EffectiveAccessToken}";
             
             return url;
         }
@@ -301,7 +306,7 @@ namespace BlackBartsGold.Core
             
             // Build URL
             string styleId = GetStyleId(mapStyle);
-            string url = $"https://api.mapbox.com/styles/v1/{styleId}/static/{longitude},{latitude},{zoom},{bearing}/{width}x{height}@2x?access_token={accessToken}";
+            string url = $"https://api.mapbox.com/styles/v1/{styleId}/static/{longitude},{latitude},{zoom},{bearing}/{width}x{height}@2x?access_token={EffectiveAccessToken}";
             
             Log($"Fetching map tile: zoom={zoom}, size={width}x{height}, styleId={styleId}");
             

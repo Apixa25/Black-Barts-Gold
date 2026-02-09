@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7abc3dbfe57c4ad49b19309f187d9e1a, type: 3}
   m_Name: Lightship Settings
   m_EditorClassIdentifier: Niantic.Lightship.AR::Niantic.Lightship.AR.Loader.LightshipSettings
-  _apiKey: 4nR7iFyMaiAZfkX3mdE4V5BzdqI6LXYXdntKaFKpMSXj72faDP4fSLsdign9MUctkwcdV4 
+  _apiKey: 
   _useLightshipDepth: 0
   _preferLidarIfAvailable: 0
   _useLightshipMeshing: 0
