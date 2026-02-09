@@ -20,7 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { keysToCamelCase } from '@/lib/api-utils'
 
 interface RouteParams {
@@ -109,7 +109,8 @@ export async function POST(
       // Body is optional for simple collection
     }
     
-    const supabase = await createClient()
+    // Use service role so we can update/delete coins when mobile app collects (no cookie auth)
+    const supabase = createServiceRoleClient()
     
     // Fetch the coin
     const { data: coin, error: fetchError } = await supabase
@@ -191,30 +192,58 @@ export async function POST(
     // Only set status to 'collected' if:
     // - It's not a multi-find coin, OR
     // - It IS a multi-find coin but no finds remaining
-    const newStatus = (coin.multi_find && newFindsRemaining > 0)
-      ? 'visible' // Multi-find coin still has finds remaining - keep visible
-      : 'collected'
+    const fullyConsumed = !(coin.multi_find && newFindsRemaining > 0)
+    const newStatus = fullyConsumed ? 'collected' : 'visible'
     
-    const { error: updateError } = await supabase
-      .from('coins')
-      .update({
-        status: newStatus,
-        collected_at: now,
-        collected_by: body.userId || null,
-        finds_remaining: newFindsRemaining,
-      })
-      .eq('id', coinId)
-    
-    if (updateError) {
-      console.error('[API] Error updating coin:', updateError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to collect coin', code: 'UPDATE_FAILED' },
-        { status: 500 }
-      )
+    if (fullyConsumed) {
+      // Remove coin from database when fully consumed (one-time find or last find of multi-find)
+      const { error: deleteError } = await supabase
+        .from('coins')
+        .delete()
+        .eq('id', coinId)
+      
+      if (deleteError) {
+        console.error('[API] Error deleting coin after collection:', deleteError)
+        // Fallback: mark as collected instead of deleting
+        const { error: updateError } = await supabase
+          .from('coins')
+          .update({
+            status: 'collected',
+            collected_at: now,
+            collected_by: body.userId || null,
+            finds_remaining: 0,
+          })
+          .eq('id', coinId)
+        if (updateError) {
+          return NextResponse.json(
+            { success: false, error: 'Failed to collect coin', code: 'UPDATE_FAILED' },
+            { status: 500 }
+          )
+        }
+      } else {
+        console.log(`[API] Coin removed after collection: ${coinId}, value: $${finalValue.toFixed(2)}, multiFind: ${coin.multi_find}`)
+      }
+    } else {
+      // Multi-find coin with finds still remaining - just update
+      const { error: updateError } = await supabase
+        .from('coins')
+        .update({
+          status: newStatus,
+          collected_at: now,
+          collected_by: body.userId || null,
+          finds_remaining: newFindsRemaining,
+        })
+        .eq('id', coinId)
+      
+      if (updateError) {
+        console.error('[API] Error updating coin:', updateError)
+        return NextResponse.json(
+          { success: false, error: 'Failed to collect coin', code: 'UPDATE_FAILED' },
+          { status: 500 }
+        )
+      }
+      console.log(`[API] Coin collected (multi-find): ${coinId}, value: $${finalValue.toFixed(2)}, remaining: ${newFindsRemaining}`)
     }
-    
-    // Log the collection
-    console.log(`[API] Coin collected: ${coinId}, value: $${finalValue.toFixed(2)}, multiFind: ${coin.multi_find}, remaining: ${newFindsRemaining}`)
     
     // Create a transaction record for tracking (if user provided)
     if (body.userId) {

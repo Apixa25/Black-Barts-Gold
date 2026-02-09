@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Coins, MapPin, Sparkles, Target, Dices } from "lucide-react"
+import { Coins, MapPin, Sparkles, Target, Dices, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 interface CoinDialogProps {
@@ -27,6 +27,8 @@ interface CoinDialogProps {
   userId: string
   /** Pre-filled coordinates from map click */
   initialCoordinates?: { lat: number; lng: number } | null
+  /** Called when user deletes the coin (only when editing) */
+  onDelete?: (coin: Coin) => void
 }
 
 const tierOptions: { value: CoinTier; label: string; emoji: string }[] = [
@@ -40,10 +42,16 @@ const typeOptions: { value: CoinType; label: string; icon: typeof Target; descri
   { value: "pool", label: "Pool/Mystery", icon: Dices, description: "Value determined at collection" },
 ]
 
-export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinates }: CoinDialogProps) {
+const findTypeOptions: { value: "one_time" | "multi"; label: string; description: string }[] = [
+  { value: "one_time", label: "One-time find", description: "One user finds it → coin is removed from the map" },
+  { value: "multi", label: "Multi-find", description: "Up to N users can find it, then it’s removed" },
+]
+
+export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinates, onDelete }: CoinDialogProps) {
   const router = useRouter()
   const supabase = createClient()
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   
   const isEditing = !!coin
   
@@ -197,7 +205,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
             </div>
           </div>
 
-          {/* Value & Tier */}
+          {/* Value, Tier & Find Type */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="value">Value ($)</Label>
@@ -235,6 +243,62 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
                 })}
               </div>
             </div>
+          </div>
+
+          {/* How is this coin found? (one-time vs multi-find, then removal) */}
+          <div className="space-y-2">
+            <Label>How is this coin found?</Label>
+            <p className="text-xs text-leather-light mb-2">
+              One-time: one finder, then removed. Multi-find: up to N finders, then removed from the database.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {findTypeOptions.map((option) => {
+                const isSelected =
+                  (option.value === "one_time" && !form.multi_find) ||
+                  (option.value === "multi" && form.multi_find)
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        multi_find: option.value === "multi",
+                        finds_remaining:
+                          option.value === "multi"
+                            ? (form.multi_find ? form.finds_remaining : "3")
+                            : "1",
+                      })
+                    }
+                    className={`flex flex-col items-start p-3 rounded-lg border-2 transition-colors text-left ${
+                      isSelected
+                        ? "border-gold bg-gold/10"
+                        : "border-saddle-light/30 hover:border-saddle-light"
+                    }`}
+                  >
+                    <span className="font-medium text-sm text-saddle-dark">{option.label}</span>
+                    <span className="text-xs text-leather-light mt-0.5">{option.description}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {form.multi_find && (
+              <div className="space-y-2 pl-2 pt-2 border-l-2 border-gold/30">
+                <Label htmlFor="finds">Max number of finders</Label>
+                <Input
+                  id="finds"
+                  type="number"
+                  min="2"
+                  max="20"
+                  value={form.finds_remaining}
+                  onChange={(e) => setForm({ ...form, finds_remaining: e.target.value })}
+                  className="w-24 border-saddle-light/30"
+                />
+                <p className="text-xs text-leather-light">
+                  After this many users find the coin, it is removed from the database.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Location */}
@@ -310,51 +374,47 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="multifind" className="cursor-pointer">Multi-Find</Label>
-                <p className="text-xs text-leather-light">Multiple hunters can find this coin</p>
-              </div>
-              <Switch
-                id="multifind"
-                checked={form.multi_find}
-                onCheckedChange={(checked) => setForm({ ...form, multi_find: checked })}
-              />
-            </div>
-
-            {form.multi_find && (
-              <div className="space-y-2 pl-4">
-                <Label htmlFor="finds">Max Finds</Label>
-                <Input
-                  id="finds"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={form.finds_remaining}
-                  onChange={(e) => setForm({ ...form, finds_remaining: e.target.value })}
-                  className="w-24 border-saddle-light/30"
-                />
-              </div>
-            )}
           </div>
         </form>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="border-saddle-light/30"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSaving}
-            className="bg-gold hover:bg-gold-dark text-leather"
-          >
-            {isSaving ? "Saving..." : isEditing ? "Save Changes" : "Create Coin"}
-          </Button>
+        <DialogFooter className="flex-wrap gap-2 sm:justify-between">
+          <div className="flex gap-2 order-2 sm:order-1">
+            {isEditing && coin && onDelete && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!confirm("Delete this coin? It will be removed from the database. This cannot be undone.")) return
+                  setIsDeleting(true)
+                  onDelete(coin)
+                  onOpenChange(false)
+                  setIsDeleting(false)
+                }}
+                disabled={isSaving || isDeleting}
+                className="border-fire/50 text-fire hover:bg-fire/10"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete coin
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2 order-1 sm:order-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="border-saddle-light/30"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSaving || isDeleting}
+              className="bg-gold hover:bg-gold-dark text-leather"
+            >
+              {isSaving ? "Saving..." : isEditing ? "Save Changes" : "Create Coin"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

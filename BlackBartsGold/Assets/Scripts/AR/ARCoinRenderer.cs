@@ -177,6 +177,9 @@ namespace BlackBartsGold.AR
         
         // Debug: throttle periodic visual state logs (every 2.5s when visible)
         private float nextVisualLogTime = 0f;
+        // Color diag: throttle periodic material read-back logs (every 3s when Visible+texture)
+        private float nextColorDiagTime = 0f;
+        private bool colorSnapshot2sDone = false;
         
         #endregion
         
@@ -271,6 +274,15 @@ namespace BlackBartsGold.AR
                 mat.SetColor("_Color", new Color(0.95f, 0.9f, 0.75f, 1f));
                 
                 Debug.Log($"[ARCoinRenderer] 🪙 GOLD FIX APPLIED: Metallic=0.35, Glossiness=0.6, Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2})");
+                
+                // ── COLOR DIAG: read back so we can verify on device (ADB) what actually got set
+                bool isInstance = (mat != meshRenderer.sharedMaterial);
+                Color readColor = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.clear;
+                Color readEmission = mat.HasProperty("_EmissionColor") ? mat.GetColor("_EmissionColor") : Color.clear;
+                float readMetallic = mat.HasProperty("_Metallic") ? mat.GetFloat("_Metallic") : -1f;
+                float readGloss = mat.HasProperty("_Glossiness") ? mat.GetFloat("_Glossiness") : -1f;
+                string shaderName = mat.shader != null ? mat.shader.name : "null";
+                Debug.Log($"[ARCoinRenderer] 🎨 GOLD FIX READBACK: _Color=({readColor.r:F2},{readColor.g:F2},{readColor.b:F2},{readColor.a:F2}) _EmissionColor=({readEmission.r:F2},{readEmission.g:F2},{readEmission.b:F2}) _Metallic={readMetallic:F2} _Glossiness={readGloss:F2} shader={shaderName} isInstance={isInstance}");
             }
             // One-time log so ADB can confirm this build uses the device orientation (X=270, Z=180)
             Debug.Log("[ARCoinRenderer] COIN ROTATION BUILD: Using X=270, Z=180 for upright Black Bart on device");
@@ -295,6 +307,18 @@ namespace BlackBartsGold.AR
             
             // Update distances
             UpdateDistances();
+            
+            // COLOR DIAG: one-time snapshot ~2s after Start to see if material was overwritten
+            if (!colorSnapshot2sDone && Time.realtimeSinceStartup >= 2f && meshRenderer != null && meshRenderer.material != null)
+            {
+                colorSnapshot2sDone = true;
+                Material mat = meshRenderer.material;
+                Color c = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.clear;
+                Color e = mat.HasProperty("_EmissionColor") ? mat.GetColor("_EmissionColor") : Color.clear;
+                float m = mat.HasProperty("_Metallic") ? mat.GetFloat("_Metallic") : -1f;
+                float g = mat.HasProperty("_Glossiness") ? mat.GetFloat("_Glossiness") : -1f;
+                Debug.Log($"[ARCoinRenderer] 🎨 COLOR SNAPSHOT T+2s: _Color=({c.r:F2},{c.g:F2},{c.b:F2}) _Emission=({e.r:F2},{e.g:F2},{e.b:F2}) _Metallic={m:F2} _Gloss={g:F2} shader={mat.shader?.name ?? "null"}");
+            }
             
             // Check for mode transitions based on GPS distance
             UpdateModeFromDistance();
@@ -947,10 +971,20 @@ namespace BlackBartsGold.AR
             else if (hasTexture)
             {
                 // Slight warm tint so gold doesn't blow out in AR
-                mat.color = new Color(0.95f, 0.9f, 0.75f, 1f);
+                Color setColor = new Color(0.95f, 0.9f, 0.75f, 1f);
+                mat.color = setColor;
                 // Stronger warm gold emission so it stays vibrant in AR (not washed-out yellow)
                 Color goldEmission = new Color(0.85f, 0.65f, 0.15f, 1f);
                 mat.SetColor("_EmissionColor", goldEmission);
+                
+                // COLOR DIAG: log periodically so we can see on device if values stick or get overwritten
+                if (Time.realtimeSinceStartup >= nextColorDiagTime)
+                {
+                    nextColorDiagTime = Time.realtimeSinceStartup + 3f;
+                    Color readColor = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.clear;
+                    Color readEmission = mat.HasProperty("_EmissionColor") ? mat.GetColor("_EmissionColor") : Color.clear;
+                    Debug.Log($"[ARCoinRenderer] 🎨 COLOR DIAG (Visible+texture): Set _Color=({setColor.r:F2},{setColor.g:F2},{setColor.b:F2}) _Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2}) | ReadBack _Color=({readColor.r:F2},{readColor.g:F2},{readColor.b:F2}) _EmissionColor=({readEmission.r:F2},{readEmission.g:F2},{readEmission.b:F2}) shader={mat.shader?.name ?? "null"}");
+                }
             }
             else
             {

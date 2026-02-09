@@ -136,6 +136,20 @@ export function CoinsPageClient({
     }
   }, [supabase, router])
 
+  // Delete coin (from map, table, or edit dialog)
+  const handleDeleteCoin = useCallback(
+    async (coin: Coin) => {
+      const { error } = await supabase.from("coins").delete().eq("id", coin.id)
+      if (error) {
+        toast.error("Failed to delete coin", { description: error.message })
+        return
+      }
+      toast.success("Coin deleted", { description: "Removed from the database." })
+      router.refresh()
+    },
+    [supabase, router]
+  )
+
   // Toggle drag mode
   const toggleDragMode = () => {
     if (!dragMode) {
@@ -289,6 +303,7 @@ export function CoinsPageClient({
                   height={1000}
                   onCoinClick={handleCoinClick}
                   onCoinEdit={handleEditCoin}
+                  onCoinDelete={handleDeleteCoin}
                   onCoinDrag={handleCoinDrag}
                   onMapClick={handleMapClick}
                   selectedCoinId={selectedCoinId}
@@ -392,6 +407,7 @@ export function CoinsPageClient({
                   height="min(80vh, 1200px)"
                   onCoinClick={handleCoinClick}
                   onCoinEdit={handleEditCoin}
+                  onCoinDelete={handleDeleteCoin}
                   onCoinDrag={handleCoinDrag}
                   onMapClick={handleMapClick}
                   selectedCoinId={selectedCoinId}
@@ -436,6 +452,7 @@ export function CoinsPageClient({
         onOpenChange={handleDialogChange}
         userId={userId}
         initialCoordinates={clickedCoordinates}
+        onDelete={editingCoin ? handleDeleteCoin : undefined}
       />
     </>
   )
