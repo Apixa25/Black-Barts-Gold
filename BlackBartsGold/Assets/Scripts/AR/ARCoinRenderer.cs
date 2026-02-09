@@ -261,19 +261,19 @@ namespace BlackBartsGold.AR
                 mat.SetFloat("_Metallic", 0.35f);
                 mat.SetFloat("_Glossiness", 0.6f);
                 
-                // Warm gold emission — makes the coin glow slightly so it never looks dark
-                Color goldEmission = new Color(0.6f, 0.45f, 0.1f, 1f); // warm gold glow
+                // Stronger warm gold emission for AR — prevents washed-out yellow in bright real-world lighting
+                Color goldEmission = new Color(0.85f, 0.65f, 0.15f, 1f);
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", goldEmission);
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                 
-                // Ensure tint is white so basecolor texture shows true colors
-                mat.SetColor("_Color", Color.white);
+                // Slight warm tint so gold doesn't blow out to white in AR
+                mat.SetColor("_Color", new Color(0.95f, 0.9f, 0.75f, 1f));
                 
                 Debug.Log($"[ARCoinRenderer] 🪙 GOLD FIX APPLIED: Metallic=0.35, Glossiness=0.6, Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2})");
             }
-            // One-time log so ADB can confirm this build uses the device flip (Z=180)
-            Debug.Log("[ARCoinRenderer] COIN ROTATION BUILD: Using Z=180 flip for upright Black Bart on device");
+            // One-time log so ADB can confirm this build uses the device orientation (X=270, Z=180)
+            Debug.Log("[ARCoinRenderer] COIN ROTATION BUILD: Using X=270, Z=180 for upright Black Bart on device");
         }
         
         private void Update()
@@ -806,8 +806,8 @@ namespace BlackBartsGold.AR
                 if (coinVisual != null)
                 {
                     spinAngle += 180f * Time.deltaTime;
-                    // X=90 stands coin upright; Z=180 flips so Black Bart is right-side up in AR on device
-                    coinVisual.localRotation = Quaternion.Euler(90, spinAngle, 180);
+                    // X=270 shows other face upright; Z=180 flips so Black Bart is right-side up in AR on device
+                    coinVisual.localRotation = Quaternion.Euler(270, spinAngle, 180);
                 }
             }
         }
@@ -878,8 +878,8 @@ namespace BlackBartsGold.AR
             // coin spins like a top/turntable, facing the user as it turns.
             // ================================================================
             spinAngle += spinSpeed * Time.deltaTime;
-            // X=90 stands coin upright; Z=180 flips so Black Bart is right-side up in AR on device
-            coinVisual.localRotation = Quaternion.Euler(90, spinAngle, 180);
+            // X=270 shows other face upright; Z=180 flips so Black Bart is right-side up in AR on device
+            coinVisual.localRotation = Quaternion.Euler(270, spinAngle, 180);
             
             // ================================================================
             // BOB ANIMATION (disabled for jitter testing)
@@ -946,10 +946,10 @@ namespace BlackBartsGold.AR
             }
             else if (hasTexture)
             {
-                // Let the PBR texture speak for itself with white tint
-                mat.color = Color.white;
-                // Keep warm gold emission so it stays vibrant in AR lighting
-                Color goldEmission = new Color(0.6f, 0.45f, 0.1f, 1f);
+                // Slight warm tint so gold doesn't blow out in AR
+                mat.color = new Color(0.95f, 0.9f, 0.75f, 1f);
+                // Stronger warm gold emission so it stays vibrant in AR (not washed-out yellow)
+                Color goldEmission = new Color(0.85f, 0.65f, 0.15f, 1f);
                 mat.SetColor("_EmissionColor", goldEmission);
             }
             else
