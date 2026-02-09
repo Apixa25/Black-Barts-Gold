@@ -119,6 +119,54 @@ public static class SetupPrizeRaceCoin
         Debug.Log("[SetupPrizeRaceCoin] ── SETUP COMPLETE ──");
     }
 
+    /// <summary>
+    /// If PrizeRaceCoin shows as a blue cube, the prefab's mesh reference is wrong.
+    /// Run this once to assign the mesh from the Prize Race FBX to the prefab.
+    /// </summary>
+    [MenuItem("Black Barts Gold/Fix Prize Race Coin mesh (if it shows as a cube)")]
+    public static void FixPrizeRaceCoinMesh()
+    {
+        GameObject modelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CoinModelPath);
+        if (modelPrefab == null)
+        {
+            Debug.LogError("[SetupPrizeRaceCoin] FBX not found. Run from Unity with the project open.");
+            return;
+        }
+        MeshFilter mf = modelPrefab.GetComponentInChildren<MeshFilter>();
+        if (mf == null || mf.sharedMesh == null)
+        {
+            Debug.LogError("[SetupPrizeRaceCoin] No mesh in Prize Race FBX.");
+            return;
+        }
+        Mesh mesh = mf.sharedMesh;
+
+        GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(PrizeRacePrefabPath);
+        if (prefabAsset == null)
+        {
+            Debug.LogError("[SetupPrizeRaceCoin] PrizeRaceCoin prefab not found.");
+            return;
+        }
+        string prefabPath = AssetDatabase.GetAssetPath(prefabAsset);
+        GameObject prefabRoot = PrefabUtility.LoadPrefabContents(prefabPath);
+        Transform coinModel = prefabRoot.transform.Find("CoinModel");
+        if (coinModel == null && prefabRoot.transform.childCount > 0)
+            coinModel = prefabRoot.transform.GetChild(0);
+        if (coinModel == null)
+        {
+            PrefabUtility.UnloadPrefabContents(prefabRoot);
+            Debug.LogError("[SetupPrizeRaceCoin] No CoinModel child in prefab.");
+            return;
+        }
+        MeshFilter pf = coinModel.GetComponent<MeshFilter>();
+        if (pf == null) pf = coinModel.gameObject.AddComponent<MeshFilter>();
+        pf.sharedMesh = mesh;
+        PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
+        PrefabUtility.UnloadPrefabContents(prefabRoot);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("[SetupPrizeRaceCoin] Prize Race Coin mesh fixed. Prefab should now show the coin.");
+    }
+
     [MenuItem("Black Barts Gold/Set default coin to Prize Race (ARHunt)")]
     public static void SetDefaultCoinToPrizeRace()
     {
