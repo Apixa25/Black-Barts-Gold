@@ -55,6 +55,7 @@ const findTypeOptions: { value: "one_time" | "multi"; label: string; description
 ]
 
 const coinModelOptions: { value: CoinModel; label: string }[] = [
+  { value: "color_bb", label: "Color BB (default)" },
   { value: "bb_gold", label: "Black Bart's Gold" },
   { value: "prize_race", label: "Prize Race" },
 ]
@@ -69,7 +70,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
   
   const [form, setForm] = useState({
     coin_type: "fixed" as CoinType,
-    coin_model: "bb_gold" as CoinModel,
+    coin_model: "color_bb" as CoinModel,
     value: "",
     tier: "gold" as CoinTier,
     latitude: "",
@@ -87,7 +88,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
       // Editing existing coin
       setForm({
         coin_type: coin.coin_type,
-        coin_model: coin.coin_model ?? "bb_gold",
+        coin_model: coin.coin_model ?? "color_bb",
         value: coin.value.toString(),
         tier: coin.tier,
         latitude: coin.latitude.toString(),
@@ -102,7 +103,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
       // Creating new coin - use initialCoordinates if provided
       setForm({
         coin_type: "fixed",
-        coin_model: "bb_gold",
+        coin_model: "color_bb",
         value: "",
         tier: "gold",
         latitude: initialCoordinates?.lat?.toString() || "",

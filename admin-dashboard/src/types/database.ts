@@ -18,7 +18,7 @@ export type CoinStatus = 'hidden' | 'visible' | 'collected' | 'expired' | 'recyc
 export type CoinTier = 'gold' | 'silver' | 'bronze'
 
 /** Which 3D coin graphic to show in AR (Unity app) */
-export type CoinModel = 'bb_gold' | 'prize_race'
+export type CoinModel = 'bb_gold' | 'prize_race' | 'color_bb'
 
 export interface Coin {
   id: string
