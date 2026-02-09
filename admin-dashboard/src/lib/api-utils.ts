@@ -112,6 +112,7 @@ export function createErrorResponse(
  */
 export const COIN_FIELD_MAP = {
   coin_type: 'coinType',
+  coin_model: 'coinModel',
   is_mythical: 'isMythical',
   location_name: 'locationName',
   hider_id: 'hiderId',

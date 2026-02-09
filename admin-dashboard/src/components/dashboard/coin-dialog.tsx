@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import type { Coin, CoinType, CoinTier, CoinStatus } from "@/types/database"
+import type { Coin, CoinType, CoinTier, CoinStatus, CoinModel } from "@/types/database"
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Coins, MapPin, Sparkles, Target, Dices, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -47,6 +54,11 @@ const findTypeOptions: { value: "one_time" | "multi"; label: string; description
   { value: "multi", label: "Multi-find", description: "Up to N users can find it, then it’s removed" },
 ]
 
+const coinModelOptions: { value: CoinModel; label: string }[] = [
+  { value: "bb_gold", label: "Black Bart's Gold" },
+  { value: "prize_race", label: "Prize Race" },
+]
+
 export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinates, onDelete }: CoinDialogProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -57,6 +69,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
   
   const [form, setForm] = useState({
     coin_type: "fixed" as CoinType,
+    coin_model: "bb_gold" as CoinModel,
     value: "",
     tier: "gold" as CoinTier,
     latitude: "",
@@ -74,6 +87,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
       // Editing existing coin
       setForm({
         coin_type: coin.coin_type,
+        coin_model: coin.coin_model ?? "bb_gold",
         value: coin.value.toString(),
         tier: coin.tier,
         latitude: coin.latitude.toString(),
@@ -88,6 +102,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
       // Creating new coin - use initialCoordinates if provided
       setForm({
         coin_type: "fixed",
+        coin_model: "bb_gold",
         value: "",
         tier: "gold",
         latitude: initialCoordinates?.lat?.toString() || "",
@@ -107,6 +122,7 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
 
     const coinData = {
       coin_type: form.coin_type,
+      coin_model: form.coin_model,
       value: parseFloat(form.value) || 0,
       tier: form.tier,
       latitude: parseFloat(form.latitude),
@@ -203,6 +219,29 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
                 )
               })}
             </div>
+          </div>
+
+          {/* Coin Model (AR appearance) */}
+          <div className="space-y-2">
+            <Label>Coin model (AR appearance)</Label>
+            <Select
+              value={form.coin_model}
+              onValueChange={(value) => setForm({ ...form, coin_model: value as CoinModel })}
+            >
+              <SelectTrigger className="w-full border-saddle-light/30">
+                <SelectValue placeholder="Choose coin graphic" />
+              </SelectTrigger>
+              <SelectContent>
+                {coinModelOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-leather-light">
+              Which 3D coin graphic players see when they find this coin in AR
+            </p>
           </div>
 
           {/* Value, Tier & Find Type */}

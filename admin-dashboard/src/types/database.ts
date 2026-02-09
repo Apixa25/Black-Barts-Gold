@@ -17,6 +17,9 @@ export type CoinType = 'fixed' | 'pool'
 export type CoinStatus = 'hidden' | 'visible' | 'collected' | 'expired' | 'recycled'
 export type CoinTier = 'gold' | 'silver' | 'bronze'
 
+/** Which 3D coin graphic to show in AR (Unity app) */
+export type CoinModel = 'bb_gold' | 'prize_race'
+
 export interface Coin {
   id: string
   coin_type: CoinType
@@ -36,6 +39,8 @@ export interface Coin {
   multi_find: boolean
   finds_remaining: number
   description: string | null
+  /** Which coin model/graphic to use in AR (bb_gold = Black Bart, prize_race = Prize Race). Optional until migration 011 applied. */
+  coin_model?: CoinModel
   created_at: string
   updated_at: string
 }

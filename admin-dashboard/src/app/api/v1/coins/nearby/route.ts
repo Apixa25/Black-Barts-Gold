@@ -29,6 +29,7 @@ import { keysToCamelCase } from '@/lib/api-utils'
 interface CoinFromDB {
   id: string
   coin_type: string
+  coin_model: string | null
   value: number
   tier: string | null
   is_mythical: boolean
@@ -172,6 +173,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         coin_type,
+        coin_model,
         value,
         tier,
         is_mythical,

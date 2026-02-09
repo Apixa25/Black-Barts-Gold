@@ -260,20 +260,20 @@ namespace BlackBartsGold.AR
             {
                 Material mat = meshRenderer.material;
                 
-                // Lower metallic so the gold texture actually shows (was 1.0 → dark in AR)
-                mat.SetFloat("_Metallic", 0.35f);
-                mat.SetFloat("_Glossiness", 0.6f);
+                // Lower metallic so the gold texture shows; moderate value works in AR and Editor
+                mat.SetFloat("_Metallic", 0.4f);
+                mat.SetFloat("_Glossiness", 0.65f);
                 
-                // Stronger warm gold emission for AR — prevents washed-out yellow in bright real-world lighting
-                Color goldEmission = new Color(0.85f, 0.65f, 0.15f, 1f);
+                // Rich gold emission (warm, saturated) — reads as treasure gold, not washed-out yellow
+                Color goldEmission = new Color(0.98f, 0.76f, 0.2f, 1f);
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", goldEmission);
                 mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                 
-                // Slight warm tint so gold doesn't blow out to white in AR
-                mat.SetColor("_Color", new Color(0.95f, 0.9f, 0.75f, 1f));
+                // Warm saturated gold base (toward #FFD700) — not pale yellow
+                mat.SetColor("_Color", new Color(1f, 0.82f, 0.28f, 1f));
                 
-                Debug.Log($"[ARCoinRenderer] 🪙 GOLD FIX APPLIED: Metallic=0.35, Glossiness=0.6, Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2})");
+                Debug.Log($"[ARCoinRenderer] 🪙 GOLD FIX APPLIED: Metallic=0.4, Glossiness=0.65, Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2})");
                 
                 // ── COLOR DIAG: read back so we can verify on device (ADB) what actually got set
                 bool isInstance = (mat != meshRenderer.sharedMaterial);
@@ -964,17 +964,17 @@ namespace BlackBartsGold.AR
             if (CurrentMode == CoinDisplayMode.Collectible)
             {
                 mat.color = Settings.inRangeColor;
-                // Brighter emission for collectible pulse effect
-                Color collectEmission = new Color(0.8f, 0.6f, 0.15f, 1f);
+                // Rich gold emission for collectible pulse
+                Color collectEmission = new Color(0.98f, 0.76f, 0.2f, 1f);
                 mat.SetColor("_EmissionColor", collectEmission);
             }
             else if (hasTexture)
             {
-                // Slight warm tint so gold doesn't blow out in AR
-                Color setColor = new Color(0.95f, 0.9f, 0.75f, 1f);
+                // Warm saturated gold (toward #FFD700), not pale yellow
+                Color setColor = new Color(1f, 0.82f, 0.28f, 1f);
                 mat.color = setColor;
-                // Stronger warm gold emission so it stays vibrant in AR (not washed-out yellow)
-                Color goldEmission = new Color(0.85f, 0.65f, 0.15f, 1f);
+                // Rich gold emission so it reads as treasure gold in AR and Editor
+                Color goldEmission = new Color(0.98f, 0.76f, 0.2f, 1f);
                 mat.SetColor("_EmissionColor", goldEmission);
                 
                 // COLOR DIAG: log periodically so we can see on device if values stick or get overwritten
