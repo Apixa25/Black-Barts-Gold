@@ -272,6 +272,8 @@ namespace BlackBartsGold.AR
                 
                 Debug.Log($"[ARCoinRenderer] 🪙 GOLD FIX APPLIED: Metallic=0.35, Glossiness=0.6, Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2})");
             }
+            // One-time log so ADB can confirm this build uses the device flip (Z=180)
+            Debug.Log("[ARCoinRenderer] COIN ROTATION BUILD: Using Z=180 flip for upright Black Bart on device");
         }
         
         private void Update()
