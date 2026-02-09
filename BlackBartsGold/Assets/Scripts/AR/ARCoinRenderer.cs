@@ -804,8 +804,8 @@ namespace BlackBartsGold.AR
                 if (coinVisual != null)
                 {
                     spinAngle += 180f * Time.deltaTime;
-                    // X=90 stands coin upright (face toward camera); Y=spinAngle = top-like spin
-                    coinVisual.localRotation = Quaternion.Euler(90, spinAngle, 0);
+                    // X=90 stands coin upright; Z=180 flips so Black Bart is right-side up in AR on device
+                    coinVisual.localRotation = Quaternion.Euler(90, spinAngle, 180);
                 }
             }
         }
@@ -876,8 +876,8 @@ namespace BlackBartsGold.AR
             // coin spins like a top/turntable, facing the user as it turns.
             // ================================================================
             spinAngle += spinSpeed * Time.deltaTime;
-            // X=90 stands coin upright (face toward camera); Y=spinAngle = top-like spin
-            coinVisual.localRotation = Quaternion.Euler(90, spinAngle, 0);
+            // X=90 stands coin upright; Z=180 flips so Black Bart is right-side up in AR on device
+            coinVisual.localRotation = Quaternion.Euler(90, spinAngle, 180);
             
             // ================================================================
             // BOB ANIMATION (disabled for jitter testing)
