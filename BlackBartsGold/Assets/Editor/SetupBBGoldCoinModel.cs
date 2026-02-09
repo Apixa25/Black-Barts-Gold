@@ -153,21 +153,21 @@ public static class SetupBBGoldCoinModel
             Debug.Log($"[SetupBBGoldCoinModel] Updating existing material: {CoinMaterialPath}");
         }
 
-        // Configure Standard shader properties for a shiny gold coin
-        // Use WHITE tint so the basecolor texture shows its natural gold appearance.
-        // The old gold tint (1, 0.84, 0) was killing the blue channel, making the coin
-        // look reddish/copper instead of the rich gold in the texture.
+        // Configure Standard shader for a vibrant gold coin in AR
+        // KEY INSIGHT: High metallic + no skybox in AR = dark/reddish appearance.
+        // Solution: moderate metallic (0.35) + warm gold emission = always vibrant!
         mat.SetTexture("_MainTex", baseColor);
-        mat.SetColor("_Color", Color.white);
+        mat.SetColor("_Color", Color.white); // white tint lets texture show true colors
 
-        // Metallic workflow
-        mat.SetFloat("_Metallic", 0.85f);
-        mat.SetFloat("_Glossiness", 0.75f);
+        // Metallic workflow — keep moderate so gold shows in AR (no skybox reflections!)
+        mat.SetFloat("_Metallic", 0.35f);
+        mat.SetFloat("_Glossiness", 0.6f);
 
         if (metallic != null)
         {
             mat.SetTexture("_MetallicGlossMap", metallic);
-            mat.SetFloat("_Metallic", 1f); // Use texture for metallic values
+            // Don't set _Metallic to 1.0! The texture will guide metallic variation
+            // but the overall level stays moderate for AR visibility
         }
 
         if (normal != null)
@@ -185,6 +185,11 @@ public static class SetupBBGoldCoinModel
         // Enable specular highlights and reflections for that pirate gold shine
         mat.SetFloat("_SpecularHighlights", 1f);
         mat.SetFloat("_GlossyReflections", 1f);
+        
+        // Warm gold emission — makes the coin glow so it never looks dark in AR
+        mat.EnableKeyword("_EMISSION");
+        mat.SetColor("_EmissionColor", new Color(0.6f, 0.45f, 0.1f, 1f));
+        mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
 
         EditorUtility.SetDirty(mat);
         AssetDatabase.SaveAssets();

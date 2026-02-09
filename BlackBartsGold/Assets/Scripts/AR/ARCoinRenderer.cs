@@ -247,6 +247,31 @@ namespace BlackBartsGold.AR
                 Debug.Log($"[ARCoinRenderer]   Mesh: {meshName}, MainTex: {texName}");
             }
             Debug.Log($"[ARCoinRenderer] === END PREFAB/HIERARCHY ===");
+            
+            // ── FIX GOLD COLOR ──────────────────────────────────────────────
+            // The Standard shader with high _Metallic (1.0) looks dark/reddish in AR
+            // because there's no skybox/environment reflections to light metallic surfaces.
+            // Fix: reduce metallic so albedo texture shows through + add warm gold emission
+            // so the coin always pops with a vibrant gold look.
+            if (meshRenderer != null && meshRenderer.material != null)
+            {
+                Material mat = meshRenderer.material;
+                
+                // Lower metallic so the gold texture actually shows (was 1.0 → dark in AR)
+                mat.SetFloat("_Metallic", 0.35f);
+                mat.SetFloat("_Glossiness", 0.6f);
+                
+                // Warm gold emission — makes the coin glow slightly so it never looks dark
+                Color goldEmission = new Color(0.6f, 0.45f, 0.1f, 1f); // warm gold glow
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", goldEmission);
+                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                
+                // Ensure tint is white so basecolor texture shows true colors
+                mat.SetColor("_Color", Color.white);
+                
+                Debug.Log($"[ARCoinRenderer] 🪙 GOLD FIX APPLIED: Metallic=0.35, Glossiness=0.6, Emission=({goldEmission.r:F2},{goldEmission.g:F2},{goldEmission.b:F2})");
+            }
         }
         
         private void Update()
@@ -779,8 +804,8 @@ namespace BlackBartsGold.AR
                 if (coinVisual != null)
                 {
                     spinAngle += 180f * Time.deltaTime;
-                    // Z=90 corrects coin model being imported 90° CCW
-                    coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 90);
+                    // X=90 stands coin upright (face toward camera); Y=spinAngle = top-like spin
+                    coinVisual.localRotation = Quaternion.Euler(90, spinAngle, 0);
                 }
             }
         }
@@ -851,8 +876,8 @@ namespace BlackBartsGold.AR
             // coin spins like a top/turntable, facing the user as it turns.
             // ================================================================
             spinAngle += spinSpeed * Time.deltaTime;
-            // Z=90 corrects coin model being imported 90° CCW (Black Bart was on his side)
-            coinVisual.localRotation = Quaternion.Euler(0, spinAngle, 90);
+            // X=90 stands coin upright (face toward camera); Y=spinAngle = top-like spin
+            coinVisual.localRotation = Quaternion.Euler(90, spinAngle, 0);
             
             // ================================================================
             // BOB ANIMATION (disabled for jitter testing)
@@ -907,24 +932,28 @@ namespace BlackBartsGold.AR
         {
             if (meshRenderer == null || meshRenderer.material == null) return;
             
-            // If the material already has a basecolor texture, use white tint
-            // so the texture shows through naturally (no gold wash-out).
-            // Only apply goldColor tint when there's no texture assigned.
-            bool hasTexture = meshRenderer.material.mainTexture != null;
+            Material mat = meshRenderer.material;
+            bool hasTexture = mat.mainTexture != null;
             
             if (CurrentMode == CoinDisplayMode.Collectible)
             {
-                meshRenderer.material.color = Settings.inRangeColor;
+                mat.color = Settings.inRangeColor;
+                // Brighter emission for collectible pulse effect
+                Color collectEmission = new Color(0.8f, 0.6f, 0.15f, 1f);
+                mat.SetColor("_EmissionColor", collectEmission);
             }
             else if (hasTexture)
             {
-                // Let the PBR texture speak for itself
-                meshRenderer.material.color = Color.white;
+                // Let the PBR texture speak for itself with white tint
+                mat.color = Color.white;
+                // Keep warm gold emission so it stays vibrant in AR lighting
+                Color goldEmission = new Color(0.6f, 0.45f, 0.1f, 1f);
+                mat.SetColor("_EmissionColor", goldEmission);
             }
             else
             {
                 // Fallback: no texture, use the gold tint
-                meshRenderer.material.color = Settings.goldColor;
+                mat.color = Settings.goldColor;
             }
         }
         
