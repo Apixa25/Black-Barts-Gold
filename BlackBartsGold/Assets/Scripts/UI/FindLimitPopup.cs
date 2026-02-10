@@ -16,6 +16,7 @@ using System.Collections;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Economy;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -226,12 +227,12 @@ namespace BlackBartsGold.UI
         {
             if (titleText != null)
             {
-                titleText.text = "🔒 Treasure Locked!";
+                titleText.text = EmojiHelper.Sanitize("🔒 Treasure Locked!");
             }
             
             if (hideCoinsButtonText != null)
             {
-                hideCoinsButtonText.text = "💰 Hide a Coin";
+                hideCoinsButtonText.text = EmojiHelper.Sanitize("💰 Hide a Coin");
             }
             
             if (cancelButtonText != null)
@@ -346,7 +347,7 @@ namespace BlackBartsGold.UI
             // Unlock hint
             if (unlockHintText != null)
             {
-                unlockHintText.text = $"💡 Hide ${coinValue:F2} to unlock finds up to ${coinValue:F2}!";
+                unlockHintText.text = EmojiHelper.Sanitize($"💡 Hide ${coinValue:F2} to unlock finds up to ${coinValue:F2}!");
             }
             
             // Tier color

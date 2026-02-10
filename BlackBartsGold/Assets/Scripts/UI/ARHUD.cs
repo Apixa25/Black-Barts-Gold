@@ -16,6 +16,7 @@ using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -635,7 +636,7 @@ namespace BlackBartsGold.UI
             {
                 if (isLocked)
                 {
-                    coinStatusText.text = "🔒 LOCKED";
+                    coinStatusText.text = EmojiHelper.Sanitize("🔒 LOCKED");
                     coinStatusText.color = new Color(0.94f, 0.27f, 0.27f);
                 }
                 else if (coin.isInRange)
@@ -769,7 +770,7 @@ namespace BlackBartsGold.UI
         {
             if (messageText == null) return;
             
-            messageText.text = message;
+            messageText.text = EmojiHelper.Sanitize(message);
             
             if (messageCanvasGroup != null)
             {

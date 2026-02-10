@@ -14,6 +14,7 @@ using TMPro;
 using System;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -138,7 +139,7 @@ namespace BlackBartsGold.UI
             
             if (iconText != null)
             {
-                iconText.text = icon;
+                iconText.text = EmojiHelper.Sanitize(icon);
             }
         }
         

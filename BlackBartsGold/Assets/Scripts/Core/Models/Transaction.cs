@@ -8,6 +8,7 @@
 // ============================================================================
 
 using System;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.Core.Models
 {
@@ -222,7 +223,7 @@ namespace BlackBartsGold.Core.Models
         /// </summary>
         public string GetIcon()
         {
-            return type switch
+            return EmojiHelper.Sanitize(type switch
             {
                 TransactionType.Found => "💰",
                 TransactionType.Hidden => "🏴‍☠️",
@@ -235,7 +236,7 @@ namespace BlackBartsGold.Core.Models
                 TransactionType.Bonus => "🎁",
                 TransactionType.Refund => "↩️",
                 _ => "📝"
-            };
+            });
         }
         
         /// <summary>

@@ -12,6 +12,7 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 using BlackBartsGold.Core;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -134,7 +135,7 @@ namespace BlackBartsGold.UI
             var tmp = titleObj.GetComponent<TextMeshProUGUI>();
             if (tmp == null) tmp = titleObj.gameObject.AddComponent<TextMeshProUGUI>();
             
-            tmp.text = "🏴‍☠️ Ahoy Matey! 🏴‍☠️";
+            tmp.text = EmojiHelper.Sanitize("🏴‍☠️ Ahoy Matey! 🏴‍☠️");
             tmp.fontSize = 48;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color = new Color(1f, 0.84f, 0f, 1f); // Gold color

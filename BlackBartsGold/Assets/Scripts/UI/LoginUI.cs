@@ -14,6 +14,7 @@ using TMPro;
 using System;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -278,7 +279,7 @@ namespace BlackBartsGold.UI
             // Set title
             if (titleText != null)
             {
-                titleText.text = "🏴‍☠️ Ahoy, Matey!";
+                titleText.text = EmojiHelper.Sanitize("🏴‍☠️ Ahoy, Matey!");
             }
             
             // Configure password field

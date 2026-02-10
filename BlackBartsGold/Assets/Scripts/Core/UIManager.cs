@@ -18,6 +18,7 @@ using BlackBartsGold.Location;
 using BlackBartsGold.AR;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.UI;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.Core
 {
@@ -1605,7 +1606,7 @@ namespace BlackBartsGold.Core
                     }
                 }
                 
-                var coinText = $"💰 ${coin.value:F2}{distText}";
+                var coinText = EmojiHelper.Sanitize($"💰 ${coin.value:F2}{distText}");
                 
                 // Capture coin reference for closure
                 var capturedCoin = coin;
@@ -2648,7 +2649,7 @@ namespace BlackBartsGold.Core
             rect.sizeDelta = new Vector2(900, 100);
             
             var text = textGO.AddComponent<TextMeshProUGUI>();
-            text.text = content;
+            text.text = EmojiHelper.Sanitize(content);
             text.fontSize = fontSize;
             text.fontStyle = style;
             text.alignment = TextAlignmentOptions.Center;
@@ -2690,7 +2691,7 @@ namespace BlackBartsGold.Core
             textRect.offsetMax = Vector2.zero;
             
             var text = textGO.AddComponent<TextMeshProUGUI>();
-            text.text = label;
+            text.text = EmojiHelper.Sanitize(label);
             text.fontSize = size.y * 0.4f;
             text.fontStyle = FontStyles.Bold;
             text.alignment = TextAlignmentOptions.Center;

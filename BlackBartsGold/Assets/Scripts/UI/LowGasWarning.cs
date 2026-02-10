@@ -14,6 +14,7 @@ using TMPro;
 using System;
 using System.Collections;
 using BlackBartsGold.Economy;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -327,7 +328,7 @@ namespace BlackBartsGold.UI
         {
             if (warningText != null)
             {
-                warningText.text = "⚠️ LOW FUEL";
+                warningText.text = EmojiHelper.Sanitize("⚠️ LOW FUEL");
             }
             
             if (daysText != null)

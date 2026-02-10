@@ -9,6 +9,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -111,7 +112,7 @@ namespace BlackBartsGold.UI
             var text = title.GetComponent<TMP_Text>();
             if (text != null)
             {
-                text.text = "🏴‍☠️ Black Bart's Gold 🏴‍☠️";
+                text.text = EmojiHelper.Sanitize("🏴‍☠️ Black Bart's Gold 🏴‍☠️");
                 text.fontSize = 56;
                 text.fontStyle = FontStyles.Bold;
                 text.alignment = TextAlignmentOptions.Center;

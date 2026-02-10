@@ -9,6 +9,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -95,7 +96,7 @@ namespace BlackBartsGold.UI
             var text = title.GetComponent<TMP_Text>();
             if (text != null)
             {
-                text.text = "🏴‍☠️ Ahoy, Matey! 🏴‍☠️";
+                text.text = EmojiHelper.Sanitize("🏴‍☠️ Ahoy, Matey! 🏴‍☠️");
                 text.fontSize = 64;
                 text.fontStyle = FontStyles.Bold;
                 text.alignment = TextAlignmentOptions.Center;

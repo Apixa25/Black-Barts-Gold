@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // MapboxService.cs
 // Black Bart's Gold - Mapbox Map Tile Service
 // Path: Assets/Scripts/Core/MapboxService.cs
@@ -33,7 +33,7 @@ namespace BlackBartsGold.Core
         #region Configuration
         
         [Header("Mapbox Configuration")]
-        [Tooltip("Set in Inspector or leave empty to use MAPBOX_ACCESS_TOKEN from environment. Never commit real tokens.")]
+        [Tooltip("Mapbox public token (pk.*). On mobile builds env vars aren't available, so this must be set.")]
         [SerializeField] private string accessToken = "";
         
         [Header("Map Style")]
@@ -118,9 +118,15 @@ namespace BlackBartsGold.Core
             DontDestroyOnLoad(gameObject);
             
             Log("MapboxService initialized!");
-            // Diagnostic: always log style at startup (visible in ADB logcat)
+            // Diagnostic: always log style and token status at startup (visible in ADB logcat)
             string styleId = GetStyleId(mapStyle);
-            Debug.Log($"[Mapbox] STARTUP mapStyle={mapStyle} styleId={styleId} customStyleId={customStyleId}");
+            string token = EffectiveAccessToken;
+            bool hasToken = !string.IsNullOrEmpty(token) && token.StartsWith("pk.");
+            Debug.Log($"[Mapbox] STARTUP mapStyle={mapStyle} styleId={styleId} customStyleId={customStyleId} hasValidToken={hasToken} tokenLen={token.Length}");
+            if (!hasToken)
+            {
+                Debug.LogError("[Mapbox] ⚠️ NO VALID ACCESS TOKEN! Map tiles will return 401 Unauthorized. Set the token in MapboxService Inspector or accessToken field.");
+            }
         }
         
         private void OnDestroy()

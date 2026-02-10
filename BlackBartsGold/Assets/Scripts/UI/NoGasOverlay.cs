@@ -14,6 +14,7 @@ using TMPro;
 using System;
 using BlackBartsGold.Core;
 using BlackBartsGold.Economy;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -212,7 +213,7 @@ namespace BlackBartsGold.UI
         {
             if (titleText != null)
             {
-                titleText.text = "⚓ Ye've Run Aground, Matey!";
+                titleText.text = EmojiHelper.Sanitize("⚓ Ye've Run Aground, Matey!");
             }
             
             if (messageText != null)
@@ -222,12 +223,12 @@ namespace BlackBartsGold.UI
             
             if (buyGasButtonText != null)
             {
-                buyGasButtonText.text = "⛽ Buy More Gas";
+                buyGasButtonText.text = EmojiHelper.Sanitize("⛽ Buy More Gas");
             }
             
             if (unparkButtonText != null)
             {
-                unparkButtonText.text = "🅿️ Use Parked Coins";
+                unparkButtonText.text = EmojiHelper.Sanitize("🅿️ Use Parked Coins");
             }
         }
         

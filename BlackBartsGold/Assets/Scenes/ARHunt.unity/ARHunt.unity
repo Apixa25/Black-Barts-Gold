@@ -3126,6 +3126,7 @@ GameObject:
   - component: {fileID: 1362167221}
   - component: {fileID: 1362167220}
   - component: {fileID: 1362167219}
+  - component: {fileID: 1362167222}
   m_Layer: 0
   m_Name: XR Origin
   m_TagString: Untagged
@@ -3215,6 +3216,29 @@ MonoBehaviour:
       m_Calls: []
   m_PlanePrefab: {fileID: 0}
   m_DetectionMode: -1
+--- !u!114 &1362167222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1362167216}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 69c2ddb584057ed40aa9eb93ac8c44ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.AR.ARRaycastController
+  raycastManager: {fileID: 0}
+  arCamera: {fileID: 0}
+  coinLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  maxCoinDistance: 50
+  maxPlaneDistance: 100
+  useScreenCenter: 1
+  customScreenPosition: {x: 0.5, y: 0.5}
+  debugMode: 1
+  drawDebugRay: 1
 --- !u!1 &1414196992
 GameObject:
   m_ObjectHideFlags: 0
