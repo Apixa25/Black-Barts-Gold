@@ -22,6 +22,7 @@ using System.Collections;
 using System.Collections.Generic;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core.Models;
+// DeviceCompass replaces legacy Input.compass (broken on Android 16+)
 
 namespace BlackBartsGold.AR
 {
@@ -58,7 +59,7 @@ namespace BlackBartsGold.AR
         [Header("Update Settings")]
         [SerializeField]
         [Tooltip("How often to update GPS calculations (seconds)")]
-        private float updateInterval = 0.5f;
+        private float updateInterval = 0.1f;
         
         [Header("Debug")]
         [SerializeField]
@@ -108,17 +109,27 @@ namespace BlackBartsGold.AR
         /// </summary>
         public static void CaptureInitialCompassHeading()
         {
-            if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
+            // Use DeviceCompass (New Input System) — legacy Input.compass is broken on Android 16+
+            DeviceCompass.Initialize();
+            
+            if (DeviceCompass.IsAvailable)
             {
+                _initialCompassHeading = DeviceCompass.RawHeading;
+                _hasInitialHeading = true;
+                Debug.Log($"[ARCoinPositioner] Captured initial compass heading: {_initialCompassHeading:F1}° (method: {DeviceCompass.ActiveMethod})");
+            }
+            else if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
+            {
+                // Legacy fallback for older devices where Input.compass still works
                 _initialCompassHeading = Input.compass.trueHeading;
                 _hasInitialHeading = true;
-                Debug.Log($"[ARCoinPositioner] Captured initial compass heading: {_initialCompassHeading:F1}°");
+                Debug.Log($"[ARCoinPositioner] Captured initial compass heading (legacy): {_initialCompassHeading:F1}°");
             }
             else
             {
                 _initialCompassHeading = 0f;
                 _hasInitialHeading = true;
-                Debug.LogWarning("[ARCoinPositioner] Compass not available, using 0° as initial heading");
+                Debug.LogWarning("[ARCoinPositioner] No compass source available, using 0° as initial heading");
             }
         }
         
@@ -166,8 +177,8 @@ namespace BlackBartsGold.AR
             InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, devices);
             Debug.Log($"[ARCoinPositioner]   XR CenterEye Devices: {devices.Count} (need >0 for 6DOF tracking)");
             
-            // Enable compass
-            Input.compass.enabled = true;
+            // Initialize DeviceCompass (New Input System replacement for legacy Input.compass)
+            DeviceCompass.Initialize();
             
             // Capture initial heading if not done
             if (!_hasInitialHeading)
@@ -359,10 +370,10 @@ namespace BlackBartsGold.AR
             GPSDistance = float.MaxValue;
             GPSBearing = 0f;
             
-            // Ensure compass heading is captured
+            // Ensure compass heading is captured (using DeviceCompass or legacy)
             if (!_hasInitialHeading)
             {
-                if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
+                if (DeviceCompass.IsAvailable || (Input.compass.enabled && Input.compass.headingAccuracy >= 0))
                 {
                     CaptureInitialCompassHeading();
                 }
@@ -400,11 +411,19 @@ namespace BlackBartsGold.AR
         
         private IEnumerator CaptureCompassHeadingCoroutine()
         {
-            // Wait for compass to stabilize
+            // Wait for sensors to stabilize
             yield return new WaitForSeconds(0.5f);
             
             for (int i = 0; i < 10; i++)
             {
+                // Try DeviceCompass first (New Input System)
+                if (DeviceCompass.IsAvailable)
+                {
+                    CaptureInitialCompassHeading();
+                    yield break;
+                }
+                
+                // Fallback to legacy compass
                 if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
                 {
                     CaptureInitialCompassHeading();
@@ -414,7 +433,7 @@ namespace BlackBartsGold.AR
             }
             
             // Fallback
-            Debug.LogWarning("[ARCoinPositioner] Could not get compass reading, using 0°");
+            Debug.LogWarning("[ARCoinPositioner] Could not get compass reading after 2s, using 0°");
             _initialCompassHeading = 0f;
             _hasInitialHeading = true;
         }

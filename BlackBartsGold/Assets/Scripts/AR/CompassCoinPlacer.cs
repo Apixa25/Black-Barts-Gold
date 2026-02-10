@@ -65,6 +65,9 @@ namespace BlackBartsGold.AR
         {
             Debug.Log($"[CompassCoinPlacer] T+{Time.realtimeSinceStartup:F2}s: START - Enabling NEW INPUT SYSTEM sensors...");
             
+            // Initialize DeviceCompass for magnetic heading fallback
+            DeviceCompass.Initialize();
+            
             // ================================================================
             // ENABLE NEW INPUT SYSTEM SENSORS
             // The legacy Input.compass, Input.gyro, Input.acceleration don't work
@@ -303,7 +306,17 @@ namespace BlackBartsGold.AR
             }
             
             // ================================================================
-            // Method 4: LEGACY - Try old Input.compass (may work on some devices)
+            // Method 4: DeviceCompass (MagneticFieldSensor + GravitySensor)
+            // This gives TRUE magnetic north heading from the New Input System
+            // ================================================================
+            if (methodUsed == "none" && DeviceCompass.IsAvailable && DeviceCompass.ActiveMethod == "magnetic_field")
+            {
+                result = DeviceCompass.RawHeading;
+                methodUsed = "device_compass_magnetic";
+            }
+            
+            // ================================================================
+            // Method 5: LEGACY - Try old Input.compass (broken on many modern devices)
             // ================================================================
             if (methodUsed == "none")
             {

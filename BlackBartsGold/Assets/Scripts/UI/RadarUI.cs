@@ -151,9 +151,9 @@ namespace BlackBartsGold.UI
             
             try
             {
-                // Enable compass
-                Input.compass.enabled = true;
-                Debug.Log("[RadarUI] Compass enabled");
+                // Initialize DeviceCompass (New Input System replacement for legacy Input.compass)
+                DeviceCompass.Initialize();
+                Debug.Log("[RadarUI] DeviceCompass initialized");
                 
                 // Auto-find references if not assigned
                 AutoFindReferences();
@@ -660,13 +660,10 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void UpdateHeading()
         {
-            if (Input.compass.enabled)
+            // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
+            if (DeviceCompass.IsAvailable)
             {
-                currentHeading = Input.compass.trueHeading;
-                if (currentHeading == 0)
-                {
-                    currentHeading = Input.compass.magneticHeading;
-                }
+                currentHeading = DeviceCompass.Heading;
             }
             
             // Rotate north indicator

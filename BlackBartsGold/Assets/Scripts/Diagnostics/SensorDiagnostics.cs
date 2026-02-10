@@ -76,6 +76,10 @@ namespace BlackBartsGold.Diagnostics
         {
             LogTimestamp("SensorDiagnostics.Start()");
             
+            // Initialize DeviceCompass (centralized New Input System compass)
+            DeviceCompass.Initialize();
+            Debug.Log($"[DIAG] DeviceCompass initialized: Available={DeviceCompass.IsAvailable}, Method={DeviceCompass.ActiveMethod}");
+            
             // ================================================================
             // ENABLE NEW INPUT SYSTEM SENSORS
             // ================================================================
@@ -319,8 +323,18 @@ namespace BlackBartsGold.Diagnostics
         private string GetCompassState()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("[COMPASS] ");
             
+            // DeviceCompass (New Input System — primary compass source)
+            sb.Append("[DEVICE_COMPASS] ");
+            sb.Append($"Available={DeviceCompass.IsAvailable}, ");
+            sb.Append($"Method={DeviceCompass.ActiveMethod}, ");
+            sb.Append($"Heading={DeviceCompass.Heading:F1}°, ");
+            sb.Append($"RawHeading={DeviceCompass.RawHeading:F1}°, ");
+            sb.Append($"IsTrueNorth={DeviceCompass.IsTrueNorth}");
+            sb.AppendLine();
+            
+            // Legacy compass (kept for comparison — often broken on Android 16+)
+            sb.Append("[LEGACY_COMPASS] ");
             sb.Append($"Enabled={Input.compass.enabled}, ");
             sb.Append($"TrueHeading={Input.compass.trueHeading:F1}°, ");
             sb.Append($"MagneticHeading={Input.compass.magneticHeading:F1}°, ");
@@ -328,9 +342,9 @@ namespace BlackBartsGold.Diagnostics
             sb.Append($"Timestamp={Input.compass.timestamp:F1}, ");
             sb.Append($"HeadingAccuracy={Input.compass.headingAccuracy:F1}");
             
-            // Check if compass is actually returning data
-            bool working = Input.compass.trueHeading != 0 || Input.compass.magneticHeading != 0;
-            sb.Append($" | Working={working}");
+            // Check if legacy compass is actually returning data
+            bool legacyWorking = Input.compass.trueHeading != 0 || Input.compass.magneticHeading != 0;
+            sb.Append($" | Working={legacyWorking}");
             
             return sb.ToString();
         }

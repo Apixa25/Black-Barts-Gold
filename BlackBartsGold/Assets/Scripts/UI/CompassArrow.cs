@@ -45,8 +45,8 @@ namespace BlackBartsGold.UI
         {
             Debug.Log("[CompassArrow] START");
             
-            // Enable compass
-            Input.compass.enabled = true;
+            // Initialize DeviceCompass (New Input System replacement for legacy Input.compass)
+            DeviceCompass.Initialize();
             
             // Auto-find arrow if not set
             if (arrowRect == null)
@@ -127,12 +127,8 @@ namespace BlackBartsGold.UI
                 targetLat, targetLon
             );
             
-            // Get compass heading
-            float compassHeading = Input.compass.trueHeading;
-            if (compassHeading == 0)
-            {
-                compassHeading = Input.compass.magneticHeading;
-            }
+            // Get compass heading using DeviceCompass (New Input System) — legacy broken on Android 16+
+            float compassHeading = DeviceCompass.Heading;
             
             // Calculate relative bearing (how much to turn)
             float relativeBearing = bearingToTarget - compassHeading;

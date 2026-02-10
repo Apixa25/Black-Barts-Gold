@@ -55,8 +55,8 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
-            Debug.Log("[SimpleDirectionArrow] START - Enabling compass");
-            Input.compass.enabled = true;
+            Debug.Log("[SimpleDirectionArrow] START - Initializing DeviceCompass");
+            DeviceCompass.Initialize();
             
             // Subscribe to events
             if (CoinManager.Exists)
@@ -146,11 +146,8 @@ namespace BlackBartsGold.UI
             );
             
             // Get device compass heading (where phone is pointing)
-            float deviceHeading = Input.compass.trueHeading;
-            if (deviceHeading == 0)
-            {
-                deviceHeading = Input.compass.magneticHeading;
-            }
+            // Uses DeviceCompass (New Input System) — legacy Input.compass is broken on Android 16+
+            float deviceHeading = DeviceCompass.Heading;
             
             // Calculate relative bearing (how much to turn)
             // If relative bearing is 0, target is straight ahead
@@ -237,7 +234,7 @@ namespace BlackBartsGold.UI
             Debug.Log($"Has Target: {hasTarget}");
             Debug.Log($"Current Rotation: {currentRotation:F0}°");
             Debug.Log($"Target Rotation: {targetRotation:F0}°");
-            Debug.Log($"Compass Heading: {Input.compass.trueHeading:F0}°");
+            Debug.Log($"Compass Heading: {DeviceCompass.Heading:F0}° (method: {DeviceCompass.ActiveMethod})");
             Debug.Log($"Arrow Image: {arrowImage != null}");
             Debug.Log($"CoinManager Exists: {CoinManager.Exists}");
             if (CoinManager.Exists)

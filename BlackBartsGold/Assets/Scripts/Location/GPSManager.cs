@@ -60,15 +60,15 @@ namespace BlackBartsGold.Location
         [Header("Location Settings")]
         [SerializeField]
         [Tooltip("Desired accuracy in meters (lower = more accurate, more battery)")]
-        private float desiredAccuracy = 5f;
+        private float desiredAccuracy = 1f;
         
         [SerializeField]
         [Tooltip("Minimum distance moved before update (meters)")]
-        private float updateDistance = 2f;
+        private float updateDistance = 0.5f;
         
         [SerializeField]
         [Tooltip("How often to poll for location (seconds)")]
-        private float pollInterval = 1f;
+        private float pollInterval = 0.5f;
         
         [SerializeField]
         [Tooltip("Maximum age of location before considered stale (seconds)")]
@@ -554,11 +554,11 @@ namespace BlackBartsGold.Location
                 timestamp = DateTime.UtcNow.ToString("o")
             };
             
-            // Check if location actually changed
+            // Check if location actually changed (use smaller threshold for faster updates)
             if (CurrentLocation != null)
             {
                 float distance = CurrentLocation.DistanceTo(newLocation);
-                if (distance < updateDistance * 0.5f)
+                if (distance < 0.25f) // 0.25m threshold — respond to even small GPS shifts
                 {
                     // Hasn't moved enough, skip update
                     return;

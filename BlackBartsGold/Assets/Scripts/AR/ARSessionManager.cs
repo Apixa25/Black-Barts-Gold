@@ -14,6 +14,7 @@ using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.Management;
 using System;
 using System.Collections.Generic;
+using BlackBartsGold.Location;
 
 namespace BlackBartsGold.AR
 {
@@ -408,33 +409,33 @@ namespace BlackBartsGold.AR
         /// </summary>
         private void CaptureInitialCompassForWorldAnchoring()
         {
-            // Enable compass if not already
-            Input.compass.enabled = true;
+            // Initialize DeviceCompass (New Input System replacement for legacy Input.compass)
+            DeviceCompass.Initialize();
             
-            // Wait a moment for compass to stabilize, then capture
+            // Wait a moment for sensors to stabilize, then capture
             StartCoroutine(CaptureCompassCoroutine());
         }
         
         private System.Collections.IEnumerator CaptureCompassCoroutine()
         {
-            // Wait for compass to stabilize
+            // Wait for sensors to stabilize
             yield return new WaitForSeconds(0.3f);
             
-            // Try to capture compass heading
+            // Try to capture compass heading using DeviceCompass (New Input System)
             for (int i = 0; i < 5; i++)
             {
-                if (Input.compass.enabled && Input.compass.headingAccuracy >= 0)
+                if (DeviceCompass.IsAvailable)
                 {
                     ARCoinPositioner.CaptureInitialCompassHeading();
-                    Log($"🧭 Compass captured for world anchoring: {Input.compass.trueHeading:F0}°");
+                    Log($"🧭 Compass captured for world anchoring: {DeviceCompass.Heading:F0}° (method: {DeviceCompass.ActiveMethod})");
                     yield break;
                 }
                 yield return new WaitForSeconds(0.2f);
             }
             
-            // Fallback: capture anyway (will use 0° if compass unavailable)
+            // Fallback: capture anyway (will use 0° if no compass available)
             ARCoinPositioner.CaptureInitialCompassHeading();
-            Log("🧭 Compass captured (fallback)");
+            Log("🧭 Compass captured (fallback — no sensor data available)");
         }
         
         /// <summary>

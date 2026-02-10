@@ -187,8 +187,8 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
-            // Enable compass
-            Input.compass.enabled = true;
+            // Initialize DeviceCompass (New Input System replacement for legacy Input.compass)
+            DeviceCompass.Initialize();
             
             // Find AR camera
             FindCamera();
@@ -325,13 +325,10 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void UpdateDeviceHeading()
         {
-            if (Input.compass.enabled)
+            // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
+            if (DeviceCompass.IsAvailable)
             {
-                deviceHeading = Input.compass.trueHeading;
-                if (deviceHeading == 0)
-                {
-                    deviceHeading = Input.compass.magneticHeading;
-                }
+                deviceHeading = DeviceCompass.Heading;
             }
         }
         

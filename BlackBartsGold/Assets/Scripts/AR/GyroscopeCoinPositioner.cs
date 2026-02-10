@@ -76,6 +76,9 @@ namespace BlackBartsGold.AR
         {
             Debug.Log($"[GyroscopeCoinPositioner] T+{Time.realtimeSinceStartup:F2}s: Start() BEGIN");
             
+            // Initialize DeviceCompass for magnetic heading fallback
+            DeviceCompass.Initialize();
+            
             // Enable gyroscope
             EnableGyroscope();
             
@@ -396,7 +399,17 @@ namespace BlackBartsGold.AR
             }
             
             // ================================================================
-            // Method 4: LEGACY - Try old Input.compass
+            // Method 4: DeviceCompass (MagneticFieldSensor + GravitySensor)
+            // This gives TRUE magnetic north heading from the New Input System
+            // ================================================================
+            if (methodUsed == "none" && DeviceCompass.IsAvailable && DeviceCompass.ActiveMethod == "magnetic_field")
+            {
+                result = DeviceCompass.RawHeading;
+                methodUsed = "device_compass_magnetic";
+            }
+            
+            // ================================================================
+            // Method 5: LEGACY - Try old Input.compass (broken on many modern devices)
             // ================================================================
             if (methodUsed == "none" && Input.compass.enabled)
             {

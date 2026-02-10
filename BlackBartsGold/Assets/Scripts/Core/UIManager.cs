@@ -317,9 +317,10 @@ namespace BlackBartsGold.Core
             }
             
             // Compass heading (for debugging AR alignment)
-            if (Input.compass.enabled)
+            // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
+            if (DeviceCompass.IsAvailable)
             {
-                sb.AppendLine($"<b>Compass:</b> {Input.compass.trueHeading:F0}°");
+                sb.AppendLine($"<b>Compass:</b> {DeviceCompass.Heading:F0}° ({DeviceCompass.ActiveMethod})");
             }
             
             // Camera reference (needed for direction calculations)
@@ -356,7 +357,8 @@ namespace BlackBartsGold.Core
                             float gpsBearing = (float)playerLoc.BearingTo(coinLoc);
                             
                             // Adjust by compass heading (so "front" = direction you're facing)
-                            float compassHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
+                            // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
+                            float compassHeading = DeviceCompass.IsAvailable ? DeviceCompass.Heading : 0f;
                             float relativeBearing = gpsBearing - compassHeading;
                             
                             // Normalize to -180 to 180
@@ -2268,8 +2270,8 @@ namespace BlackBartsGold.Core
             var playerLoc = GPSManager.Instance.CurrentLocation;
             if (playerLoc == null) return;
             
-            // Get raw compass heading and apply smoothing to reduce jitter
-            float rawHeading = Input.compass.enabled ? Input.compass.trueHeading : 0f;
+            // Get compass heading using DeviceCompass (New Input System) — already smoothed
+            float rawHeading = DeviceCompass.IsAvailable ? DeviceCompass.Heading : 0f;
             _smoothedCompassHeading = Mathf.SmoothDampAngle(_smoothedCompassHeading, rawHeading, ref _compassVelocity, _compassSmoothTime);
             
             // Update the real map tile from Mapbox

@@ -136,10 +136,10 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
-            // Enable compass
+            // Initialize DeviceCompass (New Input System replacement for legacy Input.compass)
             if (useDeviceCompass)
             {
-                Input.compass.enabled = true;
+                DeviceCompass.Initialize();
             }
             
             // Subscribe to proximity updates
@@ -265,16 +265,10 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void UpdateDeviceHeading()
         {
-            if (useDeviceCompass && Input.compass.enabled)
+            // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
+            if (useDeviceCompass && DeviceCompass.IsAvailable)
             {
-                // True heading accounts for magnetic declination
-                DeviceHeading = Input.compass.trueHeading;
-                
-                // Fallback to magnetic if true heading unavailable
-                if (DeviceHeading == 0)
-                {
-                    DeviceHeading = Input.compass.magneticHeading;
-                }
+                DeviceHeading = DeviceCompass.Heading;
             }
             
             UpdateTargetRotation();
