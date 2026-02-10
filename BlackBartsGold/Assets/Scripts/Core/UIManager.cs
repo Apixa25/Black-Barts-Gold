@@ -84,6 +84,7 @@ namespace BlackBartsGold.Core
         // Mapbox real map integration
         private RawImage _miniMapImage;
         private Texture2D _currentMapTile;
+        private bool _miniMapTileIsOurCopy = false; // true if _currentMapTile was copied for Android UI
         private float _lastMapUpdateTime = 0f;
         private float _mapUpdateInterval = 2f; // Update map every 2 seconds
         private double _lastMapLat = 0;
@@ -960,6 +961,39 @@ namespace BlackBartsGold.Core
         private bool _isPinching = false;
         private TMP_Text _zoomLevelText;
         private bool _mapLoadPending = false;
+        private bool _fullMapTileIsOurCopy = false; // true if _fullMapTile was copied for Android UI
+        
+        /// <summary>
+        /// On Android, RawImage sometimes does not display textures from UnityWebRequest (format/GPU).
+        /// Create an uncompressed copy that reliably displays in UI. Other platforms use as-is.
+        /// </summary>
+        private static Texture2D EnsureTextureForUI(Texture2D source)
+        {
+            if (source == null) return null;
+#if UNITY_ANDROID || UNITY_IOS
+            try
+            {
+                RenderTexture rt = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32);
+                Graphics.Blit(source, rt);
+                Texture2D copy = new Texture2D(source.width, source.height, TextureFormat.ARGB32, false);
+                copy.filterMode = FilterMode.Bilinear;
+                RenderTexture prev = RenderTexture.active;
+                RenderTexture.active = rt;
+                copy.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0);
+                copy.Apply(false, false);
+                RenderTexture.active = prev;
+                RenderTexture.ReleaseTemporary(rt);
+                return copy;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[UIManager] EnsureTextureForUI failed: {e.Message}, using original");
+                return source;
+            }
+#else
+            return source;
+#endif
+        }
         
         private GameObject CreateSimpleFullMapPanel()
         {
@@ -1267,32 +1301,8 @@ namespace BlackBartsGold.Core
                     
                     if (texture != null && _fullMapImage != null)
                     {
-                        Debug.Log($"[UIManager] Applying new texture at zoom {_fullMapZoom}");
-                        if (_fullMapTile != null)
-                        {
-                            Destroy(_fullMapTile);
-                        }
-                        _fullMapTile = texture;
-                        _fullMapImage.texture = texture;
-                        
-                        // Hide loading text
-                        var loadingText = _fullMapImage.transform.parent.Find("LoadingText");
-                        if (loadingText != null)
-                        {
-                            loadingText.gameObject.SetActive(false);
-                        }
-                        
-                        // Add coin markers on the map
-                        PopulateCoinMarkersOnMap();
-                        
-                        // Update zoom text
-                        if (_zoomLevelText != null)
-                        {
-                            _zoomLevelText.text = $"{_fullMapZoom}x";
-                        }
-                        
-                        _mapLoadPending = false;
-                        Debug.Log($"[UIManager] Full map tile loaded at zoom {_fullMapZoom}!");
+                        // Defer apply to next frame so layout is ready and we avoid Android display issues
+                        StartCoroutine(ApplyFullMapTextureNextFrame(texture));
                     }
                     else
                     {
@@ -1304,6 +1314,81 @@ namespace BlackBartsGold.Core
             {
                 _mapLoadPending = false;
             }
+        }
+        
+        /// <summary>
+        /// Apply map texture on the next frame so layout is ready. On Android, use a UI-safe copy.
+        /// Fixes "tile loaded but not visible" on device (format/layout timing).
+        /// </summary>
+        private IEnumerator ApplyFullMapTextureNextFrame(Texture2D texture)
+        {
+            yield return null; // next frame
+            
+            if (texture == null || _fullMapImage == null)
+            {
+                _mapLoadPending = false;
+                yield break;
+            }
+            
+            bool useCopy = (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer);
+            Texture2D displayTex = useCopy ? EnsureTextureForUI(texture) : texture;
+            if (displayTex == null)
+            {
+                _mapLoadPending = false;
+                yield break;
+            }
+            
+            if (_fullMapTile != null && _fullMapTileIsOurCopy)
+                Destroy(_fullMapTile);
+            _fullMapTile = displayTex;
+            _fullMapTileIsOurCopy = useCopy;
+            
+            _fullMapImage.texture = _fullMapTile;
+            _fullMapImage.enabled = true;
+            _fullMapImage.color = Color.white;
+            
+            Canvas.ForceUpdateCanvases();
+            
+            var loadingText = _fullMapImage.transform.parent.Find("LoadingText");
+            if (loadingText != null)
+                loadingText.gameObject.SetActive(false);
+            
+            PopulateCoinMarkersOnMap();
+            if (_zoomLevelText != null)
+                _zoomLevelText.text = $"{_fullMapZoom}x";
+            
+            _mapLoadPending = false;
+            Debug.Log($"[UIManager] Full map tile applied at zoom {_fullMapZoom}!");
+        }
+        
+        /// <summary>
+        /// Apply mini-map texture next frame with UI-safe copy on mobile. Keeps mini-map visible on device.
+        /// </summary>
+        private IEnumerator ApplyMiniMapTextureNextFrame(Texture2D texture)
+        {
+            yield return null;
+            if (texture == null || _miniMapImage == null)
+            {
+                _mapUpdatePending = false;
+                yield break;
+            }
+            bool useCopy = (Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer);
+            Texture2D displayTex = useCopy ? EnsureTextureForUI(texture) : texture;
+            if (displayTex == null)
+            {
+                _mapUpdatePending = false;
+                yield break;
+            }
+            if (_currentMapTile != null && _miniMapTileIsOurCopy)
+                Destroy(_currentMapTile);
+            _currentMapTile = displayTex;
+            _miniMapTileIsOurCopy = useCopy;
+            _miniMapImage.texture = _currentMapTile;
+            _miniMapImage.enabled = true;
+            _miniMapImage.color = Color.white;
+            Canvas.ForceUpdateCanvases();
+            _mapUpdatePending = false;
+            Debug.Log("[UIManager] 🗺️ Mini-map tile applied!");
         }
         
         /// <summary>
@@ -2096,18 +2181,10 @@ namespace BlackBartsGold.Core
                 
                 // Request map tile from Mapbox (north-up, bearing=0 for mini-map)
                 MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, 0f, (texture) => {
-                    _mapUpdatePending = false;
                     if (texture != null && _miniMapImage != null)
-                    {
-                        // Clean up old texture
-                        if (_currentMapTile != null)
-                        {
-                            Destroy(_currentMapTile);
-                        }
-                        _currentMapTile = texture;
-                        _miniMapImage.texture = texture;
-                        Debug.Log("[UIManager] 🗺️ Mini-map tile updated!");
-                    }
+                        StartCoroutine(ApplyMiniMapTextureNextFrame(texture));
+                    else
+                        _mapUpdatePending = false;
                 });
             }
         }
