@@ -38,7 +38,7 @@ namespace BlackBartsGold.Core
         
         [Header("Map Style")]
         [Tooltip("Mapbox style ID - see mapbox.com/studio for options")]
-        [SerializeField] private MapStyle mapStyle = MapStyle.Custom; // Custom high-contrast style
+        [SerializeField] private MapStyle mapStyle = MapStyle.SatelliteStreets; // Built-in satellite+streets style (reliable)
         [Tooltip("Custom style ID when MapStyle.Custom is selected - format: username/style-id")]
         [SerializeField] private string customStyleId = "stevensills2/cmld26kz2000301st3vnmfft9";
         
@@ -312,9 +312,16 @@ namespace BlackBartsGold.Core
             
             // Build URL
             string styleId = GetStyleId(mapStyle);
-            string url = $"https://api.mapbox.com/styles/v1/{styleId}/static/{longitude},{latitude},{zoom},{bearing}/{width}x{height}@2x?access_token={EffectiveAccessToken}";
             
-            Log($"Fetching map tile: zoom={zoom}, size={width}x{height}, styleId={styleId}");
+            // Mapbox Static Images API max output is 1280x1280px.
+            // @2x doubles the output, so max request with @2x is 640x640.
+            // Only use @2x for requests that won't exceed the limit.
+            bool useRetina = (width <= 640 && height <= 640);
+            string retinaStr = useRetina ? "@2x" : "";
+            string url = $"https://api.mapbox.com/styles/v1/{styleId}/static/{longitude},{latitude},{zoom},{bearing}/{width}x{height}{retinaStr}?access_token={EffectiveAccessToken}";
+            
+            Log($"Fetching map tile: zoom={zoom}, size={width}x{height}, retina={useRetina}, styleId={styleId}");
+            Log($"Request URL (token omitted): .../{styleId}/static/{longitude},{latitude},{zoom},{bearing}/{width}x{height}{retinaStr}");
             
             // Fetch from Mapbox
             using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
@@ -325,18 +332,21 @@ namespace BlackBartsGold.Core
                 {
                     Texture2D texture = DownloadHandlerTexture.GetContent(request);
                     
+                    // Log actual texture dimensions for debugging
+                    Log($"Map tile loaded successfully: requested={width}x{height}, actual={texture.width}x{texture.height}, format={texture.format}");
+                    
                     // Add to cache
                     if (enableCache)
                     {
                         AddToCache(cacheKey, texture);
                     }
                     
-                    Log($"Map tile loaded successfully: {width}x{height}");
                     callback?.Invoke(texture);
                 }
                 else
                 {
-                    LogError($"Failed to load map tile: {request.error}");
+                    LogError($"Failed to load map tile: {request.error} (HTTP {request.responseCode})");
+                    LogError($"URL was: .../{styleId}/static/[coords]/{width}x{height}{retinaStr}");
                     callback?.Invoke(null);
                 }
             }
