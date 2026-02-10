@@ -69,7 +69,7 @@ namespace BlackBartsGold.AR
         
         [Header("Prefab")]
         [SerializeField]
-        [Tooltip("Required. Assign BBGoldCoin prefab (Assets/Prefabs/Coins/BBGoldCoin).")]
+        [Tooltip("Required. Assign ColorBBCoin prefab (Assets/Prefabs/Coins/ColorBBCoin).")]
         private GameObject coinPrefab;
         
         [Header("Settings")]
@@ -652,7 +652,7 @@ namespace BlackBartsGold.AR
                 // Create new from prefab only (no fallback - we always use the real coin prefab)
                 if (coinPrefab == null)
                 {
-                    Debug.LogError("[CoinManager] Coin prefab is not assigned. Assign BBGoldCoin prefab in CoinManager.");
+                    Debug.LogError("[CoinManager] Coin prefab is not assigned. Assign ColorBBCoin prefab in CoinManager.");
                     return null;
                 }
                 

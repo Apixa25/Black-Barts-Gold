@@ -4485,7 +4485,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1d0a099531f30746b746b4edbcd9636, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.AR.CoinManager
-  coinPrefab: {fileID: 8851493160284843444, guid: 492f67032d4e42449a6af42aebf59cce, type: 3}
+  coinPrefab: {fileID: 8851493160284843444, guid: b5fac93599384804f9a3ec9558c6e71f, type: 3}
   displaySettings: {fileID: 0}
   coinsParent: {fileID: 0}
   debugMode: 1
