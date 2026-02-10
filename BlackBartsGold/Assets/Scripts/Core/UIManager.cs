@@ -996,6 +996,66 @@ namespace BlackBartsGold.Core
 #endif
         }
         
+        /// <summary>
+        /// Create a ring texture programmatically for range indicators on the mini-map.
+        /// Returns a Texture2D with a transparent center and a colored ring outline.
+        /// </summary>
+        private Texture2D CreateRingTexture(int size, int thickness, Color color)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            var pixels = new Color[size * size];
+            float center = size * 0.5f;
+            float outerRadius = center - 1f; // 1px inset to avoid edge clipping
+            float innerRadius = outerRadius - thickness;
+            
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x - center + 0.5f;
+                    float dy = y - center + 0.5f;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    
+                    if (dist <= outerRadius && dist >= innerRadius)
+                    {
+                        // Anti-alias the edges for smooth ring appearance
+                        float outerAA = Mathf.Clamp01(outerRadius - dist);
+                        float innerAA = Mathf.Clamp01(dist - innerRadius);
+                        float alpha = Mathf.Min(outerAA, innerAA) * color.a;
+                        pixels[y * size + x] = new Color(color.r, color.g, color.b, alpha);
+                    }
+                    else
+                    {
+                        pixels[y * size + x] = Color.clear;
+                    }
+                }
+            }
+            
+            tex.SetPixels(pixels);
+            tex.Apply(false, true); // no mipmaps, mark non-readable to save memory
+            return tex;
+        }
+        
+        /// <summary>
+        /// Create a thin rectangular border strip as a child of the given parent.
+        /// Used for gold frame on mini-map (replaces broken fillCenter=false approach).
+        /// </summary>
+        private void CreateBorderStrip(Transform parent, string sideName, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 sizeDelta, Color color)
+        {
+            var strip = new GameObject("Border" + sideName);
+            strip.transform.SetParent(parent, false);
+            var rect = strip.AddComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.pivot = pivot;
+            rect.sizeDelta = sizeDelta;
+            rect.anchoredPosition = Vector2.zero;
+            var img = strip.AddComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
+        }
+        
         private GameObject CreateSimpleFullMapPanel()
         {
             var panel = new GameObject("SimpleFullMapPanel");
@@ -2034,12 +2094,12 @@ namespace BlackBartsGold.Core
             ringRect.anchorMin = new Vector2(0.5f, 0.5f);
             ringRect.anchorMax = new Vector2(0.5f, 0.5f);
             ringRect.sizeDelta = new Vector2(520, 520); // 2x for bigger mini-map
-            var ringImage = rangeRing.AddComponent<Image>();
-            ringImage.color = new Color(1, 1, 1, 0.3f);
-            ringImage.raycastTarget = false;
-            // Make it a ring (just outline)
-            ringImage.fillCenter = false;
-            ringImage.type = Image.Type.Sliced;
+            // Ring texture (fillCenter=false needs a 9-slice sprite to work — without one,
+            // Unity falls back to GenerateSimpleSprite and renders a SOLID rectangle.
+            // Use a programmatic ring texture on RawImage instead.)
+            var ringRawImage = rangeRing.AddComponent<RawImage>();
+            ringRawImage.texture = CreateRingTexture(128, 3, new Color(1, 1, 1, 0.3f));
+            ringRawImage.raycastTarget = false;
             
             // Inner range ring (25m)
             var innerRing = new GameObject("InnerRing");
@@ -2048,9 +2108,10 @@ namespace BlackBartsGold.Core
             innerRect.anchorMin = new Vector2(0.5f, 0.5f);
             innerRect.anchorMax = new Vector2(0.5f, 0.5f);
             innerRect.sizeDelta = new Vector2(260, 260); // 2x for bigger mini-map
-            var innerImage = innerRing.AddComponent<Image>();
-            innerImage.color = new Color(1, 1, 1, 0.2f);
-            innerImage.raycastTarget = false;
+            // Inner ring texture (same approach as outer RangeRing — avoids solid rectangle)
+            var innerRawImage = innerRing.AddComponent<RawImage>();
+            innerRawImage.texture = CreateRingTexture(128, 2, new Color(1, 1, 1, 0.2f));
+            innerRawImage.raycastTarget = false;
             
             // Player dot (center, blue with glow effect)
             var playerDot = new GameObject("PlayerDot");
@@ -2094,11 +2155,15 @@ namespace BlackBartsGold.Core
             borderRect.anchorMax = Vector2.one;
             borderRect.offsetMin = Vector2.zero;
             borderRect.offsetMax = Vector2.zero;
-            var borderImage = border.AddComponent<Image>();
-            borderImage.color = new Color(0.8f, 0.7f, 0.4f, 0.8f); // Gold border
-            borderImage.raycastTarget = false;
-            borderImage.fillCenter = false;
-            borderImage.type = Image.Type.Sliced;
+            // Gold border frame using 4 thin strips (fillCenter=false with Image.Type.Sliced
+            // requires a 9-slice sprite — without one, Unity renders a SOLID gold rectangle
+            // at 80% opacity covering the entire mini-map, making it look tan/brown!)
+            float borderThickness = 3f;
+            Color borderColor = new Color(0.8f, 0.7f, 0.4f, 0.8f);
+            CreateBorderStrip(border.transform, "Top",    new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1f), new Vector2(0, borderThickness), borderColor);
+            CreateBorderStrip(border.transform, "Bottom", new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0f), new Vector2(0, borderThickness), borderColor);
+            CreateBorderStrip(border.transform, "Left",   new Vector2(0, 0), new Vector2(0, 1), new Vector2(0f, 0.5f), new Vector2(borderThickness, 0), borderColor);
+            CreateBorderStrip(border.transform, "Right",  new Vector2(1, 0), new Vector2(1, 1), new Vector2(1f, 0.5f), new Vector2(borderThickness, 0), borderColor);
             border.transform.SetAsLastSibling(); // On top
             
             // Title with background
