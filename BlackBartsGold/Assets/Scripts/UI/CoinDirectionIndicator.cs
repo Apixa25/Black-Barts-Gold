@@ -157,6 +157,10 @@ namespace BlackBartsGold.UI
         private bool isPulsing = false;
         private float deviceHeading = 0f;
         
+        // CanvasGroup for show/hide without deactivating the GameObject
+        // (SetActive(false) kills ALL scripts on the panel, including SimpleDirectionArrow)
+        private CanvasGroup canvasGroup;
+        
         // Screen bounds for positioning
         private float screenWidth;
         private float screenHeight;
@@ -183,6 +187,15 @@ namespace BlackBartsGold.UI
             
             screenWidth = Screen.width;
             screenHeight = Screen.height;
+            
+            // Get or add CanvasGroup — we use alpha to hide/show instead of SetActive
+            // because SetActive(false) kills ALL scripts on this panel (including SimpleDirectionArrow)
+            canvasGroup = GetComponent<CanvasGroup>();
+            if (canvasGroup == null)
+            {
+                canvasGroup = gameObject.AddComponent<CanvasGroup>();
+                Debug.Log("[CoinDirectionIndicator] Added CanvasGroup for visibility control");
+            }
         }
         
         private void Start()
@@ -217,6 +230,22 @@ namespace BlackBartsGold.UI
             
             // Log reference status
             Debug.Log($"[CoinDirectionIndicator] STARTED! ArrowTransform={arrowTransform != null}, ArrowImage={arrowImage != null}, DistanceText={distanceText != null}, ValueText={valueText != null}");
+            
+            // CRITICAL: Check if a target already exists (target was set on map screen
+            // BEFORE the AR scene loaded, so OnTargetSet already fired and won't fire again)
+            if (CoinManager.Exists && CoinManager.Instance.HasTarget)
+            {
+                Coin existingTarget = CoinManager.Instance.TargetCoinData;
+                if (existingTarget != null)
+                {
+                    Debug.Log($"[CoinDirectionIndicator] Found existing target: {existingTarget.GetDisplayValue()} — showing indicator!");
+                    OnTargetSet(existingTarget);
+                }
+            }
+            else
+            {
+                Debug.Log("[CoinDirectionIndicator] No existing target — indicator stays hidden until target is set");
+            }
         }
         
         private void OnDestroy()
@@ -537,13 +566,21 @@ namespace BlackBartsGold.UI
         #region Show/Hide
         
         /// <summary>
-        /// Show the direction indicator
+        /// Show the direction indicator.
+        /// Uses CanvasGroup alpha so the GameObject stays active (keeping SimpleDirectionArrow alive).
         /// </summary>
         public void Show()
         {
-            Debug.Log($"[CoinDirectionIndicator] Show() called! Container={indicatorContainer != null}");
+            Debug.Log($"[CoinDirectionIndicator] Show() called! CanvasGroup={canvasGroup != null}, Container={indicatorContainer != null}");
             
-            if (indicatorContainer != null)
+            // Prefer CanvasGroup for visibility — SetActive(false) kills ALL scripts on the panel
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 1f;
+                canvasGroup.blocksRaycasts = true;
+                canvasGroup.interactable = true;
+            }
+            else if (indicatorContainer != null)
             {
                 indicatorContainer.gameObject.SetActive(true);
             }
@@ -553,15 +590,23 @@ namespace BlackBartsGold.UI
             }
             
             IsVisible = true;
-            Debug.Log($"[CoinDirectionIndicator] Now VISIBLE, gameObject.activeSelf={gameObject.activeSelf}");
+            Debug.Log($"[CoinDirectionIndicator] Now VISIBLE, alpha={canvasGroup?.alpha ?? -1f}, activeSelf={gameObject.activeSelf}");
         }
         
         /// <summary>
-        /// Hide the direction indicator
+        /// Hide the direction indicator.
+        /// Uses CanvasGroup alpha so the GameObject stays active (keeping SimpleDirectionArrow alive).
         /// </summary>
         public void Hide()
         {
-            if (indicatorContainer != null)
+            // Prefer CanvasGroup for visibility — SetActive(false) kills ALL scripts on the panel
+            if (canvasGroup != null)
+            {
+                canvasGroup.alpha = 0f;
+                canvasGroup.blocksRaycasts = false;
+                canvasGroup.interactable = false;
+            }
+            else if (indicatorContainer != null)
             {
                 indicatorContainer.gameObject.SetActive(false);
             }
@@ -572,7 +617,7 @@ namespace BlackBartsGold.UI
             
             IsVisible = false;
             isPulsing = false;
-            Log("Direction indicator hidden");
+            Log("Direction indicator hidden (CanvasGroup alpha=0)");
         }
         
         /// <summary>

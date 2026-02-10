@@ -202,6 +202,25 @@ namespace BlackBartsGold.UI
             HideLockedPopup();
             HideCoinInfo();
             HideMessage();
+            
+            // Check if a target already exists (target is set on the map screen BEFORE
+            // the AR scene loads, so the OnTargetSet event won't fire again)
+            if (CoinManager.Instance != null && CoinManager.Instance.HasTarget)
+            {
+                Coin existingTarget = CoinManager.Instance.TargetCoinData;
+                if (existingTarget != null)
+                {
+                    Debug.Log($"[ARHUD] Found existing target on Start: {existingTarget.GetDisplayValue()} — initializing HUD");
+                    ShowCoinInfo(existingTarget, existingTarget.isLocked);
+                    
+                    // Show direction indicator for existing target
+                    if (directionIndicator != null && showDirectionIndicator)
+                    {
+                        directionIndicator.Show();
+                        Debug.Log("[ARHUD] Direction indicator shown for existing target");
+                    }
+                }
+            }
         }
         
         private void OnDestroy()
@@ -384,6 +403,13 @@ namespace BlackBartsGold.UI
             Log($"Target set: {coin.GetDisplayValue()}");
             ShowCoinInfo(coin, coin.isLocked);
             ShowMessage($"Hunting: {coin.GetDisplayValue()} treasure!");
+            
+            // Explicitly show direction indicator (belt-and-suspenders with CoinDirectionIndicator's own event)
+            if (directionIndicator != null && showDirectionIndicator)
+            {
+                directionIndicator.Show();
+                Log("Direction indicator shown for target");
+            }
         }
         
         /// <summary>
@@ -393,6 +419,13 @@ namespace BlackBartsGold.UI
         {
             Log("Target cleared");
             HideCoinInfo();
+            
+            // Hide direction indicator when target is cleared
+            if (directionIndicator != null)
+            {
+                directionIndicator.Hide();
+                Log("Direction indicator hidden (target cleared)");
+            }
         }
         
         /// <summary>
