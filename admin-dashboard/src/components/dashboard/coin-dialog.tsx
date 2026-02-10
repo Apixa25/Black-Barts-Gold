@@ -121,32 +121,50 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
     e.preventDefault()
     setIsSaving(true)
 
-    const coinData = {
-      coin_type: form.coin_type,
-      coin_model: form.coin_model,
-      value: parseFloat(form.value) || 0,
-      tier: form.tier,
-      latitude: parseFloat(form.latitude),
-      longitude: parseFloat(form.longitude),
-      location_name: form.location_name || null,
-      description: form.description || null,
-      is_mythical: form.is_mythical,
-      multi_find: form.multi_find,
-      finds_remaining: form.multi_find ? parseInt(form.finds_remaining) || 3 : 1,
-      hider_id: userId,
-      status: "hidden" as CoinStatus,
-    }
-
-    // Validate required fields
+    // Validate required fields first
     if (!form.value || isNaN(parseFloat(form.value))) {
       toast.error("Please enter a valid value")
       setIsSaving(false)
       return
     }
-    if (!form.latitude || !form.longitude) {
+    const numValue = parseFloat(form.value)
+    if (numValue < 0) {
+      toast.error("Value must be 0 or greater")
+      setIsSaving(false)
+      return
+    }
+    if (!form.latitude?.trim() || !form.longitude?.trim()) {
       toast.error("Please enter valid coordinates")
       setIsSaving(false)
       return
+    }
+    const numLat = parseFloat(form.latitude)
+    const numLng = parseFloat(form.longitude)
+    if (Number.isNaN(numLat) || Number.isNaN(numLng)) {
+      toast.error("Latitude and longitude must be numbers")
+      setIsSaving(false)
+      return
+    }
+    if (!isEditing && !userId) {
+      toast.error("You must be logged in to create a coin")
+      setIsSaving(false)
+      return
+    }
+
+    const coinData = {
+      coin_type: form.coin_type,
+      coin_model: form.coin_model,
+      value: numValue,
+      tier: form.tier,
+      latitude: numLat,
+      longitude: numLng,
+      location_name: form.location_name?.trim() || null,
+      description: form.description?.trim() || null,
+      is_mythical: form.is_mythical,
+      multi_find: form.multi_find,
+      finds_remaining: form.multi_find ? parseInt(form.finds_remaining, 10) || 3 : 1,
+      hider_id: userId || null,
+      status: "hidden" as CoinStatus,
     }
 
     let error
@@ -166,8 +184,12 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
     setIsSaving(false)
 
     if (error) {
+      const is400 = (error as { code?: string })?.code === "PGRST204" || String((error as { code?: string })?.code).startsWith("4")
+      const hint = !isEditing && is400
+        ? " Ensure Supabase migrations 011_coin_model.sql and 012_coin_model_color_bb.sql are applied."
+        : ""
       toast.error(`Failed to ${isEditing ? "update" : "create"} coin`, {
-        description: error.message,
+        description: error.message + hint,
       })
       return
     }

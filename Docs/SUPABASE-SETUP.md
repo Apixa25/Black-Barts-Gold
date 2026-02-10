@@ -695,6 +695,29 @@ After running the schema:
 - [ ] Admin role updated in profiles table
 - [ ] Login tested in dashboard
 - [ ] **Live player tracking tested on admin dashboard map**
+- [ ] **If you use the admin dashboard to create coins:** run migrations `011_coin_model.sql` and `012_coin_model_color_bb.sql` (see below). Otherwise "Create coin" may return **400 Bad Request**.
+
+---
+
+## 🪙 Admin dashboard: "Create coin" returns 400 Bad Request
+
+If creating a new coin in the admin dashboard fails with **POST …/rest/v1/coins 400 (Bad Request)**:
+
+1. **Apply migrations for the `coin_model` column**  
+   The dashboard sends a `coin_model` field; the DB needs the column and the right check constraint.
+
+   - In **Supabase Dashboard → SQL Editor**, run the contents of:
+     - `admin-dashboard/supabase/migrations/011_coin_model.sql`
+     - `admin-dashboard/supabase/migrations/012_coin_model_color_bb.sql`
+   - Or from the repo root:  
+     `cd admin-dashboard && npx supabase db push`  
+     (after linking the project: `npx supabase link`)
+
+2. **Be logged in**  
+   Creating a coin requires an authenticated user (your profile is set as `hider_id`). If the session is missing or expired, log in again and retry.
+
+3. **Use valid numbers**  
+   Value must be a number ≥ 0; latitude and longitude must be valid numbers (e.g. `40.7128`, `-74.0060`).
 
 ---
 
