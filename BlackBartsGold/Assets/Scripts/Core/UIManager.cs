@@ -2532,8 +2532,8 @@ namespace BlackBartsGold.Core
                 }
             }
             
-            // Show button when near a coin (within 20m)
-            if (closestController != null && closestDist < 20f)
+            // Show button when coin is visible in AR (within materialization distance, default 100m)
+            if (closestController != null && closestDist < 100f)
             {
                 _coinToPlace = closestController.CoinData;
                 _placeCoinButton.SetActive(true);

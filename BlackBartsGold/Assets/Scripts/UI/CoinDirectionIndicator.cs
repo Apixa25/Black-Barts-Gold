@@ -86,7 +86,7 @@ namespace BlackBartsGold.UI
         [Header("Distance Thresholds")]
         [SerializeField]
         [Tooltip("Distance at which coin materializes in AR (indicator changes)")]
-        private float materializationDistance = 20f;
+        private float materializationDistance = 100f;
         
         [SerializeField]
         [Tooltip("Distance for collection")]

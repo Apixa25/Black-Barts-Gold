@@ -29,16 +29,16 @@ namespace BlackBartsGold.AR
         [Header("Distance Thresholds (meters)")]
         
         [Tooltip("GPS distance at which coin materializes in AR view. Player uses Direction Indicator to navigate until this distance.")]
-        [Range(10f, 50f)]
-        public float materializationDistance = 20f;
+        [Range(10f, 150f)]
+        public float materializationDistance = 100f;
         
         [Tooltip("GPS distance at which coin can be collected.")]
         [Range(1f, 10f)]
         public float collectionDistance = 5f;
         
         [Tooltip("GPS distance at which coin disappears again if player walks away (should be > materializationDistance).")]
-        [Range(20f, 100f)]
-        public float hideDistance = 35f;
+        [Range(20f, 200f)]
+        public float hideDistance = 115f;
         
         #endregion
         
@@ -104,6 +104,20 @@ namespace BlackBartsGold.AR
         [Tooltip("Scale multiplier when in collection range (pulse effect)")]
         [Range(1f, 1.5f)]
         public float collectibleScaleMultiplier = 1.1f;
+        
+        [Header("Distance-Based Scale (10 steps, every 10m from 100m to 10m)")]
+        
+        [Tooltip("Scale multiplier at 100m (farthest visible - tiny circle). Step 1 of 10.")]
+        [Range(0.01f, 0.5f)]
+        public float scaleAtFar = 0.05f;
+        
+        [Tooltip("Scale multiplier at 10m (closest before collection - full size). Step 10 of 10.")]
+        [Range(0.5f, 2f)]
+        public float scaleAtNear = 1.2f;
+        
+        [Tooltip("Number of meters per scale step")]
+        [Range(5f, 20f)]
+        public float metersPerStep = 10f;
         
         #endregion
         

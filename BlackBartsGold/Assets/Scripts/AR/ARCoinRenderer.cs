@@ -190,9 +190,9 @@ namespace BlackBartsGold.AR
             // Random bob phase
             bobOffset = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
             
-            // Cache base scale at 4x size for better visibility at all ranges
-            // (user requested 2x on top of original 2x = 4x total)
-            baseScale = transform.localScale * 4f;
+            // Cache the prefab's original scale as the reference base.
+            // Distance-based scaling (CalculateDistanceScale) handles all size changes.
+            baseScale = transform.localScale;
             
             // Auto-find visual
             if (coinVisual == null && transform.childCount > 0)
@@ -476,8 +476,8 @@ namespace BlackBartsGold.AR
                 }
                 
                 // Check if player moved too far away - hide coin again
-                // (with hysteresis to prevent flickering)
-                if (distance > Settings.materializationDistance + 10f)
+                // (hideDistance provides hysteresis to prevent flickering)
+                if (distance > Settings.hideDistance)
                 {
                     SetMode(CoinDisplayMode.Hidden);
                     
@@ -805,10 +805,11 @@ namespace BlackBartsGold.AR
             
             if (materializeProgress >= 1f)
             {
-                // Materialization complete
+                // Materialization complete - start at distance-appropriate scale
                 materializeProgress = 1f;
                 isMaterializing = false;
-                transform.localScale = baseScale;
+                float distScale = CalculateDistanceScale();
+                transform.localScale = baseScale * distScale;
                 
                 SetMode(CoinDisplayMode.Visible);
                 OnMaterialized?.Invoke();
@@ -826,9 +827,10 @@ namespace BlackBartsGold.AR
             }
             else
             {
-                // Animate scale (ease out)
+                // Animate scale (ease out) toward distance-appropriate size
                 float easeT = 1f - Mathf.Pow(1f - materializeProgress, 3f);
-                transform.localScale = baseScale * easeT;
+                float targetDistScale = CalculateDistanceScale();
+                transform.localScale = baseScale * targetDistScale * easeT;
                 
                 // Gentle spin during materialization (Y-axis, same as visible spin)
                 if (coinVisual != null)
@@ -838,6 +840,54 @@ namespace BlackBartsGold.AR
                     coinVisual.localRotation = Quaternion.Euler(270, spinAngle, 180);
                 }
             }
+        }
+        
+        #endregion
+        
+        #region Distance-Based Scale
+        
+        /// <summary>
+        /// Calculate scale multiplier based on GPS distance using 10 discrete steps.
+        /// Step 1 (100m) = tiny circle, Step 10 (10m) = full treasure coin.
+        /// Each step covers Settings.metersPerStep meters (default 10m).
+        /// </summary>
+        private float CalculateDistanceScale()
+        {
+            // Clamp GPS distance to our visible range (10m to materializationDistance)
+            float maxDist = Settings.materializationDistance; // 100m default
+            float minDist = Settings.metersPerStep;           // 10m default
+            float clampedDist = Mathf.Clamp(GPSDistance, minDist, maxDist);
+            
+            // Calculate which step we're in (1-10):
+            // 100m = step 1 (farthest, smallest)
+            // 90m  = step 2
+            // ...
+            // 10m  = step 10 (closest, largest)
+            int totalSteps = Mathf.Max(1, Mathf.RoundToInt(maxDist / Settings.metersPerStep));
+            int step = Mathf.Clamp(
+                totalSteps + 1 - Mathf.CeilToInt(clampedDist / Settings.metersPerStep),
+                1, totalSteps
+            );
+            
+            // Lerp between far scale (step 1) and near scale (step 10)
+            float t = (step - 1) / (float)(totalSteps - 1);
+            float scaleMultiplier = Mathf.Lerp(Settings.scaleAtFar, Settings.scaleAtNear, t);
+            
+            return scaleMultiplier;
+        }
+        
+        /// <summary>
+        /// Get the current distance step (1-10) for debug display.
+        /// </summary>
+        private int GetCurrentDistanceStep()
+        {
+            float maxDist = Settings.materializationDistance;
+            float clampedDist = Mathf.Clamp(GPSDistance, Settings.metersPerStep, maxDist);
+            int totalSteps = Mathf.Max(1, Mathf.RoundToInt(maxDist / Settings.metersPerStep));
+            return Mathf.Clamp(
+                totalSteps + 1 - Mathf.CeilToInt(clampedDist / Settings.metersPerStep),
+                1, totalSteps
+            );
         }
         
         #endregion
@@ -935,18 +985,28 @@ namespace BlackBartsGold.AR
             }
             
             // ================================================================
-            // SCALE BASED ON PROXIMITY
-            // Coin gets slightly larger as player approaches
+            // DISTANCE-BASED SCALE (10 steps, every 10m)
+            // Step 1 (tiny) at 100m → Step 10 (full size) at 10m
             // ================================================================
+            float distScale = CalculateDistanceScale();
+            
             if (CurrentMode == CoinDisplayMode.Collectible)
             {
-                // Pulse effect when collectible
+                // Pulse effect when collectible (at max near scale)
                 float pulse = 1f + 0.1f * Mathf.Sin(Time.time * 4f);
-                transform.localScale = baseScale * pulse;
+                transform.localScale = baseScale * Settings.scaleAtNear * pulse;
             }
             else
             {
-                transform.localScale = baseScale;
+                transform.localScale = baseScale * distScale;
+            }
+            
+            // Debug: log scale step periodically
+            if (debugMode && Time.frameCount % 180 == 0)
+            {
+                int step = GetCurrentDistanceStep();
+                Debug.Log($"[ARCoinRenderer] DISTANCE SCALE: step={step}/10, GPS={GPSDistance:F1}m, " +
+                          $"scaleMultiplier={distScale:F3}, finalScale={transform.localScale}");
             }
             
             // ================================================================

@@ -148,6 +148,10 @@ namespace BlackBartsGold.AR
         private Material currentMaterial;
         private CoinController controller;
         
+        // When ARCoinRenderer is present, it owns scale — we yield to avoid conflicts
+        private ARCoinRenderer arCoinRenderer;
+        private bool arRendererOwnsScale = false;
+        
         #endregion
         
         #region Unity Lifecycle
@@ -156,6 +160,14 @@ namespace BlackBartsGold.AR
         {
             baseScale = transform.localScale;
             controller = GetComponent<CoinController>();
+            
+            // Check if ARCoinRenderer is present — it owns distance-based scale
+            arCoinRenderer = GetComponent<ARCoinRenderer>();
+            arRendererOwnsScale = (arCoinRenderer != null);
+            if (arRendererOwnsScale)
+            {
+                Debug.Log("[CoinVisuals] ARCoinRenderer detected — yielding scale control to distance-based system");
+            }
             
             // Auto-find mesh renderer if not set
             if (coinRenderer == null)
@@ -403,10 +415,14 @@ namespace BlackBartsGold.AR
         #region Animation Updates
         
         /// <summary>
-        /// Smoothly update scale
+        /// Smoothly update scale.
+        /// Skipped when ARCoinRenderer is present — it owns distance-based scaling.
         /// </summary>
         private void UpdateScale()
         {
+            // ARCoinRenderer handles distance-based scale — don't fight it
+            if (arRendererOwnsScale) return;
+            
             float currentScale = transform.localScale.x / baseScale.x;
             float newScale = Mathf.Lerp(currentScale, targetScale, Time.deltaTime * scaleTransitionSpeed);
             transform.localScale = baseScale * newScale;

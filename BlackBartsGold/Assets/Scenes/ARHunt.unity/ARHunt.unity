@@ -188,7 +188,7 @@ MonoBehaviour:
   farColor: {r: 1, g: 0.84, b: 0, a: 0.9}
   nearColor: {r: 0.29, g: 0.87, b: 0.5, a: 0.9}
   veryNearColor: {r: 0.29, g: 0.87, b: 0.5, a: 1}
-  materializationDistance: 20
+  materializationDistance: 100
   collectionDistance: 5
   pulseSpeed: 2
   pulseMinScale: 0.9
