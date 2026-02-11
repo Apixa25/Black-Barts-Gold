@@ -119,6 +119,15 @@ namespace BlackBartsGold.AR
         [Range(5f, 20f)]
         public float metersPerStep = 10f;
         
+        [Header("Final approach (last 10m)")]
+        [Tooltip("Distance in meters over which coin scales up to scaleAtCollectionMultiplier (e.g. 10 = final 10m)")]
+        [Range(2f, 20f)]
+        public float finalMetersForScaleRamp = 10f;
+        
+        [Tooltip("Scale multiplier at collection (0m). Coin ramps from 1x at finalMetersForScaleRamp to this at 0m.")]
+        [Range(1f, 3f)]
+        public float scaleAtCollectionMultiplier = 2f;
+        
         #endregion
         
         #region Singleton Default

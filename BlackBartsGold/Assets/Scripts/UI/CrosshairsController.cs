@@ -40,6 +40,14 @@ namespace BlackBartsGold.UI
         [Tooltip("Lock icon overlay for locked coins")]
         private GameObject lockOverlay;
         
+        [SerializeField]
+        [Tooltip("Optional circle around crosshairs showing how big the coin will look at collection range. Assign a child Image with a circle/ring sprite.")]
+        private Image collectionSizeCircle;
+        
+        [SerializeField]
+        [Tooltip("Show the collection-size circle when targeting a coin")]
+        private bool showCollectionSizeCircle = true;
+        
         [Header("Colors")]
         [SerializeField]
         private Color normalColor = Color.white;
@@ -116,6 +124,11 @@ namespace BlackBartsGold.UI
         /// </summary>
         private bool isInRange = false;
         
+        /// <summary>
+        /// Whether we've computed and set the collection circle size (once per session)
+        /// </summary>
+        private bool collectionCircleSizeSet;
+        
         #endregion
         
         #region Unity Lifecycle
@@ -129,6 +142,11 @@ namespace BlackBartsGold.UI
             if (lockOverlay != null)
             {
                 lockOverlay.SetActive(false);
+            }
+            
+            if (collectionSizeCircle != null)
+            {
+                collectionSizeCircle.gameObject.SetActive(false);
             }
             
             // Subscribe to events
@@ -150,6 +168,9 @@ namespace BlackBartsGold.UI
             
             // Animations
             UpdateAnimations();
+            
+            // Collection-size circle: show when targeting, hide otherwise; size once from settings
+            UpdateCollectionSizeCircle();
         }
         
         #endregion
@@ -363,6 +384,63 @@ namespace BlackBartsGold.UI
             {
                 lockOverlay.SetActive(show);
             }
+        }
+        
+        /// <summary>
+        /// Show/hide and size the collection-size circle so it matches how big the coin will look at collection range.
+        /// </summary>
+        private void UpdateCollectionSizeCircle()
+        {
+            if (collectionSizeCircle == null || !showCollectionSizeCircle) return;
+            
+            bool targetingCoin = CurrentState == CrosshairsState.Hovering
+                || CurrentState == CrosshairsState.InRange
+                || CurrentState == CrosshairsState.TargetingLocked;
+            
+            if (targetingCoin)
+            {
+                if (!collectionCircleSizeSet)
+                {
+                    ComputeAndSetCollectionCircleSize();
+                }
+                if (!collectionSizeCircle.gameObject.activeSelf)
+                {
+                    collectionSizeCircle.gameObject.SetActive(true);
+                }
+            }
+            else
+            {
+                if (collectionSizeCircle.gameObject.activeSelf)
+                {
+                    collectionSizeCircle.gameObject.SetActive(false);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Size the collection circle to match the coin's apparent size when at collection distance (largest scale).
+        /// Uses CoinDisplaySettings so it stays in sync with ARCoinRenderer.
+        /// </summary>
+        private void ComputeAndSetCollectionCircleSize()
+        {
+            if (collectionSizeCircle == null) return;
+            
+            CoinDisplaySettings settings = CoinDisplaySettings.Default;
+            Camera cam = Camera.main;
+            if (cam == null) return;
+            
+            float viewingDist = Mathf.Max(0.1f, settings.materializeViewingDistance);
+            // World radius of coin at max scale (baseScale * scaleAtNear * scaleAtCollectionMultiplier; coin mesh ~1 unit)
+            float worldRadius = settings.baseScale * settings.scaleAtNear * settings.scaleAtCollectionMultiplier * 0.5f;
+            float angleRad = 2f * Mathf.Atan(worldRadius / viewingDist);
+            float screenRadiusPixels = (angleRad * Mathf.Rad2Deg / cam.fieldOfView) * (Screen.height * 0.5f);
+            
+            Canvas canvas = collectionSizeCircle.GetComponentInParent<Canvas>();
+            float scaleFactor = canvas != null ? canvas.scaleFactor : 1f;
+            float diameterUnits = 2f * screenRadiusPixels / scaleFactor;
+            
+            collectionSizeCircle.rectTransform.sizeDelta = new Vector2(diameterUnits, diameterUnits);
+            collectionCircleSizeSet = true;
         }
         
         #endregion

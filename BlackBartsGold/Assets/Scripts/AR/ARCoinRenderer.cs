@@ -987,18 +987,24 @@ namespace BlackBartsGold.AR
             // ================================================================
             // DISTANCE-BASED SCALE (10 steps, every 10m)
             // Step 1 (tiny) at 100m → Step 10 (full size) at 10m
+            // In the final 10m: ramp from 1x to 2x so coin is 2x at collection.
             // ================================================================
             float distScale = CalculateDistanceScale();
+            float closeRangeMultiplier = 1f;
+            if (GPSDistance <= Settings.finalMetersForScaleRamp && Settings.finalMetersForScaleRamp > 0f)
+            {
+                closeRangeMultiplier = Mathf.Lerp(Settings.scaleAtCollectionMultiplier, 1f, GPSDistance / Settings.finalMetersForScaleRamp);
+            }
             
             if (CurrentMode == CoinDisplayMode.Collectible)
             {
-                // Pulse effect when collectible (at max near scale)
+                // Pulse effect when collectible (at max near scale, with final-10m 2x)
                 float pulse = 1f + 0.1f * Mathf.Sin(Time.time * 4f);
-                transform.localScale = baseScale * Settings.scaleAtNear * pulse;
+                transform.localScale = baseScale * Settings.scaleAtNear * closeRangeMultiplier * pulse;
             }
             else
             {
-                transform.localScale = baseScale * distScale;
+                transform.localScale = baseScale * distScale * closeRangeMultiplier;
             }
             
             // Debug: log scale step periodically
