@@ -748,7 +748,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300000, guid: 23272e060989902458a3ec6e26782845, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2167,7 +2167,7 @@ MonoBehaviour:
   innerDot: {fileID: 0}
   outerRing: {fileID: 0}
   lockOverlay: {fileID: 0}
-  collectionSizeCircle: {fileID: 0}
+  collectionSizeCircle: {fileID: 1064022913}
   showCollectionSizeCircle: 1
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   hoveringColor: {r: 1, g: 0.84, b: 0, a: 1}
@@ -3652,6 +3652,7 @@ MonoBehaviour:
   mapContainer: {fileID: 0}
   playerMarker: {fileID: 0}
   coinMarkerPrefab: {fileID: 0}
+  coinMarkerSprite: {fileID: 0}
   selectionPanel: {fileID: 0}
   selectedCoinValue: {fileID: 0}
   selectedCoinDistance: {fileID: 0}
@@ -4257,6 +4258,7 @@ MonoBehaviour:
   radarContainer: {fileID: 0}
   playerDot: {fileID: 0}
   coinDotPrefab: {fileID: 0}
+  coinDotSprite: {fileID: 21300000, guid: 97f2f6f719c889947906ca44f8474df6, type: 3}
   sweepLine: {fileID: 0}
   rangeRings: []
   northIndicator: {fileID: 0}
