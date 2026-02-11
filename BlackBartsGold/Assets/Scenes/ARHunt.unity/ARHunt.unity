@@ -2167,7 +2167,7 @@ MonoBehaviour:
   innerDot: {fileID: 0}
   outerRing: {fileID: 0}
   lockOverlay: {fileID: 0}
-  collectionSizeCircle: {fileID: 0}
+  collectionSizeCircle: {fileID: 1064022913}
   showCollectionSizeCircle: 1
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   hoveringColor: {r: 1, g: 0.84, b: 0, a: 1}
