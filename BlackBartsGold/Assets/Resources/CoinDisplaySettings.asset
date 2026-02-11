@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 255befed9a10b17478935ede12e212b6, type: 3}
+  m_Name: CoinDisplaySettings
+  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.AR.CoinDisplaySettings
+  materializationDistance: 100
+  collectionDistance: 5
+  hideDistance: 115
+  materializeViewingDistance: 4
+  materializeHeight: 1.2
+  materializeDuration: 0.8
+  spinSpeed: 45
+  bobAmplitude: 0.05
+  bobFrequency: 2
+  goldColor: {r: 1, g: 0.84, b: 0, a: 1}
+  inRangeColor: {r: 0.29, g: 0.87, b: 0.5, a: 1}
+  lockedColor: {r: 0.94, g: 0.27, b: 0.27, a: 1}
+  baseScale: 0.3
+  collectibleScaleMultiplier: 1.1
+  scaleAtFar: 0.05
+  scaleAtNear: 1.2
+  metersPerStep: 10
+  finalMetersForScaleRamp: 10
+  scaleAtCollectionMultiplier: 2
