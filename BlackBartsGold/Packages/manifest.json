@@ -1,12 +1,13 @@
 {
   "dependencies": {
-    "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
     "com.coplaydev.coplay": "https://github.com/CoplayDev/coplay-unity-plugin.git#beta",
+    "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity",
     "com.nianticlabs.lightship": "https://github.com/niantic-lightship/ardk-upm.git",
+    "com.unity.2d.sprite": "1.0.0",
     "com.unity.collab-proxy": "2.11.2",
-    "com.unity.test-framework": "1.4.5",
     "com.unity.inputsystem": "1.17.0",
     "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.unity.test-framework": "1.4.5",
     "com.unity.ugui": "2.0.0",
     "com.unity.xr.arcore": "6.3.2",
     "com.unity.xr.arfoundation": "6.3.2",
