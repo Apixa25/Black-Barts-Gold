@@ -67,6 +67,10 @@ namespace BlackBartsGold.UI
         [Tooltip("Prefab for coin markers on map")]
         private GameObject coinMarkerPrefab;
         
+        [SerializeField]
+        [Tooltip("Sprite for coin markers when no prefab is set (e.g. 'location coin')")]
+        private Sprite coinMarkerSprite;
+        
         [Header("Selection Panel")]
         [SerializeField]
         [Tooltip("Panel showing selected coin details")]
@@ -854,6 +858,8 @@ namespace BlackBartsGold.UI
                 // Create default marker
                 markerObj = new GameObject("CoinMarker");
                 Image img = markerObj.AddComponent<Image>();
+                if (coinMarkerSprite != null)
+                    img.sprite = coinMarkerSprite;
                 img.color = normalCoinColor;
                 
                 RectTransform rt = markerObj.GetComponent<RectTransform>();

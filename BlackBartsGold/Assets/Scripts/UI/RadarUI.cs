@@ -47,6 +47,10 @@ namespace BlackBartsGold.UI
         private GameObject coinDotPrefab;
         
         [SerializeField]
+        [Tooltip("Sprite for coin dots when no prefab is set (e.g. 'location coin')")]
+        private Sprite coinDotSprite;
+        
+        [SerializeField]
         [Tooltip("Sweep line that rotates")]
         private RectTransform sweepLine;
         
@@ -633,6 +637,8 @@ namespace BlackBartsGold.UI
                 // Create default dot
                 dotObj = new GameObject("CoinDot");
                 Image img = dotObj.AddComponent<Image>();
+                if (coinDotSprite != null)
+                    img.sprite = coinDotSprite;
                 img.color = normalCoinColor;
                 
                 RectTransform rt = dotObj.GetComponent<RectTransform>();

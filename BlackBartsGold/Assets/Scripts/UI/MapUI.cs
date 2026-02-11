@@ -41,6 +41,10 @@ namespace BlackBartsGold.UI
         private GameObject coinMarkerPrefab;
         
         [SerializeField]
+        [Tooltip("Sprite for coin markers when no prefab is set (e.g. 'location coin')")]
+        private Sprite coinMarkerSprite;
+        
+        [SerializeField]
         private Image[] rangeCircles;
         
         [Header("Map Settings")]
@@ -458,6 +462,8 @@ namespace BlackBartsGold.UI
             {
                 markerObj = new GameObject("CoinMarker");
                 Image img = markerObj.AddComponent<Image>();
+                if (coinMarkerSprite != null)
+                    img.sprite = coinMarkerSprite;
                 img.color = goldCoinColor;
                 markerObj.AddComponent<Button>();
                 
