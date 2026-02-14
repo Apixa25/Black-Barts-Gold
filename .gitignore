@@ -150,3 +150,6 @@ admin-dashboard/out/
 admin-dashboard/.vercel
 admin-dashboard/*.tsbuildinfo
 admin-dashboard/next-env.d.ts
+
+# Local scripts (do not commit)
+replace-token.ps1

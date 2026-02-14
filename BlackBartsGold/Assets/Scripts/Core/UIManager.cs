@@ -930,6 +930,14 @@ namespace BlackBartsGold.Core
             Debug.Log("[UIManager] 🗺️ Opening FULL MAP!");
             Debug.Log($"[UIManager] FullMapUI.Exists={FullMapUI.Exists}, isInARMode={IsInARMode}, _ourCanvas.enabled={_ourCanvas?.enabled}");
             
+            // CRITICAL: Hide arHudPanel (MiniMapContainer) when opening full map - prevents overlap/conflict
+            // Must run for BOTH FullMapUI path AND ShowSimpleFullMap path
+            if (arHudPanel != null && arHudPanel.activeSelf)
+            {
+                arHudPanel.SetActive(false);
+                Debug.Log("[UIManager] Hid arHudPanel to avoid full map + mini-map conflict");
+            }
+            
             // Try to use existing FullMapUI if it exists
             if (FullMapUI.Exists)
             {

@@ -450,7 +450,7 @@ npm run dev
 # admin-dashboard/.env.local
 NEXT_PUBLIC_SUPABASE_URL=https://gvkfiommpbugvxwuloea.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-key>
-NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1Ijoic3RldmVuc2lsbHMyIi...
+NEXT_PUBLIC_MAPBOX_TOKEN=<your-mapbox-token>
 ```
 
 ### Test Credentials
