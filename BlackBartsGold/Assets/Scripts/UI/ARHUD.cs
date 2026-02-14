@@ -49,87 +49,40 @@ namespace BlackBartsGold.UI
         
         #region Inspector Fields
         
-        [Header("HUD Components")]
-        [SerializeField]
-        [Tooltip("Compass UI component")]
+        [Header("HUD Components (code-based - populated at runtime)")]
         private CompassUI compass;
-        
-        [SerializeField]
-        [Tooltip("Radar/Mini-map UI component")]
         private RadarUI radar;
-        
-        // Crosshairs removed - we use code-based AR setup (ARHuntSceneSetup) which does not use crosshairs.
-        // The white box was caused by emoji fallback in SelectedCoinStatus; fixed via EmojiHelper.
-        
-        [SerializeField]
-        [Tooltip("Gas meter UI component")]
         private GasMeterUI gasMeter;
-        
-        [SerializeField]
-        [Tooltip("Find limit UI component")]
         private FindLimitUI findLimit;
-        
-        [SerializeField]
-        [Tooltip("AR tracking status UI")]
         private ARTrackingUI trackingUI;
-        
-        [SerializeField]
-        [Tooltip("Large direction indicator showing way to target coin")]
         private CoinDirectionIndicator directionIndicator;
         
-        [Header("Coin Info Panel")]
-        [SerializeField]
-        [Tooltip("Panel showing selected coin info")]
+        [Header("Coin Info Panel (code-based - populated at runtime)")]
         private GameObject coinInfoPanel;
-        
-        [SerializeField]
         private TMP_Text coinValueText;
-        
-        [SerializeField]
         private TMP_Text coinDistanceText;
-        
-        [SerializeField]
         private TMP_Text coinStatusText;
-        
-        [SerializeField]
         private Image coinTierIcon;
         
-        [Header("Message Display")]
-        [SerializeField]
-        [Tooltip("Temporary message display")]
+        [Header("Message Display (code-based - populated at runtime)")]
         private TMP_Text messageText;
-        
-        [SerializeField]
         private CanvasGroup messageCanvasGroup;
         
         [SerializeField]
         private float messageDuration = 3f;
         
-        [Header("Collection Popup")]
-        [SerializeField]
+        [Header("Collection Popup (code-based - populated at runtime)")]
         private GameObject collectionPopup;
-        
-        [SerializeField]
         private TMP_Text collectionValueText;
-        
-        [SerializeField]
         private TMP_Text collectionMessageText;
         
-        [Header("Locked Popup")]
-        [SerializeField]
+        [Header("Locked Popup (code-based - populated at runtime)")]
         private GameObject lockedPopup;
-        
-        [SerializeField]
         private TMP_Text lockedValueText;
-        
-        [SerializeField]
         private TMP_Text lockedMessageText;
         
-        [Header("Main Canvas")]
-        [SerializeField]
+        [Header("Main Canvas (code-based - populated at runtime)")]
         private Canvas hudCanvas;
-        
-        [SerializeField]
         private CanvasGroup hudCanvasGroup;
         
         [Header("Settings")]
@@ -173,6 +126,90 @@ namespace BlackBartsGold.UI
         
         private float messageTimer = 0f;
         private bool isShowingMessage = false;
+        
+        #endregion
+        
+        #region Runtime Initialization (Code-Based Setup)
+        
+        /// <summary>
+        /// Resolve references to code-created UI panels. Called by ARHuntSceneSetup
+        /// after it creates MessagePanel, LockedPopup, CollectionPopup, CoinInfoPanel.
+        /// No Inspector wiring required - all panels created at runtime.
+        /// </summary>
+        /// <param name="root">Transform that has the panels as children (Canvas root)</param>
+        public void InitializeRuntimeReferences(Transform root)
+        {
+            if (root == null) root = transform;
+
+            // MessagePanel
+            var msgPanel = root.Find("MessagePanel");
+            if (msgPanel != null)
+            {
+                messageText = msgPanel.Find("MessageText")?.GetComponent<TMP_Text>();
+                messageCanvasGroup = msgPanel.GetComponent<CanvasGroup>();
+            }
+
+            // LockedPopup
+            var lockedPanel = root.Find("LockedPopup");
+            if (lockedPanel != null)
+            {
+                lockedPopup = lockedPanel.gameObject;
+                lockedValueText = lockedPanel.Find("LockedValueText")?.GetComponent<TMP_Text>();
+                lockedMessageText = lockedPanel.Find("LockedMessageText")?.GetComponent<TMP_Text>();
+            }
+
+            // CollectionPopup
+            var collPanel = root.Find("CollectionPopup");
+            if (collPanel != null)
+            {
+                collectionPopup = collPanel.gameObject;
+                collectionValueText = collPanel.Find("CollectionValueText")?.GetComponent<TMP_Text>();
+                collectionMessageText = collPanel.Find("CollectionMessageText")?.GetComponent<TMP_Text>();
+            }
+
+            // CoinInfoPanel
+            var coinPanel = root.Find("CoinInfoPanel");
+            if (coinPanel != null)
+            {
+                coinInfoPanel = coinPanel.gameObject;
+                coinValueText = coinPanel.Find("CoinValueText")?.GetComponent<TMP_Text>();
+                coinDistanceText = coinPanel.Find("CoinDistanceText")?.GetComponent<TMP_Text>();
+                coinStatusText = coinPanel.Find("CoinStatusText")?.GetComponent<TMP_Text>();
+                coinTierIcon = coinPanel.Find("CoinTierIcon")?.GetComponent<Image>();
+            }
+
+            // HUD Components (Compass, Radar, Gas, FindLimit, DirectionIndicator)
+            var compassPanel = root.Find("CompassPanel");
+            if (compassPanel != null)
+                compass = compassPanel.GetComponent<CompassUI>();
+
+            var radarPanel = root.Find("RadarPanel");
+            if (radarPanel != null)
+                radar = radarPanel.GetComponent<RadarUI>();
+
+            var gasPanel = root.Find("GasMeterPanel");
+            if (gasPanel != null)
+                gasMeter = gasPanel.GetComponent<GasMeterUI>();
+
+            var findLimitPanel = root.Find("FindLimitPanel");
+            if (findLimitPanel != null)
+                findLimit = findLimitPanel.GetComponent<FindLimitUI>();
+
+            var dirIndicatorPanel = root.Find("DirectionIndicatorPanel");
+            if (dirIndicatorPanel != null)
+                directionIndicator = dirIndicatorPanel.GetComponent<CoinDirectionIndicator>();
+
+            // Main Canvas (root is the Canvas)
+            hudCanvas = root.GetComponent<Canvas>();
+            if (hudCanvas == null)
+                hudCanvas = root.GetComponentInParent<Canvas>();
+            hudCanvasGroup = root.GetComponent<CanvasGroup>();
+            if (hudCanvasGroup == null)
+                hudCanvasGroup = root.GetComponentInParent<CanvasGroup>();
+
+            if (debugMode)
+                Debug.Log("[ARHUD] InitializeRuntimeReferences complete");
+        }
         
         #endregion
         

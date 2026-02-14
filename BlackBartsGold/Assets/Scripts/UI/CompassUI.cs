@@ -90,6 +90,24 @@ namespace BlackBartsGold.UI
         
         #endregion
         
+        #region Runtime Setup (Code-Only UI)
+        
+        /// <summary>
+        /// Set compass references at runtime. Called by ARHuntSceneSetup when building UI from code.
+        /// </summary>
+        public void SetRuntimeReferences(RectTransform arrow, TMP_Text distText, TMP_Text dirText, TMP_Text valText, GameObject container, Image bgImage)
+        {
+            arrowImage = arrow;
+            distanceText = distText;
+            directionText = dirText;
+            valueText = valText;
+            compassContainer = container;
+            backgroundImage = bgImage;
+            if (arrowImage != null) baseScale = arrowImage.localScale;
+        }
+        
+        #endregion
+        
         #region Properties
         
         /// <summary>
@@ -131,6 +149,10 @@ namespace BlackBartsGold.UI
             if (arrowImage != null)
             {
                 baseScale = arrowImage.localScale;
+            }
+            else
+            {
+                baseScale = Vector3.one;
             }
         }
         

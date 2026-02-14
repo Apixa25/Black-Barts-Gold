@@ -89,6 +89,23 @@ namespace BlackBartsGold.UI
         
         #endregion
         
+        #region Runtime Setup (Code-Only UI)
+        
+        /// <summary>
+        /// Set find limit references at runtime. Called by ARHuntSceneSetup when building UI from code.
+        /// </summary>
+        public void SetRuntimeReferences(TMP_Text limit, TMP_Text tier, Image bg, Image icon, RectTransform cont)
+        {
+            limitText = limit;
+            tierText = tier;
+            backgroundImage = bg;
+            tierIcon = icon;
+            container = cont;
+            if (container != null) originalScale = container.localScale;
+        }
+        
+        #endregion
+        
         #region Properties
         
         /// <summary>
@@ -116,6 +133,10 @@ namespace BlackBartsGold.UI
             if (container != null)
             {
                 originalScale = container.localScale;
+            }
+            else
+            {
+                originalScale = Vector3.one;
             }
         }
         

@@ -20,6 +20,7 @@ using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
 {
+    [DefaultExecutionOrder(-100)] // Run before ARHUD so panels exist when InitializeRuntimeReferences is called
     public class ARHuntSceneSetup : MonoBehaviour
     {
         private readonly Color GoldColor = new Color(1f, 0.84f, 0f);
@@ -50,10 +51,26 @@ namespace BlackBartsGold.UI
             SetupCrosshairs();
             SetupRadarPanel();
             SetupDebugPanel();
+            SetupMessagePanel();
+            SetupLockedPopup();
+            SetupCollectionPopup();
+            SetupCoinInfoPanel();
+            SetupCompassPanel();
+            SetupGasMeterPanel();
+            SetupFindLimitPanel();
+            SetupDirectionIndicatorPanel();
             VerifyEventSystem();
             SetupDirectTouchHandler();
             SetupEmergencyButton();
             SetupLightship(); // Pokemon GO technology!
+
+            // Wire ARHUD to code-created panels (must run after all Setup* methods)
+            var arhud = GetComponentInChildren<ARHUD>(true);
+            if (arhud != null)
+            {
+                arhud.InitializeRuntimeReferences(transform);
+                Debug.Log("[ARHuntSceneSetup] ARHUD runtime references initialized");
+            }
             
             Debug.Log("[ARHuntSceneSetup] AR HUD setup complete!");
         }
@@ -327,11 +344,18 @@ namespace BlackBartsGold.UI
             var radar = transform.Find("RadarPanel");
             if (radar == null)
             {
-                Debug.LogWarning("[ARHuntSceneSetup] RadarPanel not found!");
-                return;
+                // Create RadarPanel from code for fully code-based setup
+                var radarGO = new GameObject("RadarPanel");
+                radarGO.transform.SetParent(transform, false);
+                radar = radarGO.transform;
+                radarGO.AddComponent<RectTransform>();
+                radarGO.AddComponent<RadarUI>();
+                Debug.Log("[ARHuntSceneSetup] Created RadarPanel from code");
             }
-            
-            Debug.Log($"[ARHuntSceneSetup] Found RadarPanel: {radar.name}");
+            else
+            {
+                Debug.Log($"[ARHuntSceneSetup] Found RadarPanel: {radar.name}");
+            }
             
             // Get or add RectTransform and store for touch detection
             var rect = radar.GetComponent<RectTransform>();
@@ -570,6 +594,532 @@ namespace BlackBartsGold.UI
             _debugDiagnosticsText.richText = true;
 
             Debug.Log("[ARHuntSceneSetup] Debug diagnostics panel created");
+        }
+
+        /// <summary>
+        /// Create MessagePanel for ARHUD.ShowMessage() - code-only, no Inspector wiring.
+        /// Center-bottom placement. ARHUD finds via transform.Find("MessagePanel").
+        /// </summary>
+        private void SetupMessagePanel()
+        {
+            var existing = transform.Find("MessagePanel");
+            if (existing != null) return;
+
+            var panel = new GameObject("MessagePanel");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 0);
+            panelRect.anchorMax = new Vector2(0.5f, 0);
+            panelRect.pivot = new Vector2(0.5f, 0);
+            panelRect.anchoredPosition = new Vector2(0, 120);
+            panelRect.sizeDelta = new Vector2(600, 80);
+
+            var cg = panel.AddComponent<CanvasGroup>();
+            cg.alpha = 0f;
+            cg.blocksRaycasts = false;
+            cg.interactable = false;
+
+            var bgImage = panel.AddComponent<Image>();
+            bgImage.color = new Color(0, 0, 0, 0.7f);
+            bgImage.raycastTarget = false;
+
+            var textGO = new GameObject("MessageText");
+            textGO.transform.SetParent(panel.transform, false);
+            var textRect = textGO.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(15, 10);
+            textRect.offsetMax = new Vector2(-15, -10);
+            var tmpText = textGO.AddComponent<TextMeshProUGUI>();
+            tmpText.text = "";
+            tmpText.fontSize = 28;
+            tmpText.color = Color.white;
+            tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.enableWordWrapping = true;
+
+            panel.SetActive(true);
+            Debug.Log("[ARHuntSceneSetup] MessagePanel created (code-based)");
+        }
+
+        /// <summary>
+        /// Create LockedPopup for ARHUD.ShowLockedPopup() - code-only, no Inspector wiring.
+        /// Center of screen. ARHUD finds via transform.Find("LockedPopup").
+        /// </summary>
+        private void SetupLockedPopup()
+        {
+            var existing = transform.Find("LockedPopup");
+            if (existing != null) return;
+
+            var panel = new GameObject("LockedPopup");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = new Vector2(400, 200);
+
+            var bgImage = panel.AddComponent<Image>();
+            bgImage.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+            bgImage.raycastTarget = true;
+
+            var valueGO = new GameObject("LockedValueText");
+            valueGO.transform.SetParent(panel.transform, false);
+            var valueRect = valueGO.AddComponent<RectTransform>();
+            valueRect.anchorMin = new Vector2(0.5f, 0.7f);
+            valueRect.anchorMax = new Vector2(0.5f, 0.7f);
+            valueRect.pivot = new Vector2(0.5f, 0.5f);
+            valueRect.anchoredPosition = Vector2.zero;
+            valueRect.sizeDelta = new Vector2(360, 50);
+            var valueText = valueGO.AddComponent<TextMeshProUGUI>();
+            valueText.text = "$0.00";
+            valueText.fontSize = 36;
+            valueText.color = GoldColor;
+            valueText.alignment = TextAlignmentOptions.Center;
+
+            var msgGO = new GameObject("LockedMessageText");
+            msgGO.transform.SetParent(panel.transform, false);
+            var msgRect = msgGO.AddComponent<RectTransform>();
+            msgRect.anchorMin = new Vector2(0.5f, 0.3f);
+            msgRect.anchorMax = new Vector2(0.5f, 0.3f);
+            msgRect.pivot = new Vector2(0.5f, 0.5f);
+            msgRect.anchoredPosition = Vector2.zero;
+            msgRect.sizeDelta = new Vector2(360, 80);
+            var msgText = msgGO.AddComponent<TextMeshProUGUI>();
+            msgText.text = "";
+            msgText.fontSize = 24;
+            msgText.color = Color.white;
+            msgText.alignment = TextAlignmentOptions.Center;
+            msgText.enableWordWrapping = true;
+
+            panel.SetActive(false);
+            Debug.Log("[ARHuntSceneSetup] LockedPopup created (code-based)");
+        }
+
+        /// <summary>
+        /// Create CollectionPopup for ARHUD.ShowCollectionPopup() - code-only, no Inspector wiring.
+        /// Center of screen. ARHUD finds via transform.Find("CollectionPopup").
+        /// </summary>
+        private void SetupCollectionPopup()
+        {
+            var existing = transform.Find("CollectionPopup");
+            if (existing != null) return;
+
+            var panel = new GameObject("CollectionPopup");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = new Vector2(350, 150);
+
+            var bgImage = panel.AddComponent<Image>();
+            bgImage.color = new Color(0.1f, 0.2f, 0.1f, 0.95f);
+            bgImage.raycastTarget = false;
+
+            var valueGO = new GameObject("CollectionValueText");
+            valueGO.transform.SetParent(panel.transform, false);
+            var valueRect = valueGO.AddComponent<RectTransform>();
+            valueRect.anchorMin = new Vector2(0.5f, 0.65f);
+            valueRect.anchorMax = new Vector2(0.5f, 0.65f);
+            valueRect.pivot = new Vector2(0.5f, 0.5f);
+            valueRect.anchoredPosition = Vector2.zero;
+            valueRect.sizeDelta = new Vector2(320, 50);
+            var valueText = valueGO.AddComponent<TextMeshProUGUI>();
+            valueText.text = "+$0.00";
+            valueText.fontSize = 40;
+            valueText.color = GoldColor;
+            valueText.alignment = TextAlignmentOptions.Center;
+
+            var msgGO = new GameObject("CollectionMessageText");
+            msgGO.transform.SetParent(panel.transform, false);
+            var msgRect = msgGO.AddComponent<RectTransform>();
+            msgRect.anchorMin = new Vector2(0.5f, 0.3f);
+            msgRect.anchorMax = new Vector2(0.5f, 0.3f);
+            msgRect.pivot = new Vector2(0.5f, 0.5f);
+            msgRect.anchoredPosition = Vector2.zero;
+            msgRect.sizeDelta = new Vector2(320, 40);
+            var msgText = msgGO.AddComponent<TextMeshProUGUI>();
+            msgText.text = "Treasure collected!";
+            msgText.fontSize = 24;
+            msgText.color = Color.white;
+            msgText.alignment = TextAlignmentOptions.Center;
+
+            panel.SetActive(false);
+            Debug.Log("[ARHuntSceneSetup] CollectionPopup created (code-based)");
+        }
+
+        /// <summary>
+        /// Create CoinInfoPanel for ARHUD.ShowCoinInfo() - code-only, no Inspector wiring.
+        /// Top-center, below radar. ARHUD finds via transform.Find("CoinInfoPanel").
+        /// </summary>
+        private void SetupCoinInfoPanel()
+        {
+            var existing = transform.Find("CoinInfoPanel");
+            if (existing != null) return;
+
+            var panel = new GameObject("CoinInfoPanel");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 1);
+            panelRect.anchorMax = new Vector2(0.5f, 1);
+            panelRect.pivot = new Vector2(0.5f, 1);
+            panelRect.anchoredPosition = new Vector2(0, -420);
+            panelRect.sizeDelta = new Vector2(320, 100);
+
+            var bgImage = panel.AddComponent<Image>();
+            bgImage.color = new Color(0, 0, 0, 0.75f);
+            bgImage.raycastTarget = false;
+
+            var valueGO = new GameObject("CoinValueText");
+            valueGO.transform.SetParent(panel.transform, false);
+            var valueRect = valueGO.AddComponent<RectTransform>();
+            valueRect.anchorMin = new Vector2(0, 0.6f);
+            valueRect.anchorMax = new Vector2(1, 1);
+            valueRect.offsetMin = new Vector2(10, 5);
+            valueRect.offsetMax = new Vector2(-10, -5);
+            var valueText = valueGO.AddComponent<TextMeshProUGUI>();
+            valueText.text = "$0.00";
+            valueText.fontSize = 32;
+            valueText.color = GoldColor;
+            valueText.alignment = TextAlignmentOptions.Center;
+
+            var distGO = new GameObject("CoinDistanceText");
+            distGO.transform.SetParent(panel.transform, false);
+            var distRect = distGO.AddComponent<RectTransform>();
+            distRect.anchorMin = new Vector2(0, 0.25f);
+            distRect.anchorMax = new Vector2(1, 0.6f);
+            distRect.offsetMin = new Vector2(10, 2);
+            distRect.offsetMax = new Vector2(-10, -2);
+            var distText = distGO.AddComponent<TextMeshProUGUI>();
+            distText.text = "0m";
+            distText.fontSize = 24;
+            distText.color = Color.white;
+            distText.alignment = TextAlignmentOptions.Center;
+
+            var statusGO = new GameObject("CoinStatusText");
+            statusGO.transform.SetParent(panel.transform, false);
+            var statusRect = statusGO.AddComponent<RectTransform>();
+            statusRect.anchorMin = new Vector2(0, 0);
+            statusRect.anchorMax = new Vector2(1, 0.25f);
+            statusRect.offsetMin = new Vector2(10, 2);
+            statusRect.offsetMax = new Vector2(-10, -2);
+            var statusText = statusGO.AddComponent<TextMeshProUGUI>();
+            statusText.text = "";
+            statusText.fontSize = 20;
+            statusText.color = Color.white;
+            statusText.alignment = TextAlignmentOptions.Center;
+
+            var iconGO = new GameObject("CoinTierIcon");
+            iconGO.transform.SetParent(panel.transform, false);
+            var iconRect = iconGO.AddComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(1, 0.5f);
+            iconRect.anchorMax = new Vector2(1, 0.5f);
+            iconRect.pivot = new Vector2(1, 0.5f);
+            iconRect.anchoredPosition = new Vector2(-10, 0);
+            iconRect.sizeDelta = new Vector2(40, 40);
+            var iconImage = iconGO.AddComponent<Image>();
+            iconImage.color = new Color(1, 1, 1, 0.5f);
+            iconImage.raycastTarget = false;
+
+            panel.SetActive(false);
+            Debug.Log("[ARHuntSceneSetup] CoinInfoPanel created (code-based)");
+        }
+
+        /// <summary>
+        /// Create CompassPanel for ARHUD - code-only. CompassUI shows direction to target coin.
+        /// </summary>
+        private void SetupCompassPanel()
+        {
+            var existing = transform.Find("CompassPanel");
+            if (existing != null) return;
+
+            var panel = new GameObject("CompassPanel");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 1);
+            panelRect.anchorMax = new Vector2(0.5f, 1);
+            panelRect.pivot = new Vector2(0.5f, 1);
+            panelRect.anchoredPosition = new Vector2(0, -120);
+            panelRect.sizeDelta = new Vector2(200, 80);
+
+            var bgImage = panel.AddComponent<Image>();
+            bgImage.color = new Color(0.1f, 0.21f, 0.36f, 0.8f);
+            bgImage.raycastTarget = false;
+
+            var arrowGO = new GameObject("ArrowImage");
+            arrowGO.transform.SetParent(panel.transform, false);
+            var arrowRect = arrowGO.AddComponent<RectTransform>();
+            arrowRect.anchorMin = new Vector2(0.5f, 0.5f);
+            arrowRect.anchorMax = new Vector2(0.5f, 0.5f);
+            arrowRect.pivot = new Vector2(0.5f, 0.5f);
+            arrowRect.anchoredPosition = new Vector2(-60, 0);
+            arrowRect.sizeDelta = new Vector2(40, 40);
+            var arrowImg = arrowGO.AddComponent<Image>();
+            arrowImg.color = Color.white;
+            arrowImg.raycastTarget = false;
+
+            var distGO = new GameObject("DistanceText");
+            distGO.transform.SetParent(panel.transform, false);
+            var distRect = distGO.AddComponent<RectTransform>();
+            distRect.anchorMin = new Vector2(0.5f, 0.5f);
+            distRect.anchorMax = new Vector2(0.5f, 0.5f);
+            distRect.pivot = new Vector2(0.5f, 0.5f);
+            distRect.anchoredPosition = new Vector2(0, 0);
+            distRect.sizeDelta = new Vector2(80, 30);
+            var distText = distGO.AddComponent<TextMeshProUGUI>();
+            distText.text = "0m";
+            distText.fontSize = 20;
+            distText.color = Color.white;
+            distText.alignment = TextAlignmentOptions.Center;
+
+            var dirGO = new GameObject("DirectionText");
+            dirGO.transform.SetParent(panel.transform, false);
+            var dirRect = dirGO.AddComponent<RectTransform>();
+            dirRect.anchorMin = new Vector2(0.5f, 0);
+            dirRect.anchorMax = new Vector2(0.5f, 0.5f);
+            dirRect.pivot = new Vector2(0.5f, 0.5f);
+            dirRect.anchoredPosition = new Vector2(20, 5);
+            dirRect.sizeDelta = new Vector2(50, 25);
+            var dirText = dirGO.AddComponent<TextMeshProUGUI>();
+            dirText.text = "N";
+            dirText.fontSize = 18;
+            dirText.color = Color.white;
+            dirText.alignment = TextAlignmentOptions.Center;
+
+            var valGO = new GameObject("ValueText");
+            valGO.transform.SetParent(panel.transform, false);
+            var valRect = valGO.AddComponent<RectTransform>();
+            valRect.anchorMin = new Vector2(0.5f, 0.5f);
+            valRect.anchorMax = new Vector2(0.5f, 1);
+            valRect.pivot = new Vector2(0.5f, 0.5f);
+            valRect.anchoredPosition = new Vector2(20, -5);
+            valRect.sizeDelta = new Vector2(80, 25);
+            var valText = valGO.AddComponent<TextMeshProUGUI>();
+            valText.text = "$0.00";
+            valText.fontSize = 18;
+            valText.color = GoldColor;
+            valText.alignment = TextAlignmentOptions.Center;
+
+            var compassUI = panel.AddComponent<CompassUI>();
+            compassUI.SetRuntimeReferences(arrowRect, distText, dirText, valText, panel, bgImage);
+            panel.SetActive(false);
+            Debug.Log("[ARHuntSceneSetup] CompassPanel created (code-based)");
+        }
+
+        /// <summary>
+        /// Create GasMeterPanel for ARHUD - code-only. Vertical gauge showing fuel days.
+        /// </summary>
+        private void SetupGasMeterPanel()
+        {
+            var existing = transform.Find("GasMeterPanel");
+            if (existing != null) return;
+
+            var panel = new GameObject("GasMeterPanel");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0, 0.5f);
+            panelRect.anchorMax = new Vector2(0, 0.5f);
+            panelRect.pivot = new Vector2(0, 0.5f);
+            panelRect.anchoredPosition = new Vector2(20, 0);
+            panelRect.sizeDelta = new Vector2(60, 120);
+
+            var bgImage = panel.AddComponent<Image>();
+            bgImage.color = new Color(0.2f, 0.2f, 0.2f, 0.8f);
+            bgImage.raycastTarget = false;
+
+            var fillGO = new GameObject("FillImage");
+            fillGO.transform.SetParent(panel.transform, false);
+            var fillRect = fillGO.AddComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = new Vector2(1, 1);
+            fillRect.offsetMin = new Vector2(4, 4);
+            fillRect.offsetMax = new Vector2(-4, -4);
+            var fillImg = fillGO.AddComponent<Image>();
+            fillImg.type = Image.Type.Filled;
+            fillImg.fillMethod = Image.FillMethod.Vertical;
+            fillImg.fillOrigin = (int)Image.OriginVertical.Bottom;
+            fillImg.fillAmount = 1f;
+            fillImg.color = new Color(0.29f, 0.87f, 0.5f);
+            fillImg.raycastTarget = false;
+
+            var daysGO = new GameObject("DaysText");
+            daysGO.transform.SetParent(panel.transform, false);
+            var daysRect = daysGO.AddComponent<RectTransform>();
+            daysRect.anchorMin = Vector2.zero;
+            daysRect.anchorMax = Vector2.one;
+            daysRect.offsetMin = Vector2.zero;
+            daysRect.offsetMax = Vector2.zero;
+            var daysText = daysGO.AddComponent<TextMeshProUGUI>();
+            daysText.text = "30d";
+            daysText.fontSize = 18;
+            daysText.color = Color.white;
+            daysText.alignment = TextAlignmentOptions.Center;
+
+            var iconGO = new GameObject("GasIcon");
+            iconGO.transform.SetParent(panel.transform, false);
+            var iconRect = iconGO.AddComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(0.5f, 1);
+            iconRect.anchorMax = new Vector2(0.5f, 1);
+            iconRect.pivot = new Vector2(0.5f, 1);
+            iconRect.anchoredPosition = new Vector2(0, 5);
+            iconRect.sizeDelta = new Vector2(24, 24);
+            var iconImg = iconGO.AddComponent<Image>();
+            iconImg.color = new Color(0.29f, 0.87f, 0.5f);
+            iconImg.raycastTarget = false;
+
+            var gasMeterUI = panel.AddComponent<GasMeterUI>();
+            gasMeterUI.SetRuntimeReferences(fillImg, bgImage, daysText, iconImg, panelRect);
+            Debug.Log("[ARHuntSceneSetup] GasMeterPanel created (code-based)");
+        }
+
+        /// <summary>
+        /// Create FindLimitPanel for ARHUD - code-only. Shows player's find limit tier.
+        /// </summary>
+        private void SetupFindLimitPanel()
+        {
+            var existing = transform.Find("FindLimitPanel");
+            if (existing != null) return;
+
+            var panel = new GameObject("FindLimitPanel");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(1, 0.5f);
+            panelRect.anchorMax = new Vector2(1, 0.5f);
+            panelRect.pivot = new Vector2(1, 0.5f);
+            panelRect.anchoredPosition = new Vector2(-20, 0);
+            panelRect.sizeDelta = new Vector2(140, 60);
+
+            var bgImage = panel.AddComponent<Image>();
+            bgImage.color = new Color(0.8f, 0.5f, 0.2f, 0.2f);
+            bgImage.raycastTarget = false;
+
+            var limitGO = new GameObject("LimitText");
+            limitGO.transform.SetParent(panel.transform, false);
+            var limitRect = limitGO.AddComponent<RectTransform>();
+            limitRect.anchorMin = new Vector2(0, 0.5f);
+            limitRect.anchorMax = new Vector2(1, 0.5f);
+            limitRect.pivot = new Vector2(0.5f, 0.5f);
+            limitRect.anchoredPosition = Vector2.zero;
+            limitRect.sizeDelta = new Vector2(-50, 30);
+            var limitText = limitGO.AddComponent<TextMeshProUGUI>();
+            limitText.text = "Find: $1.00";
+            limitText.fontSize = 20;
+            limitText.color = new Color(0.8f, 0.5f, 0.2f);
+            limitText.alignment = TextAlignmentOptions.Center;
+
+            var tierGO = new GameObject("TierText");
+            tierGO.transform.SetParent(panel.transform, false);
+            var tierRect = tierGO.AddComponent<RectTransform>();
+            tierRect.anchorMin = new Vector2(0, 0);
+            tierRect.anchorMax = new Vector2(1, 0.5f);
+            tierRect.pivot = new Vector2(0.5f, 0.5f);
+            tierRect.anchoredPosition = Vector2.zero;
+            tierRect.sizeDelta = new Vector2(-50, 25);
+            var tierText = tierGO.AddComponent<TextMeshProUGUI>();
+            tierText.text = "Cabin Boy";
+            tierText.fontSize = 14;
+            tierText.color = new Color(0.8f, 0.5f, 0.2f);
+            tierText.alignment = TextAlignmentOptions.Center;
+
+            var iconGO = new GameObject("TierIcon");
+            iconGO.transform.SetParent(panel.transform, false);
+            var iconRect = iconGO.AddComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(1, 0.5f);
+            iconRect.anchorMax = new Vector2(1, 0.5f);
+            iconRect.pivot = new Vector2(1, 0.5f);
+            iconRect.anchoredPosition = new Vector2(-5, 0);
+            iconRect.sizeDelta = new Vector2(36, 36);
+            var iconImg = iconGO.AddComponent<Image>();
+            iconImg.color = new Color(0.8f, 0.5f, 0.2f);
+            iconImg.raycastTarget = false;
+
+            var findLimitUI = panel.AddComponent<FindLimitUI>();
+            findLimitUI.SetRuntimeReferences(limitText, tierText, bgImage, iconImg, panelRect);
+            Debug.Log("[ARHuntSceneSetup] FindLimitPanel created (code-based)");
+        }
+
+        /// <summary>
+        /// Create DirectionIndicatorPanel for ARHUD - code-only. Large arrow pointing to target coin.
+        /// </summary>
+        private void SetupDirectionIndicatorPanel()
+        {
+            var existing = transform.Find("DirectionIndicatorPanel");
+            if (existing != null) return;
+
+            var panel = new GameObject("DirectionIndicatorPanel");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = new Vector2(200, 120);
+
+            var bgPanel = panel.AddComponent<Image>();
+            bgPanel.color = new Color(0, 0, 0, 0.6f);
+            bgPanel.raycastTarget = false;
+
+            var arrowGO = new GameObject("ArrowTransform");
+            arrowGO.transform.SetParent(panel.transform, false);
+            var arrowRect = arrowGO.AddComponent<RectTransform>();
+            arrowRect.anchorMin = new Vector2(0.5f, 0.5f);
+            arrowRect.anchorMax = new Vector2(0.5f, 0.5f);
+            arrowRect.pivot = new Vector2(0.5f, 0.5f);
+            arrowRect.anchoredPosition = Vector2.zero;
+            arrowRect.sizeDelta = new Vector2(60, 60);
+            var arrowImg = arrowGO.AddComponent<Image>();
+            arrowImg.color = new Color(1f, 0.84f, 0f, 0.9f);
+            arrowImg.raycastTarget = false;
+
+            var distGO = new GameObject("DistanceText");
+            distGO.transform.SetParent(panel.transform, false);
+            var distRect = distGO.AddComponent<RectTransform>();
+            distRect.anchorMin = new Vector2(0.5f, 0.7f);
+            distRect.anchorMax = new Vector2(0.5f, 0.7f);
+            distRect.pivot = new Vector2(0.5f, 0.5f);
+            distRect.anchoredPosition = Vector2.zero;
+            distRect.sizeDelta = new Vector2(120, 30);
+            var distText = distGO.AddComponent<TextMeshProUGUI>();
+            distText.text = "47m";
+            distText.fontSize = 24;
+            distText.color = Color.white;
+            distText.alignment = TextAlignmentOptions.Center;
+
+            var valGO = new GameObject("ValueText");
+            valGO.transform.SetParent(panel.transform, false);
+            var valRect = valGO.AddComponent<RectTransform>();
+            valRect.anchorMin = new Vector2(0.5f, 0.5f);
+            valRect.anchorMax = new Vector2(0.5f, 0.5f);
+            valRect.pivot = new Vector2(0.5f, 0.5f);
+            valRect.anchoredPosition = Vector2.zero;
+            valRect.sizeDelta = new Vector2(120, 25);
+            var valText = valGO.AddComponent<TextMeshProUGUI>();
+            valText.text = "$5.00";
+            valText.fontSize = 20;
+            valText.color = GoldColor;
+            valText.alignment = TextAlignmentOptions.Center;
+
+            var statGO = new GameObject("StatusText");
+            statGO.transform.SetParent(panel.transform, false);
+            var statRect = statGO.AddComponent<RectTransform>();
+            statRect.anchorMin = new Vector2(0.5f, 0.25f);
+            statRect.anchorMax = new Vector2(0.5f, 0.25f);
+            statRect.pivot = new Vector2(0.5f, 0.5f);
+            statRect.anchoredPosition = Vector2.zero;
+            statRect.sizeDelta = new Vector2(180, 30);
+            var statText = statGO.AddComponent<TextMeshProUGUI>();
+            statText.text = "Walk toward the treasure!";
+            statText.fontSize = 18;
+            statText.color = Color.white;
+            statText.alignment = TextAlignmentOptions.Center;
+            statText.enableWordWrapping = true;
+
+            var dirIndicator = panel.AddComponent<CoinDirectionIndicator>();
+            dirIndicator.SetRuntimeReferences(arrowRect, distText, valText, statText, panelRect, bgPanel, arrowImg);
+            panel.SetActive(false);
+            Debug.Log("[ARHuntSceneSetup] DirectionIndicatorPanel created (code-based)");
         }
         
         /// <summary>

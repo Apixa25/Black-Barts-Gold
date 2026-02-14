@@ -90,6 +90,22 @@ namespace BlackBartsGold.UI
         
         #endregion
         
+        #region Runtime Setup (Code-Only UI)
+        
+        /// <summary>
+        /// Set gas meter references at runtime. Called by ARHuntSceneSetup when building UI from code.
+        /// </summary>
+        public void SetRuntimeReferences(Image fill, Image bg, TMP_Text days, Image icon, RectTransform cont)
+        {
+            fillImage = fill;
+            backgroundImage = bg;
+            daysText = days;
+            gasIcon = icon;
+            container = cont;
+        }
+        
+        #endregion
+        
         #region Properties
         
         /// <summary>

@@ -124,6 +124,24 @@ namespace BlackBartsGold.UI
         
         #endregion
         
+        #region Runtime Setup (Code-Only UI)
+        
+        /// <summary>
+        /// Set direction indicator references at runtime. Called by ARHuntSceneSetup when building UI from code.
+        /// </summary>
+        public void SetRuntimeReferences(RectTransform arrow, TMP_Text distText, TMP_Text valText, TMP_Text statText, RectTransform cont, Image bgPanel, Image arrowImg)
+        {
+            arrowTransform = arrow;
+            distanceText = distText;
+            valueText = valText;
+            statusText = statText;
+            indicatorContainer = cont;
+            backgroundPanel = bgPanel;
+            arrowImage = arrowImg;
+        }
+        
+        #endregion
+        
         #region Properties
         
         /// <summary>
