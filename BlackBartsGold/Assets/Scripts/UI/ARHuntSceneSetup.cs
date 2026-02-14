@@ -253,7 +253,8 @@ namespace BlackBartsGold.UI
             var image = crosshairs.GetComponent<Image>();
             if (image == null) image = crosshairs.gameObject.AddComponent<Image>();
             image.sprite = crosshairsSprite;
-            image.color = new Color(1f, 0.84f, 0f, 0.9f);
+            // Use white tint so sprite's colors show; CrosshairsController tints for state (green=in range, etc.)
+            image.color = crosshairsSprite != null ? new Color(1f, 1f, 1f, 0.95f) : new Color(1f, 0.84f, 0f, 0.9f);
             image.raycastTarget = false;
             image.preserveAspect = crosshairsSprite != null;
             // No sprite = gold square fallback (better than white or nothing)
@@ -336,13 +337,13 @@ namespace BlackBartsGold.UI
             radarRect = rect; // Store for Update() touch detection
             if (rect != null)
             {
-                // Position in bottom-right corner with safe margin
-                rect.anchorMin = new Vector2(1, 0);
-                rect.anchorMax = new Vector2(1, 0);
-                rect.pivot = new Vector2(1, 0);
-                rect.anchoredPosition = new Vector2(-20, 20);
+                // Position in top-right corner with safe margin (below status bar)
+                rect.anchorMin = new Vector2(1, 1);
+                rect.anchorMax = new Vector2(1, 1);
+                rect.pivot = new Vector2(1, 1);
+                rect.anchoredPosition = new Vector2(-20, -20);
                 rect.sizeDelta = new Vector2(360, 360); // 2x larger for better visibility
-                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor BR, pos (-20, 20), size 360x360");
+                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor TR, pos (-20, -20), size 360x360");
             }
             
             // CRITICAL: Ensure there's an Image with raycastTarget = true

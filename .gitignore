@@ -153,3 +153,6 @@ admin-dashboard/next-env.d.ts
 
 # Local scripts (do not commit)
 replace-token.ps1
+
+# Mapbox token (copy from MapboxToken.example.txt and add your pk.* token)
+BlackBartsGold/Assets/Resources/MapboxToken.txt

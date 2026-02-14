@@ -50,9 +50,33 @@ namespace BlackBartsGold.Core
         [Header("Debug")]
         [SerializeField] private bool debugMode = true;
         
-        /// <summary>Token from Inspector, or MAPBOX_ACCESS_TOKEN env var. Keeps secrets out of source control.</summary>
-        private string EffectiveAccessToken =>
-            !string.IsNullOrEmpty(accessToken) ? accessToken : (Environment.GetEnvironmentVariable("MAPBOX_ACCESS_TOKEN") ?? "");
+        /// <summary>Token from Inspector, Resources/MapboxToken.txt, or MAPBOX_ACCESS_TOKEN env var. Keeps secrets out of source control.</summary>
+        private string EffectiveAccessToken
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(accessToken) && accessToken.StartsWith("pk."))
+                    return accessToken;
+                var fromResources = LoadTokenFromResources();
+                if (!string.IsNullOrEmpty(fromResources))
+                    return fromResources;
+                var fromEnv = Environment.GetEnvironmentVariable("MAPBOX_ACCESS_TOKEN");
+                return fromEnv ?? "";
+            }
+        }
+        
+        private static string _cachedResourcesToken;
+        
+        /// <summary>Load token from Resources/MapboxToken.txt (user creates; copy from MapboxToken.example.txt).</summary>
+        private static string LoadTokenFromResources()
+        {
+            if (_cachedResourcesToken != null) return _cachedResourcesToken;
+            var asset = Resources.Load<TextAsset>("MapboxToken");
+            if (asset == null || string.IsNullOrWhiteSpace(asset.text)) { _cachedResourcesToken = ""; return ""; }
+            var token = asset.text.Trim();
+            _cachedResourcesToken = token.StartsWith("pk.") ? token : "";
+            return _cachedResourcesToken;
+        }
         
         #endregion
         
