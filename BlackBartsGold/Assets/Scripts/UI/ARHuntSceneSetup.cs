@@ -24,6 +24,9 @@ namespace BlackBartsGold.UI
 
         private RectTransform radarRect;
         private int touchLogCount = 0;
+        private TextMeshProUGUI _debugDiagnosticsText;
+        private float _lastDiagnosticUpdate;
+        private const float _diagnosticUpdateInterval = 0.5f;
         
         private void Start()
         {
@@ -36,6 +39,7 @@ namespace BlackBartsGold.UI
             SetupBackButton();
             SetupCrosshairs();
             SetupRadarPanel();
+            SetupDebugPanel();
             VerifyEventSystem();
             SetupDirectTouchHandler();
             SetupEmergencyButton();
@@ -56,6 +60,13 @@ namespace BlackBartsGold.UI
         
         private void Update()
         {
+            // Update debug diagnostics panel
+            if (_debugDiagnosticsText != null && Time.time - _lastDiagnosticUpdate >= _diagnosticUpdateInterval)
+            {
+                _lastDiagnosticUpdate = Time.time;
+                _debugDiagnosticsText.text = Core.UIManager.GetDiagnosticsString();
+            }
+
             // Debug: Log touches every frame (first 20 touches only to avoid spam)
             var activeTouches = Touch.activeTouches;
             if (activeTouches.Count > 0 && touchLogCount < 20)
@@ -337,16 +348,148 @@ namespace BlackBartsGold.UI
             button.onClick.AddListener(OnRadarClicked);
             Debug.Log("[ARHuntSceneSetup] RadarPanel button click handler registered");
             
-            // Ensure RadarUI component exists
+            // Wire RadarUI and create radar content (player dot, coin sprite) - code-only
             var radarUI = radar.GetComponent<RadarUI>();
             if (radarUI != null)
             {
-                Debug.Log("[ARHuntSceneSetup] RadarUI component found");
+                SetupRadarContent(radar, radarUI);
+                Debug.Log("[ARHuntSceneSetup] RadarUI wired with code-based setup");
             }
             else
             {
                 Debug.LogWarning("[ARHuntSceneSetup] RadarUI component NOT found on RadarPanel!");
             }
+        }
+
+        /// <summary>
+        /// Create radar content (player dot, sweep line) and wire RadarUI at runtime.
+        /// Uses player.png and map-coin-icon.png from Resources/UI.
+        /// </summary>
+        private void SetupRadarContent(Transform radar, RadarUI radarUI)
+        {
+            var rect = radar.GetComponent<RectTransform>();
+            if (rect == null) return;
+
+            // Player dot at center
+            var playerDot = radar.Find("PlayerDot");
+            if (playerDot == null)
+            {
+                var playerGO = new GameObject("PlayerDot");
+                playerDot = playerGO.transform;
+                playerDot.SetParent(radar, false);
+                var playerRect = playerGO.AddComponent<RectTransform>();
+                playerRect.anchorMin = new Vector2(0.5f, 0.5f);
+                playerRect.anchorMax = new Vector2(0.5f, 0.5f);
+                playerRect.pivot = new Vector2(0.5f, 0.5f);
+                playerRect.anchoredPosition = Vector2.zero;
+                playerRect.sizeDelta = new Vector2(24, 24);
+                var playerImg = playerGO.AddComponent<Image>();
+                var playerSprite = Resources.Load<Sprite>("UI/player");
+                if (playerSprite == null) playerSprite = Resources.Load<Sprite>("player");
+                playerImg.sprite = playerSprite;
+                playerImg.color = Color.white;
+                playerImg.raycastTarget = false;
+                playerImg.preserveAspect = true;
+            }
+
+            // Sweep line (optional - thin rotating line)
+            var sweepLine = radar.Find("SweepLine");
+            if (sweepLine == null)
+            {
+                var sweepGO = new GameObject("SweepLine");
+                sweepLine = sweepGO.transform;
+                sweepLine.SetParent(radar, false);
+                var sweepRect = sweepGO.AddComponent<RectTransform>();
+                sweepRect.anchorMin = new Vector2(0.5f, 0.5f);
+                sweepRect.anchorMax = new Vector2(0.5f, 0.5f);
+                sweepRect.pivot = new Vector2(0.5f, 0f);
+                sweepRect.anchoredPosition = Vector2.zero;
+                sweepRect.sizeDelta = new Vector2(4, 70);
+                var sweepImg = sweepGO.AddComponent<Image>();
+                sweepImg.color = new Color(1f, 0.84f, 0f, 0.4f);
+                sweepImg.raycastTarget = false;
+            }
+
+            // North indicator (optional)
+            var northIndicator = radar.Find("NorthIndicator");
+            if (northIndicator == null)
+            {
+                var northGO = new GameObject("NorthIndicator");
+                northIndicator = northGO.transform;
+                northIndicator.SetParent(radar, false);
+                var northRect = northGO.AddComponent<RectTransform>();
+                northRect.anchorMin = new Vector2(0.5f, 1f);
+                northRect.anchorMax = new Vector2(0.5f, 1f);
+                northRect.pivot = new Vector2(0.5f, 1f);
+                northRect.anchoredPosition = new Vector2(0, -10);
+                northRect.sizeDelta = new Vector2(8, 12);
+                var northImg = northGO.AddComponent<Image>();
+                northImg.color = new Color(1f, 0.3f, 0.3f, 0.8f);
+                northImg.raycastTarget = false;
+            }
+
+            var coinSprite = Resources.Load<Sprite>("UI/map-coin-icon");
+            if (coinSprite == null) coinSprite = Resources.Load<Sprite>("map-coin-icon");
+            radarUI.SetRuntimeReferences(rect, playerDot.GetComponent<RectTransform>(), sweepLine.GetComponent<RectTransform>(), northIndicator.GetComponent<RectTransform>(), coinSprite);
+        }
+
+        /// <summary>
+        /// Create debug diagnostics panel (bottom-left) - same as UIManager's AR overlay.
+        /// Shows AR status, GPS, planes, coins. Code-only, no Editor wiring.
+        /// </summary>
+        private void SetupDebugPanel()
+        {
+            var existing = transform.Find("DebugDiagnosticsPanel");
+            if (existing != null)
+            {
+                _debugDiagnosticsText = existing.GetComponentInChildren<TextMeshProUGUI>();
+                return;
+            }
+
+            var debugPanel = new GameObject("DebugDiagnosticsPanel");
+            debugPanel.transform.SetParent(transform, false);
+            var panelRect = debugPanel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0, 0);
+            panelRect.anchorMax = new Vector2(0, 0);
+            panelRect.pivot = new Vector2(0, 0);
+            panelRect.anchoredPosition = new Vector2(20, 20);
+            panelRect.sizeDelta = new Vector2(400, 320);
+
+            var bgImage = debugPanel.AddComponent<Image>();
+            bgImage.color = new Color(0, 0, 0, 0.8f);
+            bgImage.raycastTarget = false;
+
+            var titleGO = new GameObject("DebugTitle");
+            titleGO.transform.SetParent(debugPanel.transform, false);
+            var titleRect = titleGO.AddComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0, 1);
+            titleRect.anchorMax = new Vector2(1, 1);
+            titleRect.pivot = new Vector2(0.5f, 1);
+            titleRect.anchoredPosition = new Vector2(0, -10);
+            titleRect.sizeDelta = new Vector2(0, 40);
+            var titleText = titleGO.AddComponent<TextMeshProUGUI>();
+            titleText.text = "🔧 DEBUG INFO";
+            titleText.fontSize = 28;
+            titleText.color = GoldColor;
+            titleText.alignment = TextAlignmentOptions.Center;
+
+            var diagGO = new GameObject("DiagnosticsText");
+            diagGO.transform.SetParent(debugPanel.transform, false);
+            var diagRect = diagGO.AddComponent<RectTransform>();
+            diagRect.anchorMin = new Vector2(0, 0);
+            diagRect.anchorMax = new Vector2(1, 1);
+            diagRect.pivot = new Vector2(0, 1);
+            diagRect.anchoredPosition = new Vector2(15, -55);
+            diagRect.sizeDelta = new Vector2(-30, -70);
+            _debugDiagnosticsText = diagGO.AddComponent<TextMeshProUGUI>();
+            _debugDiagnosticsText.text = "Loading...";
+            _debugDiagnosticsText.fontSize = 20;
+            _debugDiagnosticsText.color = Color.white;
+            _debugDiagnosticsText.alignment = TextAlignmentOptions.TopLeft;
+            _debugDiagnosticsText.enableWordWrapping = true;
+            _debugDiagnosticsText.richText = true;
+
+            Debug.Log("[ARHuntSceneSetup] Debug diagnostics panel created");
         }
         
         /// <summary>

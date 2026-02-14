@@ -311,6 +311,17 @@ namespace BlackBartsGold.UI
                     Transform marker = mapCont.Find("PlayerMarker");
                     if (marker != null) playerMarker = marker.GetComponent<RectTransform>();
                 }
+                // Set player marker sprite (player.png from Resources/UI)
+                if (playerMarker != null)
+                {
+                    var playerImg = playerMarker.GetComponent<Image>();
+                    if (playerImg != null && playerImg.sprite == null)
+                    {
+                        var playerSprite = Resources.Load<Sprite>("UI/player") ?? Resources.Load<Sprite>("player");
+                        playerImg.sprite = playerSprite;
+                        if (playerSprite != null) { playerImg.color = Color.white; playerImg.preserveAspect = true; }
+                    }
+                }
             }
             
             // Find SelectionPanel children
@@ -855,12 +866,13 @@ namespace BlackBartsGold.UI
             }
             else
             {
-                // Create default marker
+                // Create default marker (map-coin-icon from Resources/UI)
                 markerObj = new GameObject("CoinMarker");
                 Image img = markerObj.AddComponent<Image>();
-                if (coinMarkerSprite != null)
-                    img.sprite = coinMarkerSprite;
-                img.color = normalCoinColor;
+                var sprite = coinMarkerSprite ?? Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+                img.sprite = sprite;
+                img.color = sprite != null ? Color.white : normalCoinColor;
+                img.preserveAspect = sprite != null;
                 
                 RectTransform rt = markerObj.GetComponent<RectTransform>();
                 rt.sizeDelta = new Vector2(24, 24);

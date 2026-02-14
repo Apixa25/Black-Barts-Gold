@@ -233,8 +233,7 @@ namespace BlackBartsGold.Core
             // Update debug diagnostics
             if (_debugDiagnosticsText != null)
             {
-                string diagnostics = BuildDiagnosticsString();
-                _debugDiagnosticsText.text = diagnostics;
+                _debugDiagnosticsText.text = GetDiagnosticsString();
             }
             
             // Update mini-map
@@ -245,9 +244,10 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Build the diagnostics string with current system state
+        /// Build the diagnostics string with current system state.
+        /// Public static so AR scene's debug panel can use it when UIManager canvas is disabled.
         /// </summary>
-        private string BuildDiagnosticsString()
+        public static string GetDiagnosticsString()
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             
@@ -1542,15 +1542,18 @@ namespace BlackBartsGold.Core
             touchArea.color = new Color(0, 0, 0, 0.01f); // Nearly invisible but raycastable
             touchArea.raycastTarget = true;
             
-            // Gold coin icon
+            // Gold coin icon (map-coin-icon from Resources/UI)
             var iconObj = new GameObject("Icon");
             iconObj.transform.SetParent(marker.transform, false);
             var iconRect = iconObj.AddComponent<RectTransform>();
             iconRect.anchoredPosition = new Vector2(0, 10);
             iconRect.sizeDelta = new Vector2(40, 40);
             var iconImg = iconObj.AddComponent<Image>();
-            iconImg.color = GoldColor;
+            var coinIconSprite = Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+            iconImg.sprite = coinIconSprite;
+            iconImg.color = coinIconSprite != null ? Color.white : GoldColor;
             iconImg.raycastTarget = false;
+            iconImg.preserveAspect = coinIconSprite != null;
             
             // Glow effect
             var glowObj = new GameObject("Glow");
@@ -2121,7 +2124,7 @@ namespace BlackBartsGold.Core
             innerRawImage.texture = CreateRingTexture(128, 2, new Color(1, 1, 1, 0.2f));
             innerRawImage.raycastTarget = false;
             
-            // Player dot (center, blue with glow effect)
+            // Player dot (center - uses player.png from Resources/UI)
             var playerDot = new GameObject("PlayerDot");
             playerDot.transform.SetParent(mapContainer.transform, false);
             var playerRect = playerDot.AddComponent<RectTransform>();
@@ -2129,8 +2132,11 @@ namespace BlackBartsGold.Core
             playerRect.anchorMax = new Vector2(0.5f, 0.5f);
             playerRect.sizeDelta = new Vector2(48, 48); // 2x for bigger mini-map
             var playerImage = playerDot.AddComponent<Image>();
-            playerImage.color = new Color(0.2f, 0.6f, 1f); // Blue
+            var playerSprite = Resources.Load<Sprite>("UI/player") ?? Resources.Load<Sprite>("player");
+            playerImage.sprite = playerSprite;
+            playerImage.color = playerSprite != null ? Color.white : new Color(0.2f, 0.6f, 1f);
             playerImage.raycastTarget = false;
+            playerImage.preserveAspect = playerSprite != null;
             _playerDot = playerRect;
             
             // Player glow/pulse effect
@@ -2326,8 +2332,11 @@ namespace BlackBartsGold.Core
                 dot.anchorMax = new Vector2(0.5f, 0.5f);
                 dot.sizeDelta = new Vector2(48, 48); // 2x for bigger mini-map
                 var dotImage = dotObj.AddComponent<Image>();
-                dotImage.color = GoldColor;
+                var coinDotSprite = Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+                dotImage.sprite = coinDotSprite;
+                dotImage.color = coinDotSprite != null ? Color.white : GoldColor;
                 dotImage.raycastTarget = false;
+                dotImage.preserveAspect = coinDotSprite != null;
                 _coinDots[targetCoin.id] = dot;
                 
                 Debug.Log($"[UIManager] Created mini-map dot for TARGET coin {targetCoin.id}");

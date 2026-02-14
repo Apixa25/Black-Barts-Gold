@@ -107,6 +107,23 @@ namespace BlackBartsGold.UI
         
         #endregion
         
+        #region Runtime Setup (Code-Only UI)
+        
+        /// <summary>
+        /// Set radar references at runtime. Called by ARHuntSceneSetup when building UI from code.
+        /// </summary>
+        public void SetRuntimeReferences(RectTransform container, RectTransform player, RectTransform sweep, RectTransform north, Sprite coinSprite)
+        {
+            radarContainer = container;
+            playerDot = player;
+            sweepLine = sweep;
+            northIndicator = north;
+            coinDotSprite = coinSprite;
+            Debug.Log("[RadarUI] Runtime references set (code-only setup)");
+        }
+        
+        #endregion
+        
         #region Awake - Very Early Init
         
         private void Awake()
