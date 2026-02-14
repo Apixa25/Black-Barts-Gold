@@ -215,11 +215,21 @@ namespace BlackBartsGold.Core
         }
         
         /// <summary>
-        /// Get a map tile for the mini-map (square, smaller size)
+        /// Get a map tile for the mini-map (square, smaller size).
+        /// Uses zoom 16 by default.
         /// </summary>
         public void GetMiniMapTile(double latitude, double longitude, float bearing, Action<Texture2D> callback)
         {
-            GetMapTile(latitude, longitude, 16, 400, 400, callback, bearing);
+            GetMiniMapTile(latitude, longitude, 16, bearing, callback);
+        }
+        
+        /// <summary>
+        /// Get a map tile for the mini-map with custom zoom.
+        /// Higher zoom = more zoomed in (e.g. 18 for hunt mode).
+        /// </summary>
+        public void GetMiniMapTile(double latitude, double longitude, int zoom, float bearing, Action<Texture2D> callback)
+        {
+            GetMapTile(latitude, longitude, zoom, 400, 400, callback, bearing);
         }
         
         /// <summary>

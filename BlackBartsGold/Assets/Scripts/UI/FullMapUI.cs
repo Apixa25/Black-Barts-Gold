@@ -458,6 +458,9 @@ namespace BlackBartsGold.UI
                 Debug.LogError($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: mapPanel is NULL!");
             }
             
+            // Let layout settle before RefreshMap (fixes map not loading after coin collection)
+            yield return null;
+            
             Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Calling ClearSelection()...");
             ClearSelection();
             
@@ -479,7 +482,10 @@ namespace BlackBartsGold.UI
                 mapPanel.SetActive(false);
             }
             
-            ClearSelection();
+            // Don't call RefreshMap when hiding - layout is invalid and can cause issues on reopen
+            PreviewCoin = null;
+            selectedMarkerId = null;
+            HideSelectionPanel();
             
             Log("Map closed");
             OnMapClosed?.Invoke();
@@ -504,6 +510,12 @@ namespace BlackBartsGold.UI
         public void RefreshMap()
         {
             Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: RefreshMap() called");
+            
+            if (mapContainer == null)
+            {
+                Debug.LogWarning($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: RefreshMap - mapContainer is NULL, skipping");
+                return;
+            }
             
             if (!CoinManager.Exists)
             {

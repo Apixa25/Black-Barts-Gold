@@ -17,6 +17,7 @@ using System.Collections;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core;
 using BlackBartsGold.Utils;
+using BlackBartsGold.AR;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
@@ -38,6 +39,7 @@ namespace BlackBartsGold.UI
         private bool _radarMapTileIsOurCopy;
         private float _lastDiagnosticUpdate;
         private const float _diagnosticUpdateInterval = 0.5f;
+        private int _radarZoom = 16; // 16 = default; 18 = zoomed in when hunting
         
         private void Start()
         {
@@ -61,6 +63,12 @@ namespace BlackBartsGold.UI
             VerifyEventSystem();
             SetupDirectTouchHandler();
             SetupLightship(); // Pokemon GO technology!
+            
+            // Subscribe to hunt mode - zoom radar in when coin selected
+            if (CoinManager.Exists)
+            {
+                CoinManager.Instance.OnHuntModeChanged += OnHuntModeChanged;
+            }
 
             // Wire ARHUD to code-created panels (must run after all Setup* methods)
             var arhud = GetComponentInChildren<ARHUD>(true);
@@ -89,8 +97,19 @@ namespace BlackBartsGold.UI
 
         private void OnDestroy()
         {
+            if (CoinManager.Exists)
+            {
+                CoinManager.Instance.OnHuntModeChanged -= OnHuntModeChanged;
+            }
             if (_radarMapCurrentTile != null && _radarMapTileIsOurCopy)
                 Destroy(_radarMapCurrentTile);
+        }
+        
+        private void OnHuntModeChanged(HuntMode mode)
+        {
+            _radarZoom = (mode == HuntMode.Hunting || mode == HuntMode.Collecting) ? 18 : 16;
+            _radarMapUpdatePending = false;
+            _radarMapLastUpdate = -999f; // Force immediate refresh on next Update
         }
         
         private void Update()
@@ -1179,7 +1198,7 @@ namespace BlackBartsGold.UI
                 _radarMapLastLat = loc.latitude;
                 _radarMapLastLng = loc.longitude;
 
-                MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, 0f, OnRadarMapTileReceived);
+                MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, _radarZoom, 0f, OnRadarMapTileReceived);
             }
         }
 

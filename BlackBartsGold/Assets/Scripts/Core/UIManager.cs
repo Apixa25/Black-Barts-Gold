@@ -1167,7 +1167,7 @@ namespace BlackBartsGold.Core
             var mapBg = mapContainer.AddComponent<Image>();
             mapBg.color = new Color(0.15f, 0.2f, 0.25f, 1f);
             
-            // Real map image
+            // Real map image - use AspectRatioFitter so square tile (1024x1024) isn't squished
             var mapImageObj = new GameObject("MapImage");
             mapImageObj.transform.SetParent(mapContainer.transform, false);
             var mapImageRect = mapImageObj.AddComponent<RectTransform>();
@@ -1175,6 +1175,10 @@ namespace BlackBartsGold.Core
             mapImageRect.anchorMax = Vector2.one;
             mapImageRect.offsetMin = Vector2.zero;
             mapImageRect.offsetMax = Vector2.zero;
+            
+            var aspectFitter = mapImageObj.AddComponent<UnityEngine.UI.AspectRatioFitter>();
+            aspectFitter.aspectRatio = 1f; // Square - map tile is 1024x1024
+            aspectFitter.aspectMode = UnityEngine.UI.AspectRatioFitter.AspectMode.FitInParent;
             
             _fullMapImage = mapImageObj.AddComponent<RawImage>();
             _fullMapImage.color = Color.white;
