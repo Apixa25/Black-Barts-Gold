@@ -224,22 +224,32 @@ namespace BlackBartsGold.AR
             // Initialize compass heading for positioning
             ARCoinPositioner.CaptureInitialCompassHeading();
             
-            // Subscribe to AR raycast events for tap-to-collect
-            if (ARRaycastController.Instance != null)
-            {
-                ARRaycastController.Instance.OnCoinSelected += HandleCoinTapped;
-                Log("Subscribed to ARRaycastController.OnCoinSelected for tap-to-collect");
-            }
-            else
-            {
-                Debug.LogWarning("[CoinManager] ARRaycastController not found - tap-to-collect won't work!");
-            }
+            // Subscribe to AR raycast events for tap-to-collect (retry if ARRaycastController loads late)
+            StartCoroutine(SubscribeToARRaycastControllerWhenReady());
             
             // Log AR session state
             Debug.Log($"[CoinManager]   AR Session State: {UnityEngine.XR.ARFoundation.ARSession.state}");
             
             // Start in map view mode
             SetHuntMode(HuntMode.MapView);
+        }
+        
+        /// <summary>Retry finding ARRaycastController for a few seconds (handles late init when returning from MainMenu).</summary>
+        private System.Collections.IEnumerator SubscribeToARRaycastControllerWhenReady()
+        {
+            const int maxAttempts = 10;
+            const float delaySeconds = 0.3f;
+            for (int i = 0; i < maxAttempts; i++)
+            {
+                if (ARRaycastController.Instance != null)
+                {
+                    ARRaycastController.Instance.OnCoinSelected += HandleCoinTapped;
+                    Log("Subscribed to ARRaycastController.OnCoinSelected for tap-to-collect");
+                    yield break;
+                }
+                yield return new WaitForSeconds(delaySeconds);
+            }
+            Debug.LogWarning("[CoinManager] ARRaycastController not found after retries - tap-to-collect won't work!");
         }
         
         private void OnDestroy()
