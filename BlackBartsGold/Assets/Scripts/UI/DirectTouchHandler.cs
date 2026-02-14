@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
+using BlackBartsGold.Utils;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
@@ -262,15 +263,12 @@ namespace BlackBartsGold.UI
         
         private void Log(string message)
         {
-            if (enableDebugLogs)
-            {
-                Debug.Log($"[DirectTouch] {message}");
-            }
+            DiagnosticLog.Log("DirectTouch", message);
         }
         
         private void LogError(string message)
         {
-            Debug.LogError($"[DirectTouch] {message}");
+            DiagnosticLog.Error("DirectTouch", message);
         }
         
         private void OnGUI()

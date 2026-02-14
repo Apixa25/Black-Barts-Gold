@@ -16,6 +16,7 @@ using TMPro;
 using System.Collections;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core;
+using BlackBartsGold.Utils;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
@@ -40,11 +41,8 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
-            Debug.Log("[DIAG] ====== AR SCENE START at T+" + Time.realtimeSinceStartup.ToString("F2") + "s ======");
-            Debug.Log("========================================");
-            Debug.Log("[ARHuntSceneSetup] START - Setting up AR HUD...");
-            Debug.Log($"[ARHuntSceneSetup] GameObject: {gameObject.name}");
-            Debug.Log("========================================");
+            DiagnosticLog.Log("Setup", $"AR SCENE START T+{Time.realtimeSinceStartup:F2}s");
+            DiagnosticLog.Log("Setup", $"GameObject: {gameObject.name}");
             
             SetupCanvas();
             SetupBackButton();
@@ -69,10 +67,14 @@ namespace BlackBartsGold.UI
             if (arhud != null)
             {
                 arhud.InitializeRuntimeReferences(transform);
-                Debug.Log("[ARHuntSceneSetup] ARHUD runtime references initialized");
+                DiagnosticLog.Log("Setup", "ARHUD runtime references initialized");
+            }
+            else
+            {
+                DiagnosticLog.Warn("Setup", "ARHUD not found - panels may not work");
             }
             
-            Debug.Log("[ARHuntSceneSetup] AR HUD setup complete!");
+            DiagnosticLog.Log("Setup", "AR HUD setup COMPLETE");
         }
         
         private void OnEnable()
@@ -170,20 +172,28 @@ namespace BlackBartsGold.UI
         private void SetupBackButton()
         {
             var btn = transform.Find("BackButton");
-            if (btn == null) return;
-
-            var rect = btn.GetComponent<RectTransform>();
-            if (rect != null)
+            if (btn == null)
             {
-                // Position in top-left corner
-                rect.anchorMin = new Vector2(0, 1);
-                rect.anchorMax = new Vector2(0, 1);
-                rect.pivot = new Vector2(0, 1);
-                rect.anchoredPosition = new Vector2(30, -50);
-                rect.sizeDelta = new Vector2(120, 60);
+                // Create BackButton from code for fully code-based setup
+                var btnGO = new GameObject("BackButton");
+                btnGO.transform.SetParent(transform, false);
+                btn = btnGO.transform;
+                btnGO.AddComponent<RectTransform>();
+                btnGO.AddComponent<Image>();
+                btnGO.AddComponent<Button>();
+                DiagnosticLog.Log("Setup", "Created BackButton from code");
             }
 
+            var rect = btn.GetComponent<RectTransform>();
+            if (rect == null) rect = btn.gameObject.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 1);
+            rect.anchorMax = new Vector2(0, 1);
+            rect.pivot = new Vector2(0, 1);
+            rect.anchoredPosition = new Vector2(30, -50);
+            rect.sizeDelta = new Vector2(120, 60);
+
             var image = btn.GetComponent<Image>();
+            if (image == null) image = btn.gameObject.AddComponent<Image>();
             if (image != null)
             {
                 image.color = SemiTransparentBlack;
@@ -212,17 +222,17 @@ namespace BlackBartsGold.UI
 
             // Wire Back button to exit AR and return to MainMenu
             var button = btn.GetComponent<Button>();
-            if (button != null)
+            if (button == null) button = btn.gameObject.AddComponent<Button>();
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() =>
             {
-                button.onClick.RemoveAllListeners();
-                button.onClick.AddListener(() =>
-                {
-                    if (Core.UIManager.Instance != null)
-                        Core.UIManager.Instance.ExitARHunt();
-                    else
-                        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
-                });
-            }
+                DiagnosticLog.Log("BackButton", "Tapped - exiting AR");
+                if (Core.UIManager.Instance != null)
+                    Core.UIManager.Instance.ExitARHunt();
+                else
+                    UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+            });
+            DiagnosticLog.Log("Setup", "BackButton wired");
         }
 
         /// <summary>
@@ -339,7 +349,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void SetupRadarPanel()
         {
-            Debug.Log("[ARHuntSceneSetup] Setting up RadarPanel...");
+            DiagnosticLog.Log("Setup", "Setting up RadarPanel...");
             
             var radar = transform.Find("RadarPanel");
             if (radar == null)
@@ -350,11 +360,11 @@ namespace BlackBartsGold.UI
                 radar = radarGO.transform;
                 radarGO.AddComponent<RectTransform>();
                 radarGO.AddComponent<RadarUI>();
-                Debug.Log("[ARHuntSceneSetup] Created RadarPanel from code");
+                DiagnosticLog.Log("Setup", "Created RadarPanel from code");
             }
             else
             {
-                Debug.Log($"[ARHuntSceneSetup] Found RadarPanel: {radar.name}");
+                DiagnosticLog.Log("Setup", $"Found RadarPanel: {radar.name}");
             }
             
             // Get or add RectTransform and store for touch detection
@@ -638,7 +648,7 @@ namespace BlackBartsGold.UI
             tmpText.enableWordWrapping = true;
 
             panel.SetActive(true);
-            Debug.Log("[ARHuntSceneSetup] MessagePanel created (code-based)");
+            DiagnosticLog.Log("Setup", "MessagePanel created");
         }
 
         /// <summary>
@@ -693,7 +703,7 @@ namespace BlackBartsGold.UI
             msgText.enableWordWrapping = true;
 
             panel.SetActive(false);
-            Debug.Log("[ARHuntSceneSetup] LockedPopup created (code-based)");
+            DiagnosticLog.Log("Setup", "LockedPopup created");
         }
 
         /// <summary>
@@ -747,7 +757,7 @@ namespace BlackBartsGold.UI
             msgText.alignment = TextAlignmentOptions.Center;
 
             panel.SetActive(false);
-            Debug.Log("[ARHuntSceneSetup] CollectionPopup created (code-based)");
+            DiagnosticLog.Log("Setup", "CollectionPopup created");
         }
 
         /// <summary>
@@ -824,7 +834,7 @@ namespace BlackBartsGold.UI
             iconImage.raycastTarget = false;
 
             panel.SetActive(false);
-            Debug.Log("[ARHuntSceneSetup] CoinInfoPanel created (code-based)");
+            DiagnosticLog.Log("Setup", "CoinInfoPanel created");
         }
 
         /// <summary>
@@ -905,7 +915,7 @@ namespace BlackBartsGold.UI
             var compassUI = panel.AddComponent<CompassUI>();
             compassUI.SetRuntimeReferences(arrowRect, distText, dirText, valText, panel, bgImage);
             panel.SetActive(false);
-            Debug.Log("[ARHuntSceneSetup] CompassPanel created (code-based)");
+            DiagnosticLog.Log("Setup", "CompassPanel created");
         }
 
         /// <summary>
@@ -971,7 +981,7 @@ namespace BlackBartsGold.UI
 
             var gasMeterUI = panel.AddComponent<GasMeterUI>();
             gasMeterUI.SetRuntimeReferences(fillImg, bgImage, daysText, iconImg, panelRect);
-            Debug.Log("[ARHuntSceneSetup] GasMeterPanel created (code-based)");
+            DiagnosticLog.Log("Setup", "GasMeterPanel created");
         }
 
         /// <summary>
@@ -1037,7 +1047,7 @@ namespace BlackBartsGold.UI
 
             var findLimitUI = panel.AddComponent<FindLimitUI>();
             findLimitUI.SetRuntimeReferences(limitText, tierText, bgImage, iconImg, panelRect);
-            Debug.Log("[ARHuntSceneSetup] FindLimitPanel created (code-based)");
+            DiagnosticLog.Log("Setup", "FindLimitPanel created");
         }
 
         /// <summary>
@@ -1119,7 +1129,7 @@ namespace BlackBartsGold.UI
             var dirIndicator = panel.AddComponent<CoinDirectionIndicator>();
             dirIndicator.SetRuntimeReferences(arrowRect, distText, valText, statText, panelRect, bgPanel, arrowImg);
             panel.SetActive(false);
-            Debug.Log("[ARHuntSceneSetup] DirectionIndicatorPanel created (code-based)");
+            DiagnosticLog.Log("Setup", "DirectionIndicatorPanel created");
         }
         
         /// <summary>
@@ -1234,7 +1244,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void OnRadarClicked()
         {
-            Debug.Log("[ARHuntSceneSetup] RADAR CLICKED! (source: Button or manual touch) -> Opening full map...");
+            DiagnosticLog.Log("Radar", "CLICKED -> Opening full map");
             
             // UIManager handles both FullMapUI (if exists) and programmatic map fallback
             if (Core.UIManager.Instance != null)

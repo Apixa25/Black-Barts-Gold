@@ -12,6 +12,7 @@
 
 using UnityEngine;
 using BlackBartsGold.Core;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -52,15 +53,12 @@ namespace BlackBartsGold.UI
             _instance = this;
             DontDestroyOnLoad(gameObject);
             
-            Debug.Log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            Debug.Log("!!! EmergencyMapButton AWAKE !!!");
-            Debug.Log("!!! If you see this, scripts ARE running !!!");
-            Debug.Log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            DiagnosticLog.Log("EmergencyBtn", "AWAKE - scripts running");
         }
         
         private void Start()
         {
-            Debug.Log("!!! EmergencyMapButton START !!!");
+            DiagnosticLog.Log("EmergencyBtn", "START");
         }
         
         private void Update()
@@ -130,7 +128,7 @@ namespace BlackBartsGold.UI
         private void OnButtonPressed()
         {
             tapCount++;
-            Debug.Log($"!!! EmergencyMapButton PRESSED - tap #{tapCount} !!!");
+            DiagnosticLog.Log("EmergencyBtn", $"PRESSED tap #{tapCount}");
             
             if (!isMapOpen)
             {
@@ -147,8 +145,7 @@ namespace BlackBartsGold.UI
         private void OpenMap()
         {
             statusText = "Opening map...";
-            Debug.Log("!!! EmergencyMapButton: Opening map !!!");
-            Debug.Log($"!!! EmergencyMapButton: FullMapUI.Exists={FullMapUI.Exists}, UIManager.Instance={UIManager.Instance != null} !!!");
+            DiagnosticLog.Log("EmergencyBtn", $"Opening map: FullMapUI={FullMapUI.Exists}, UIManager={UIManager.Instance != null}");
             
             // Try UIManager first (handles both FullMapUI and SimpleFullMapPanel fallback)
             if (UIManager.Instance != null)
@@ -156,7 +153,7 @@ namespace BlackBartsGold.UI
                 UIManager.Instance.OnMiniMapClicked();
                 isMapOpen = true;
                 statusText = "Map opened via UIManager";
-                Debug.Log("!!! EmergencyMapButton: Path=UIManager.OnMiniMapClicked() !!!");
+                DiagnosticLog.Log("EmergencyBtn", "Path: UIManager.OnMiniMapClicked()");
                 return;
             }
             
@@ -166,7 +163,7 @@ namespace BlackBartsGold.UI
                 FullMapUI.Instance.Show();
                 isMapOpen = true;
                 statusText = "Map opened via FullMapUI";
-                Debug.Log("!!! EmergencyMapButton: Path=FullMapUI.Show() !!!");
+                DiagnosticLog.Log("EmergencyBtn", "Path: FullMapUI.Show()");
                 return;
             }
             
@@ -177,7 +174,7 @@ namespace BlackBartsGold.UI
                 fullMapPanel.SetActive(true);
                 isMapOpen = true;
                 statusText = "Map opened via GameObject.Find";
-                Debug.Log("!!! EmergencyMapButton: Path=GameObject.Find(FullMapPanel) !!!");
+                DiagnosticLog.Log("EmergencyBtn", "Path: GameObject.Find(FullMapPanel)");
                 return;
             }
             
@@ -187,18 +184,18 @@ namespace BlackBartsGold.UI
                 ARHUD.Instance.OnRadarTapped();
                 isMapOpen = true;
                 statusText = "Map opened via ARHUD";
-                Debug.Log("!!! EmergencyMapButton: Path=ARHUD.OnRadarTapped() !!!");
+                DiagnosticLog.Log("EmergencyBtn", "Path: ARHUD.OnRadarTapped()");
                 return;
             }
             
             statusText = "ERROR: No map found!";
-            Debug.LogError("!!! EmergencyMapButton: Could not find any map to open !!!");
+            DiagnosticLog.Error("EmergencyBtn", "Could not find any map to open");
         }
         
         private void CloseMap()
         {
             statusText = "Closing map...";
-            Debug.Log("!!! EmergencyMapButton: Closing map !!!");
+            DiagnosticLog.Log("EmergencyBtn", "Closing map");
             
             if (FullMapUI.Exists && FullMapUI.Instance.IsVisible)
             {

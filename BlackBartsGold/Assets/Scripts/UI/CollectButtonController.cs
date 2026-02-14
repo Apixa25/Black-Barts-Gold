@@ -14,6 +14,7 @@ using BlackBartsGold.AR;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -307,10 +308,7 @@ namespace BlackBartsGold.UI
         
         private void Log(string message)
         {
-            if (debugMode)
-            {
-                Debug.Log($"[CollectButton] {message}");
-            }
+            DiagnosticLog.Log("Collect", message);
         }
         
         [ContextMenu("Debug: Show Button")]

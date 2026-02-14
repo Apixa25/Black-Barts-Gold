@@ -207,8 +207,8 @@ namespace BlackBartsGold.UI
             if (hudCanvasGroup == null)
                 hudCanvasGroup = root.GetComponentInParent<CanvasGroup>();
 
-            if (debugMode)
-                Debug.Log("[ARHUD] InitializeRuntimeReferences complete");
+            DiagnosticLog.Log("ARHUD", $"Init complete: msg={messageText != null}, locked={lockedPopup != null}, coll={collectionPopup != null}, coin={coinInfoPanel != null}");
+            DiagnosticLog.Log("ARHUD", $"HUD: compass={compass != null}, radar={radar != null}, gas={gasMeter != null}, findLimit={findLimit != null}, dir={directionIndicator != null}");
         }
         
         #endregion
@@ -246,14 +246,14 @@ namespace BlackBartsGold.UI
                 Coin existingTarget = CoinManager.Instance.TargetCoinData;
                 if (existingTarget != null)
                 {
-                    Debug.Log($"[ARHUD] Found existing target on Start: {existingTarget.GetDisplayValue()} — initializing HUD");
+                    DiagnosticLog.Log("ARHUD", $"Found existing target on Start: {existingTarget.GetDisplayValue()} — initializing HUD");
                     ShowCoinInfo(existingTarget, existingTarget.isLocked);
                     
                     // Show direction indicator for existing target
                     if (directionIndicator != null && showDirectionIndicator)
                     {
                         directionIndicator.Show();
-                        Debug.Log("[ARHUD] Direction indicator shown for existing target");
+                        DiagnosticLog.Log("ARHUD", "Direction indicator shown for existing target");
                     }
                 }
             }
@@ -954,10 +954,8 @@ namespace BlackBartsGold.UI
         
         private void Log(string message)
         {
-            if (debugMode)
-            {
-                Debug.Log($"[ARHUD] {message}");
-            }
+            // Always log for ADB diagnostics - use [BBG] prefix for filtering
+            DiagnosticLog.Log("ARHUD", message);
         }
         
         /// <summary>
