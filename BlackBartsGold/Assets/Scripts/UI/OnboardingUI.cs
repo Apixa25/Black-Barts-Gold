@@ -13,8 +13,6 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using BlackBartsGold.Core;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>
@@ -131,7 +129,7 @@ namespace BlackBartsGold.UI
             // Set title and welcome text
             if (titleText != null)
             {
-                titleText.text = EmojiHelper.Sanitize("🏴‍☠️ Black Bart's Gold");
+                titleText.text = "Black Bart's Gold";
             }
             
             if (subtitleText != null)
@@ -165,22 +163,22 @@ namespace BlackBartsGold.UI
         {
             if (step1Text != null)
             {
-                step1Text.text = EmojiHelper.Sanitize("🗺️ <b>EXPLORE</b>\nWalk around your neighborhood to find treasure hotspots");
+                step1Text.text = "<b>EXPLORE</b>\nWalk around your neighborhood to find treasure hotspots";
             }
             
             if (step2Text != null)
             {
-                step2Text.text = EmojiHelper.Sanitize("📱 <b>HUNT</b>\nUse AR camera to spot virtual coins in the real world");
+                step2Text.text = "<b>HUNT</b>\nUse AR camera to spot virtual coins in the real world";
             }
             
             if (step3Text != null)
             {
-                step3Text.text = EmojiHelper.Sanitize("💰 <b>COLLECT</b>\nWalk within range and tap to claim your treasure");
+                step3Text.text = "<b>COLLECT</b>\nWalk within range and tap to claim your treasure";
             }
             
             if (step4Text != null)
             {
-                step4Text.text = EmojiHelper.Sanitize("🏦 <b>PROFIT</b>\nCoins have real Bitcoin value you can keep or cash out!");
+                step4Text.text = "<b>PROFIT</b>\nCoins have real Bitcoin value you can keep or cash out!";
             }
         }
         

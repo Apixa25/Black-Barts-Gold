@@ -16,7 +16,6 @@ using TMPro;
 using System.Collections;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core;
-using BlackBartsGold.Utils;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
@@ -582,7 +581,7 @@ namespace BlackBartsGold.UI
             titleRect.anchoredPosition = new Vector2(0, -10);
             titleRect.sizeDelta = new Vector2(0, 40);
             var titleText = titleGO.AddComponent<TextMeshProUGUI>();
-            titleText.text = EmojiHelper.Sanitize("🔧 DEBUG INFO");
+            titleText.text = "DEBUG INFO";
             titleText.fontSize = 28;
             titleText.color = GoldColor;
             titleText.alignment = TextAlignmentOptions.Center;

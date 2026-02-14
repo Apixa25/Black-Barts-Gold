@@ -15,8 +15,6 @@ using System;
 using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>
@@ -428,20 +426,20 @@ namespace BlackBartsGold.UI
         /// </summary>
         private string GetTransactionIcon(TransactionType type)
         {
-            return EmojiHelper.Sanitize(type switch
+            return type switch
             {
-                TransactionType.Found => "🪙",
-                TransactionType.Hidden => "📍",
-                TransactionType.GasConsumed => "⛽",
-                TransactionType.Purchased => "💳",
-                TransactionType.Transfer => "↔️",
-                TransactionType.Parked => "🅿️",
-                TransactionType.Unparked => "🚗",
-                TransactionType.Withdrawal => "📤",
-                TransactionType.Bonus => "🎁",
-                TransactionType.Refund => "↩️",
-                _ => "•"
-            });
+                TransactionType.Found => "[F]",
+                TransactionType.Hidden => "[H]",
+                TransactionType.GasConsumed => "[G]",
+                TransactionType.Purchased => "[$]",
+                TransactionType.Transfer => "[<>]",
+                TransactionType.Parked => "[P]",
+                TransactionType.Unparked => "[U]",
+                TransactionType.Withdrawal => "[W]",
+                TransactionType.Bonus => "[B]",
+                TransactionType.Refund => "[R]",
+                _ => "."
+            };
         }
         
         /// <summary>

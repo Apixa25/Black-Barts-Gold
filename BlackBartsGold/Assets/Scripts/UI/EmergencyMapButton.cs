@@ -12,8 +12,6 @@
 
 using UnityEngine;
 using BlackBartsGold.Core;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>

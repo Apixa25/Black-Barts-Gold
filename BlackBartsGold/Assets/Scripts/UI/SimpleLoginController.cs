@@ -12,8 +12,6 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 using BlackBartsGold.Core;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>
@@ -135,7 +133,7 @@ namespace BlackBartsGold.UI
             var tmp = titleObj.GetComponent<TextMeshProUGUI>();
             if (tmp == null) tmp = titleObj.gameObject.AddComponent<TextMeshProUGUI>();
             
-            tmp.text = EmojiHelper.Sanitize("🏴‍☠️ Ahoy Matey! 🏴‍☠️");
+            tmp.text = "Ahoy Matey!";
             tmp.fontSize = 48;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color = new Color(1f, 0.84f, 0f, 1f); // Gold color
@@ -149,7 +147,7 @@ namespace BlackBartsGold.UI
             var loginObj = canvas.transform.Find("LoginButton");
             if (loginObj != null)
             {
-                SetupButton(loginObj.gameObject, "⚓ Log In", new Vector2(0.5f, 0.45f), 
+                SetupButton(loginObj.gameObject, "Log In", new Vector2(0.5f, 0.45f), 
                     new Color(0.2f, 0.5f, 0.3f, 1f)); // Green
             }
             
@@ -157,7 +155,7 @@ namespace BlackBartsGold.UI
             var createObj = canvas.transform.Find("CreateAccountButton");
             if (createObj != null)
             {
-                SetupButton(createObj.gameObject, "🏴‍☠️ Join the Crew!", new Vector2(0.5f, 0.3f), 
+                SetupButton(createObj.gameObject, "Join the Crew!", new Vector2(0.5f, 0.3f), 
                     new Color(0.6f, 0.3f, 0.1f, 1f)); // Brown/Orange
             }
         }

@@ -288,7 +288,7 @@ namespace BlackBartsGold.AR
                 return;
             }
             
-            Log($"🎯 COIN TAPPED! {controller.CoinId}, InRange={controller.IsInRange}, Locked={controller.IsLocked}, Distance={controller.DistanceFromPlayer:F1}m");
+            Log($"COIN TAPPED! {controller.CoinId}, InRange={controller.IsInRange}, Locked={controller.IsLocked}, Distance={controller.DistanceFromPlayer:F1}m");
             
             // Check if this is our target coin
             if (TargetCoin != null && TargetCoin == controller)
@@ -296,22 +296,22 @@ namespace BlackBartsGold.AR
                 // Try to collect!
                 if (controller.IsInRange && !controller.IsLocked)
                 {
-                    Log($"✅ Attempting collection...");
+                    Log($"Attempting collection...");
                     bool success = controller.TryCollect();
                     if (!success)
                     {
-                        Log($"❌ Collection failed - check GPS accuracy or other conditions");
+                        Log($"Collection failed - check GPS accuracy or other conditions");
                     }
                 }
                 else if (controller.IsLocked)
                 {
-                    Log($"🔒 Coin is locked - cannot collect");
+                    Log($"Coin is locked - cannot collect");
                     // Trigger the locked tap handling through TryCollect which will fire the event
                     controller.TryCollect();
                 }
                 else
                 {
-                    Log($"📏 Too far to collect ({controller.DistanceFromPlayer:F1}m) - get closer!");
+                    Log($"Too far to collect ({controller.DistanceFromPlayer:F1}m) - get closer!");
                 }
             }
             else
@@ -747,13 +747,13 @@ namespace BlackBartsGold.AR
                 
                 if (response != null && response.success)
                 {
-                    Log($"✅ SERVER CONFIRMED COLLECTION: ${response.value:F2}");
+                    Log($"SERVER CONFIRMED COLLECTION: ${response.value:F2}");
                     
                     // If server returned different value (pool coins), log it
                     // Pool coins use a slot machine algorithm, so value may differ
                     if (Mathf.Abs(response.value - expectedValue) > 0.01f)
                     {
-                        Log($"💰 Server adjusted value: ${expectedValue:F2} → ${response.value:F2} (pool coin bonus!)");
+                        Log($"Server adjusted value: ${expectedValue:F2} -> ${response.value:F2} (pool coin bonus!)");
                         // TODO: Add wallet adjustment for pool coin value differences
                     }
                     
@@ -762,13 +762,13 @@ namespace BlackBartsGold.AR
                 }
                 else
                 {
-                    Debug.LogWarning($"[CoinManager] ⚠️ Server rejected collection: {response?.message ?? "unknown error"}");
+                    Debug.LogWarning($"[CoinManager] Server rejected collection: {response?.message ?? "unknown error"}");
                     OnCollectionReported?.Invoke(coinId, 0, false);
                 }
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"[CoinManager] ❌ Failed to report collection: {ex.Message}");
+                Debug.LogError($"[CoinManager] Failed to report collection: {ex.Message}");
                 // Collection still proceeds locally - will be synced later
                 // TODO: Add to offline queue for retry
                 OnCollectionReported?.Invoke(coinId, expectedValue, false);
@@ -959,7 +959,7 @@ namespace BlackBartsGold.AR
             Debug.Log($"=== Known Coins ({KnownCoinCount}) ===");
             foreach (var coin in KnownCoins)
             {
-                string lockStatus = coin.isLocked ? "🔒" : "🔓";
+                string lockStatus = coin.isLocked ? "LOCKED" : "OPEN";
                 Debug.Log($"  {lockStatus} {coin.id}: {coin.GetDisplayValue()} @ ({coin.latitude:F4}, {coin.longitude:F4})");
             }
             Debug.Log("=====================================");

@@ -14,8 +14,6 @@ using TMPro;
 using System;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>
@@ -245,17 +243,17 @@ namespace BlackBartsGold.UI
             
             if (daysRemaining <= 0)
             {
-                gasStatusText.text = EmojiHelper.Sanitize("⛽ OUT OF GAS!");
+                gasStatusText.text = "OUT OF GAS!";
                 gasStatusText.color = dangerColor;
             }
             else if (daysRemaining < 5)
             {
-                gasStatusText.text = EmojiHelper.Sanitize($"⛽ {daysRemaining:F1} days remaining");
+                gasStatusText.text = $"{daysRemaining:F1} days remaining";
                 gasStatusText.color = warningColor;
             }
             else
             {
-                gasStatusText.text = EmojiHelper.Sanitize($"⛽ {daysRemaining:F0} days remaining");
+                gasStatusText.text = $"{daysRemaining:F0} days remaining";
                 gasStatusText.color = Color.white;
             }
         }
@@ -309,7 +307,7 @@ namespace BlackBartsGold.UI
             
             if (startHuntingText != null)
             {
-                startHuntingText.text = EmojiHelper.Sanitize(canPlay ? "🏴‍☠️ Start Hunting" : "⛽ Out of Gas");
+                startHuntingText.text = canPlay ? "Start Hunting" : "Out of Gas";
             }
             
             if (noGasPanel != null)

@@ -16,8 +16,6 @@ using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>
@@ -685,7 +683,7 @@ namespace BlackBartsGold.UI
             {
                 if (isLocked)
                 {
-                    coinStatusText.text = EmojiHelper.Sanitize("🔒 LOCKED");
+                    coinStatusText.text = "LOCKED";
                     coinStatusText.color = new Color(0.94f, 0.27f, 0.27f);
                 }
                 else if (coin.isInRange)
@@ -819,7 +817,7 @@ namespace BlackBartsGold.UI
         {
             if (messageText == null) return;
             
-            messageText.text = EmojiHelper.Sanitize(message);
+            messageText.text = message;
             
             if (messageCanvasGroup != null)
             {
@@ -929,7 +927,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void ShowLowGasWarning(float daysRemaining)
         {
-            ShowMessage($"⚠️ Low gas! Only {daysRemaining:F1} days remaining!");
+            ShowMessage($"Low gas! Only {daysRemaining:F1} days remaining!");
         }
         
         /// <summary>
@@ -937,7 +935,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void ShowNoGasError()
         {
-            ShowMessage("⛽ Out of gas! Add more to continue hunting.");
+            ShowMessage("Out of gas! Add more to continue hunting.");
         }
         
         /// <summary>
@@ -945,7 +943,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void ShowGPSMessage(string status)
         {
-            ShowMessage($"📍 {status}");
+            ShowMessage(status);
         }
         
         #endregion
@@ -996,7 +994,7 @@ namespace BlackBartsGold.UI
         [ContextMenu("Debug: Test Message")]
         public void DebugTestMessage()
         {
-            ShowMessage("Ahoy! This be a test message, matey! 🏴‍☠️");
+            ShowMessage("Ahoy! This be a test message, matey!");
         }
         
         #endregion

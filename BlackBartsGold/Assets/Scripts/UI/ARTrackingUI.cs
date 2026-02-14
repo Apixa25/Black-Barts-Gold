@@ -155,7 +155,7 @@ namespace BlackBartsGold.UI
         
         private void OnTrackingEstablished()
         {
-            SetMessage("🏴‍☠️ Ready! Search for gold!", TrackingUIState.Success);
+            SetMessage("Ready! Search for gold!", TrackingUIState.Success);
             
             if (autoHideOnTracking)
             {
@@ -225,7 +225,7 @@ namespace BlackBartsGold.UI
                     break;
                     
                 case ARSessionState.SessionTracking:
-                    SetMessage("🏴‍☠️ Ready! Search for gold!", TrackingUIState.Success);
+                    SetMessage("Ready! Search for gold!", TrackingUIState.Success);
                     if (autoHideOnTracking)
                     {
                         StartHideTimer();
@@ -239,7 +239,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void SetInitializingMessage()
         {
-            string message = "🔍 Looking for surfaces...";
+            string message = "Looking for surfaces...";
             
             if (showHints)
             {

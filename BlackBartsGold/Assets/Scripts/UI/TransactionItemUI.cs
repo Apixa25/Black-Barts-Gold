@@ -14,7 +14,6 @@ using TMPro;
 using System;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
-using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -124,22 +123,22 @@ namespace BlackBartsGold.UI
         {
             string icon = type switch
             {
-                TransactionType.Found => "🪙",
-                TransactionType.Hidden => "📍",
-                TransactionType.GasConsumed => "⛽",
-                TransactionType.Purchased => "💳",
-                TransactionType.Transfer => "↔️",
-                TransactionType.Parked => "🅿️",
-                TransactionType.Unparked => "🚗",
-                TransactionType.Withdrawal => "📤",
-                TransactionType.Bonus => "🎁",
-                TransactionType.Refund => "↩️",
-                _ => "•"
+                TransactionType.Found => "[F]",
+                TransactionType.Hidden => "[H]",
+                TransactionType.GasConsumed => "[G]",
+                TransactionType.Purchased => "[$]",
+                TransactionType.Transfer => "[<>]",
+                TransactionType.Parked => "[P]",
+                TransactionType.Unparked => "[U]",
+                TransactionType.Withdrawal => "[W]",
+                TransactionType.Bonus => "[B]",
+                TransactionType.Refund => "[R]",
+                _ => "."
             };
             
             if (iconText != null)
             {
-                iconText.text = EmojiHelper.Sanitize(icon);
+                iconText.text = icon;
             }
         }
         

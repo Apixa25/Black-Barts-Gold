@@ -14,8 +14,6 @@ using TMPro;
 using System;
 using System.Collections;
 using BlackBartsGold.Core;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>
@@ -462,11 +460,11 @@ namespace BlackBartsGold.UI
             {
                 if (failed > 0)
                 {
-                    syncCountText.text = EmojiHelper.Sanitize($"✅ {success} synced, ❌ {failed} failed");
+                    syncCountText.text = $"{success} synced, {failed} failed";
                 }
                 else
                 {
-                    syncCountText.text = EmojiHelper.Sanitize($"✅ {success} synced");
+                    syncCountText.text = $"{success} synced";
                 }
             }
             

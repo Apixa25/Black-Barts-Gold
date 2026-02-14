@@ -342,12 +342,12 @@ namespace BlackBartsGold.Economy
         {
             return newTier.tier switch
             {
-                FindLimitTier.DeckHand => "🎖️ Ye've been promoted to Deck Hand! Finds up to $5!",
-                FindLimitTier.TreasureHunter => "🎖️ Arrr! Ye be a Treasure Hunter now! Finds up to $10!",
-                FindLimitTier.Captain => "🎖️ All hands, salute the Captain! Finds up to $25!",
-                FindLimitTier.PirateLegend => "🎖️ A Pirate Legend walks among us! Finds up to $50!",
-                FindLimitTier.KingOfPirates => "👑 BOW YE SCALLYWAGS! The King of Pirates has arrived! UNLIMITED POWER!",
-                _ => $"🎖️ Tier up! Now a {newTier.name}!"
+                FindLimitTier.DeckHand => "Ye've been promoted to Deck Hand! Finds up to $5!",
+                FindLimitTier.TreasureHunter => "Arrr! Ye be a Treasure Hunter now! Finds up to $10!",
+                FindLimitTier.Captain => "All hands, salute the Captain! Finds up to $25!",
+                FindLimitTier.PirateLegend => "A Pirate Legend walks among us! Finds up to $50!",
+                FindLimitTier.KingOfPirates => "BOW YE SCALLYWAGS! The King of Pirates has arrived! UNLIMITED POWER!",
+                _ => $"Tier up! Now a {newTier.name}!"
             };
         }
         

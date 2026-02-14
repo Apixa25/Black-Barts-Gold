@@ -18,8 +18,6 @@ using BlackBartsGold.Location;
 using BlackBartsGold.AR;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.UI;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.Core
 {
     /// <summary>
@@ -1751,7 +1749,7 @@ namespace BlackBartsGold.Core
                     }
                 }
                 
-                var coinText = EmojiHelper.Sanitize($"💰 ${coin.value:F2}{distText}");
+                var coinText = $"${coin.value:F2}{distText}";
                 
                 // Capture coin reference for closure
                 var capturedCoin = coin;
@@ -1859,16 +1857,16 @@ namespace BlackBartsGold.Core
             var panel = CreatePanel(parent, "LoginPanel", DeepSeaBlue);
             
             // Title
-            CreateText(panel.transform, "Title", "🏴‍☠️ Ahoy, Matey!", 
+            CreateText(panel.transform, "Title", "Ahoy, Matey!", 
                 new Vector2(0, 300), 52, GoldColor, FontStyles.Bold);
             
             // Login Button
-            CreateButton(panel.transform, "LoginButton", "⚓ SET SAIL", 
+            CreateButton(panel.transform, "LoginButton", "SET SAIL", 
                 new Vector2(0, -100), new Vector2(500, 80), GoldColor,
                 () => ShowMainMenu());
             
             // Register Button
-            CreateButton(panel.transform, "RegisterButton", "🏴‍☠️ Join the Crew", 
+            CreateButton(panel.transform, "RegisterButton", "Join the Crew", 
                 new Vector2(0, -200), new Vector2(400, 60), Parchment,
                 () => ShowRegister());
             
@@ -1880,7 +1878,7 @@ namespace BlackBartsGold.Core
             var panel = CreatePanel(parent, "RegisterPanel", DeepSeaBlue);
             
             // Title
-            CreateText(panel.transform, "Title", "🏴‍☠️ Join the Crew!", 
+            CreateText(panel.transform, "Title", "Join the Crew!", 
                 new Vector2(0, 300), 48, GoldColor, FontStyles.Bold);
             
             // Subtitle
@@ -1888,7 +1886,7 @@ namespace BlackBartsGold.Core
                 new Vector2(0, 220), 24, Parchment, FontStyles.Normal);
             
             // Register Button (for now, just goes to main menu)
-            CreateButton(panel.transform, "CreateButton", "⚓ Create Account", 
+            CreateButton(panel.transform, "CreateButton", "Create Account", 
                 new Vector2(0, -100), new Vector2(500, 80), GoldColor,
                 () => ShowMainMenu());
             
@@ -1905,21 +1903,21 @@ namespace BlackBartsGold.Core
             var panel = CreatePanel(parent, "MainMenuPanel", DeepSeaBlue);
             
             // Title
-            CreateText(panel.transform, "Title", "⚓ Black Bart's Gold", 
+            CreateText(panel.transform, "Title", "Black Bart's Gold", 
                 new Vector2(0, 350), 48, GoldColor, FontStyles.Bold);
             
             // Start Hunt Button
-            CreateButton(panel.transform, "StartHuntButton", "🔍 Start Hunting!", 
+            CreateButton(panel.transform, "StartHuntButton", "Start Hunting!", 
                 new Vector2(0, 50), new Vector2(500, 100), GoldColor,
                 () => StartARHunt());
             
             // Wallet Button
-            CreateButton(panel.transform, "WalletButton", "💰 Wallet", 
+            CreateButton(panel.transform, "WalletButton", "Wallet", 
                 new Vector2(0, -80), new Vector2(400, 70), Parchment,
                 () => ShowWallet());
             
             // Settings Button
-            CreateButton(panel.transform, "SettingsButton", "⚙️ Settings", 
+            CreateButton(panel.transform, "SettingsButton", "Settings", 
                 new Vector2(0, -170), new Vector2(400, 70), Parchment,
                 () => ShowSettings());
             
@@ -1931,7 +1929,7 @@ namespace BlackBartsGold.Core
             var panel = CreatePanel(parent, "WalletPanel", DeepSeaBlue);
             
             // Title
-            CreateText(panel.transform, "Title", "💰 Treasure Chest", 
+            CreateText(panel.transform, "Title", "Treasure Chest", 
                 new Vector2(0, 350), 48, GoldColor, FontStyles.Bold);
             
             // Balance
@@ -1960,7 +1958,7 @@ namespace BlackBartsGold.Core
                 () => ShowMainMenu());
             
             // Logout Button
-            CreateButton(panel.transform, "LogoutButton", "🚪 Logout", 
+            CreateButton(panel.transform, "LogoutButton", "Logout", 
                 new Vector2(0, -200), new Vector2(300, 60), new Color(0.8f, 0.2f, 0.2f),
                 () => ShowLogin());
             
@@ -2059,7 +2057,7 @@ namespace BlackBartsGold.Core
             bgImage.raycastTarget = false;
             
             // Title - DOUBLED font size
-            var title = CreateText(debugPanel.transform, "DebugTitle", EmojiHelper.Sanitize("🔧 DEBUG INFO"), 
+            var title = CreateText(debugPanel.transform, "DebugTitle", "DEBUG INFO", 
                 Vector2.zero, 32, GoldColor, FontStyles.Bold);
             var titleRect = title.GetComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0, 1);
@@ -2805,7 +2803,7 @@ namespace BlackBartsGold.Core
             rect.sizeDelta = new Vector2(900, 100);
             
             var text = textGO.AddComponent<TextMeshProUGUI>();
-            text.text = EmojiHelper.Sanitize(content);
+            text.text = content;
             text.fontSize = fontSize;
             text.fontStyle = style;
             text.alignment = TextAlignmentOptions.Center;
@@ -2847,7 +2845,7 @@ namespace BlackBartsGold.Core
             textRect.offsetMax = Vector2.zero;
             
             var text = textGO.AddComponent<TextMeshProUGUI>();
-            text.text = EmojiHelper.Sanitize(label);
+            text.text = label;
             text.fontSize = size.y * 0.4f;
             text.fontStyle = FontStyles.Bold;
             text.alignment = TextAlignmentOptions.Center;

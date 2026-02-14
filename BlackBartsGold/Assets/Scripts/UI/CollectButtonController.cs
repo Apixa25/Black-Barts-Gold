@@ -14,8 +14,6 @@ using BlackBartsGold.AR;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>

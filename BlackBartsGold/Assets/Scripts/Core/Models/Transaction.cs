@@ -8,7 +8,6 @@
 // ============================================================================
 
 using System;
-using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.Core.Models
 {
@@ -219,24 +218,24 @@ namespace BlackBartsGold.Core.Models
         }
         
         /// <summary>
-        /// Get icon/emoji for transaction type
+        /// Get icon label for transaction type (ASCII-safe; replace with custom graphics later)
         /// </summary>
         public string GetIcon()
         {
-            return EmojiHelper.Sanitize(type switch
+            return type switch
             {
-                TransactionType.Found => "💰",
-                TransactionType.Hidden => "🏴‍☠️",
-                TransactionType.GasConsumed => "⛽",
-                TransactionType.Purchased => "💳",
-                TransactionType.Transfer => "↔️",
-                TransactionType.Parked => "🅿️",
-                TransactionType.Unparked => "🚗",
-                TransactionType.Withdrawal => "📤",
-                TransactionType.Bonus => "🎁",
-                TransactionType.Refund => "↩️",
-                _ => "📝"
-            });
+                TransactionType.Found => "[F]",
+                TransactionType.Hidden => "[H]",
+                TransactionType.GasConsumed => "[G]",
+                TransactionType.Purchased => "[$]",
+                TransactionType.Transfer => "[<>]",
+                TransactionType.Parked => "[P]",
+                TransactionType.Unparked => "[U]",
+                TransactionType.Withdrawal => "[W]",
+                TransactionType.Bonus => "[B]",
+                TransactionType.Refund => "[R]",
+                _ => "[?]"
+            };
         }
         
         /// <summary>

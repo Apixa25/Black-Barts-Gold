@@ -15,8 +15,6 @@ using System;
 using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
-using BlackBartsGold.Utils;
-
 namespace BlackBartsGold.UI
 {
     /// <summary>
@@ -161,7 +159,7 @@ namespace BlackBartsGold.UI
             // Set title
             if (titleText != null)
             {
-                titleText.text = EmojiHelper.Sanitize("🏴‍☠️ Join the Crew!");
+                titleText.text = "Join the Crew!";
             }
             
             // Configure password fields

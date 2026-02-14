@@ -476,10 +476,10 @@ namespace BlackBartsGold.Economy
         {
             return level switch
             {
-                GasLevel.Full => $"Full sails ahead! {daysLeft} days of adventure await! ⛵",
-                GasLevel.Normal => $"Smooth sailing, {daysLeft} days of fuel remain! 🏴‍☠️",
-                GasLevel.Low => $"⚠️ Low on fuel! Only {daysLeft} days left, matey!",
-                GasLevel.Empty => "Ye've run aground! No fuel to hunt treasure! 💀",
+                GasLevel.Full => $"Full sails ahead! {daysLeft} days of adventure await!",
+                GasLevel.Normal => $"Smooth sailing, {daysLeft} days of fuel remain!",
+                GasLevel.Low => $"Low on fuel! Only {daysLeft} days left, matey!",
+                GasLevel.Empty => "Ye've run aground! No fuel to hunt treasure!",
                 _ => "Check yer fuel gauge, sailor!"
             };
         }
