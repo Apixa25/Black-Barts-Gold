@@ -58,7 +58,6 @@ namespace BlackBartsGold.UI
             SetupDirectionIndicatorPanel();
             VerifyEventSystem();
             SetupDirectTouchHandler();
-            SetupEmergencyButton();
             SetupLightship(); // Pokemon GO technology!
 
             // Wire ARHUD to code-created panels (must run after all Setup* methods)
@@ -277,10 +276,10 @@ namespace BlackBartsGold.UI
 
             // Main crosshairs Image - REMOVED: Crosshairs cover the coin - we want players to see the beautiful coin!
             // Gold ring (CollectionSizeCircle) still shows when in range - that stays visible.
-            // Destroy the entire Image so nothing can render (more reliable than just disabling).
             var image = crosshairs.GetComponent<Image>();
             if (image != null)
             {
+                image.enabled = false;  // Hide immediately (prevents white square from broken/missing sprite)
                 Destroy(image);
                 image = null;
             }
@@ -1258,17 +1257,6 @@ namespace BlackBartsGold.UI
             {
                 Debug.LogError("[ARHuntSceneSetup] UIManager and FullMapUI not found!");
             }
-        }
-        
-        /// <summary>
-        /// Setup the emergency map button - guaranteed to work if scripts are running.
-        /// This uses OnGUI which bypasses Canvas/EventSystem entirely.
-        /// </summary>
-        private void SetupEmergencyButton()
-        {
-            Debug.Log("[ARHuntSceneSetup] Creating EmergencyMapButton...");
-            EmergencyMapButton.EnsureExists();
-            Debug.Log("[ARHuntSceneSetup] EmergencyMapButton created!");
         }
         
         /// <summary>

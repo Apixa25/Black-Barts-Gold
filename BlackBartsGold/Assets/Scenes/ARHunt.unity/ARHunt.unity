@@ -2129,7 +2129,6 @@ GameObject:
   - component: {fileID: 852650513}
   - component: {fileID: 852650514}
   - component: {fileID: 852650516}
-  - component: {fileID: 852650515}
   m_Layer: 0
   m_Name: Crosshairs
   m_TagString: Untagged
@@ -2169,7 +2168,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 05d882d55ba3fd14ea23b8ab94c3e10f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.UI.CrosshairsController
-  crosshairsImage: {fileID: 852650515}
+  crosshairsImage: {fileID: 0}
   innerDot: {fileID: 0}
   outerRing: {fileID: 0}
   lockOverlay: {fileID: 0}
@@ -2189,36 +2188,6 @@ MonoBehaviour:
   normalScale: 1
   targetingScale: 1.2
   scaleTransitionSpeed: 5
---- !u!114 &852650515
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 852650512}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: f6b323d8efc832b49b608d0f62bed0ed, type: 3}
-  m_Type: 0
-  m_PreserveAspect: 0
-  m_FillCenter: 1
-  m_FillMethod: 4
-  m_FillAmount: 1
-  m_FillClockwise: 1
-  m_FillOrigin: 0
-  m_UseSpriteMesh: 0
-  m_PixelsPerUnitMultiplier: 1
 --- !u!222 &852650516
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3916,29 +3885,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87d44c4bee832724598403861f34a391, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.UI.ARHUD
-  compass: {fileID: 0}
-  radar: {fileID: 0}
-  crosshairs: {fileID: 0}
-  gasMeter: {fileID: 0}
-  findLimit: {fileID: 0}
-  trackingUI: {fileID: 0}
-  directionIndicator: {fileID: 30995426}
-  coinInfoPanel: {fileID: 217214409}
-  coinValueText: {fileID: 478231957}
-  coinDistanceText: {fileID: 138770625}
-  coinStatusText: {fileID: 2147362087}
-  coinTierIcon: {fileID: 0}
-  messageText: {fileID: 0}
-  messageCanvasGroup: {fileID: 0}
   messageDuration: 3
-  collectionPopup: {fileID: 0}
-  collectionValueText: {fileID: 0}
-  collectionMessageText: {fileID: 0}
-  lockedPopup: {fileID: 0}
-  lockedValueText: {fileID: 0}
-  lockedMessageText: {fileID: 0}
-  hudCanvas: {fileID: 0}
-  hudCanvasGroup: {fileID: 0}
   showCompass: 1
   showRadar: 1
   showGasMeter: 1

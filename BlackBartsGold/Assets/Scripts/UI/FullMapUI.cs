@@ -203,68 +203,6 @@ namespace BlackBartsGold.UI
             // Start hidden
             HideSelectionPanel();
             if (mapPanel != null) mapPanel.SetActive(false);
-            
-            // Create a floating "MAP" button as workaround for radar tap issues
-            CreateMapButton();
-        }
-        
-        /// <summary>
-        /// Creates a floating MAP button that opens the full map.
-        /// This is a workaround until radar tap is fixed.
-        /// </summary>
-        private void CreateMapButton()
-        {
-            // Find the canvas
-            Canvas canvas = GetComponentInParent<Canvas>();
-            if (canvas == null)
-            {
-                canvas = FindFirstObjectByType<Canvas>();
-            }
-            
-            if (canvas == null)
-            {
-                Debug.LogError("[FullMapUI] No canvas found for MAP button");
-                return;
-            }
-            
-            // Create button GameObject
-            GameObject btnObj = new GameObject("MapOpenButton");
-            btnObj.transform.SetParent(canvas.transform, false);
-            
-            // Add RectTransform and position it (bottom-right, above where radar would be)
-            RectTransform rt = btnObj.AddComponent<RectTransform>();
-            rt.anchorMin = new Vector2(1, 0);
-            rt.anchorMax = new Vector2(1, 0);
-            rt.pivot = new Vector2(1, 0);
-            rt.anchoredPosition = new Vector2(-20, 200); // Above radar area
-            rt.sizeDelta = new Vector2(100, 50);
-            
-            // Add Image for button background
-            Image img = btnObj.AddComponent<Image>();
-            img.color = new Color(0.2f, 0.6f, 0.9f, 0.9f); // Blue
-            
-            // Add Button component
-            Button btn = btnObj.AddComponent<Button>();
-            btn.onClick.AddListener(Show);
-            
-            // Add text label
-            GameObject textObj = new GameObject("Text");
-            textObj.transform.SetParent(btnObj.transform, false);
-            
-            RectTransform textRt = textObj.AddComponent<RectTransform>();
-            textRt.anchorMin = Vector2.zero;
-            textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = Vector2.zero;
-            textRt.offsetMax = Vector2.zero;
-            
-            TMPro.TextMeshProUGUI text = textObj.AddComponent<TMPro.TextMeshProUGUI>();
-            text.text = "MAP";
-            text.fontSize = 24;
-            text.fontStyle = TMPro.FontStyles.Bold;
-            text.alignment = TMPro.TextAlignmentOptions.Center;
-            text.color = Color.white;
-            
-            Debug.Log("[FullMapUI] Created MAP button as workaround");
         }
         
         /// <summary>
