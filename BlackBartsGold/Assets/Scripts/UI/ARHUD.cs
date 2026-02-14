@@ -858,8 +858,10 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void OpenFullMap()
         {
+            Log($"OpenFullMap: UIManager.Instance={UIManager.Instance != null}, FullMapUI.Exists={FullMapUI.Exists}");
             if (UIManager.Instance != null)
             {
+                Log("OpenFullMap path: UIManager.OnMiniMapClicked()");
                 UIManager.Instance.OnMiniMapClicked();
             }
             else if (FullMapUI.Exists)

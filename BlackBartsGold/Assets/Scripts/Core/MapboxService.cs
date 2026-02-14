@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // MapboxService.cs
 // Black Bart's Gold - Mapbox Map Tile Service
 // Path: Assets/Scripts/Core/MapboxService.cs
@@ -34,7 +34,7 @@ namespace BlackBartsGold.Core
         
         [Header("Mapbox Configuration")]
         [Tooltip("Mapbox public token (pk.*). On mobile builds env vars aren't available, so this must be set.")]
-        [SerializeField] private string accessToken = ""; // Set in Inspector or use MAPBOX_ACCESS_TOKEN env var;
+        [SerializeField] private string accessToken = ""; // Set in Inspector or use MAPBOX_ACCESS_TOKEN env var
         
         [Header("Map Style")]
         [Tooltip("Mapbox style ID - see mapbox.com/studio for options")]
@@ -186,6 +186,7 @@ namespace BlackBartsGold.Core
         /// </summary>
         public void GetFullMapTile(double latitude, double longitude, int zoom, Action<Texture2D> callback)
         {
+            Log($"[Mapbox] GetFullMapTile REQUEST: lat={latitude:F5}, lng={longitude:F5}, zoom={zoom}, size=1024x1024");
             GetMapTile(latitude, longitude, zoom, 1024, 1024, callback, 0f);
         }
         

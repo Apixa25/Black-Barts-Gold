@@ -437,6 +437,19 @@ namespace BlackBartsGold.UI
         public void Show()
         {
             Debug.Log($"[FullMapUI] T+{Time.realtimeSinceStartup:F2}s: Show() called");
+            Debug.Log($"[FullMapUI] mapPanel={mapPanel != null}, mapPanel.active={mapPanel?.activeSelf}, gameObject.active={gameObject.activeSelf}");
+            // CRITICAL: Activate BEFORE StartCoroutine - otherwise "Coroutine couldn't be started because the game object 'FullMapPanel' is inactive!"
+            if (mapPanel != null && !mapPanel.activeSelf)
+            {
+                mapPanel.SetActive(true);
+                Debug.Log($"[FullMapUI] Activated mapPanel before coroutine");
+            }
+            else if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+                Debug.Log($"[FullMapUI] Activated gameObject before coroutine");
+            }
+            Debug.Log($"[FullMapUI] Starting ShowWithGPSWait coroutine...");
             // Start coroutine to wait for GPS then show map
             StartCoroutine(ShowWithGPSWait());
         }

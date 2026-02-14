@@ -400,6 +400,26 @@ namespace BlackBartsGold.Core
                 sb.AppendLine($"<b>Cached:</b> {cached.Count}");
             }
             
+            // ================================================================
+            // UI STATE - For ADB debugging: which map path, canvas state
+            // ================================================================
+            sb.AppendLine("---");
+            sb.AppendLine($"<b>Scene:</b> {UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
+            sb.AppendLine($"<b>FullMapUI:</b> {(FullMapUI.Exists ? "EXISTS" : "none")}");
+            if (Instance != null)
+            {
+                sb.AppendLine($"<b>UIMgr Canvas:</b> {(Instance._ourCanvas != null ? (Instance._ourCanvas.enabled ? "ON" : "OFF") : "null")}");
+                sb.AppendLine($"<b>isInARMode:</b> {Instance.IsInARMode}");
+            }
+            if (Instance != null && Instance._simpleFullMapPanel != null)
+            {
+                sb.AppendLine($"<b>SimpleMap:</b> {(Instance._simpleFullMapPanel.activeSelf ? "visible" : "hidden")}");
+            }
+            else
+            {
+                sb.AppendLine("<b>SimpleMap:</b> not created");
+            }
+            
             return sb.ToString();
         }
         
@@ -908,17 +928,18 @@ namespace BlackBartsGold.Core
         public void OnMiniMapClicked()
         {
             Debug.Log("[UIManager] 🗺️ Opening FULL MAP!");
+            Debug.Log($"[UIManager] FullMapUI.Exists={FullMapUI.Exists}, isInARMode={IsInARMode}, _ourCanvas.enabled={_ourCanvas?.enabled}");
             
             // Try to use existing FullMapUI if it exists
             if (FullMapUI.Exists)
             {
-                Debug.Log("[UIManager] Using FullMapUI.Show()");
+                Debug.Log("[UIManager] Path: Using FullMapUI.Show()");
                 FullMapUI.Instance.Show();
                 return;
             }
             
             // Otherwise create a simple full-screen map overlay
-            Debug.Log("[UIManager] Creating simple full map overlay");
+            Debug.Log("[UIManager] Path: FullMapUI.Exists=false, using ShowSimpleFullMap fallback");
             ShowSimpleFullMap();
         }
         
@@ -929,11 +950,18 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void ShowSimpleFullMap()
         {
+            Debug.Log($"[UIManager] ShowSimpleFullMap: panel={(_simpleFullMapPanel != null ? "exists" : "null")}, active={_simpleFullMapPanel?.activeSelf}, canvas.enabled={_ourCanvas?.enabled}");
+            
             // If already showing, hide it
             if (_simpleFullMapPanel != null && _simpleFullMapPanel.activeSelf)
             {
-                Debug.Log("[UIManager] Hiding full map");
+                Debug.Log("[UIManager] Hiding full map (toggle off)");
                 _simpleFullMapPanel.SetActive(false);
+                if (isInARMode && _ourCanvas != null)
+                {
+                    _ourCanvas.enabled = false;
+                    Debug.Log("[UIManager] Disabled canvas after hiding map in AR mode");
+                }
                 return;
             }
             
@@ -941,17 +969,30 @@ namespace BlackBartsGold.Core
             if (_simpleFullMapPanel == null)
             {
                 _simpleFullMapPanel = CreateSimpleFullMapPanel();
+                if (_simpleFullMapPanel == null)
+                {
+                    Debug.LogError("[UIManager] CreateSimpleFullMapPanel returned null - cannot show map!");
+                    return;
+                }
+                // CRITICAL: Activate BEFORE StartCoroutine - otherwise "Coroutine couldn't be started because the game object is inactive!"
+                _simpleFullMapPanel.SetActive(true);
                 // IMPORTANT: Also load the map tile on first creation!
                 StartCoroutine(LoadFullMapTile());
-                Debug.Log("[UIManager] Panel created AND LoadFullMapTile started");
+                Debug.Log("[UIManager] Panel created, activated, AND LoadFullMapTile started");
             }
             else
             {
                 // Refresh map and markers when reopening
+                _simpleFullMapPanel.SetActive(true);
                 StartCoroutine(LoadFullMapTile());
             }
             
-            _simpleFullMapPanel.SetActive(true);
+            // Re-enable UIManager canvas when in AR mode so the full map is visible
+            if (isInARMode && _ourCanvas != null && !_ourCanvas.enabled)
+            {
+                _ourCanvas.enabled = true;
+                Debug.Log("[UIManager] Re-enabled canvas for full map in AR mode");
+            }
             Debug.Log("[UIManager] Full map shown!");
         }
         
@@ -1066,6 +1107,12 @@ namespace BlackBartsGold.Core
         
         private GameObject CreateSimpleFullMapPanel()
         {
+            Debug.Log("[UIManager] CreateSimpleFullMapPanel START");
+            if (_ourCanvas == null)
+            {
+                Debug.LogError("[UIManager] CreateSimpleFullMapPanel ABORT - _ourCanvas is NULL!");
+                return null;
+            }
             var panel = new GameObject("SimpleFullMapPanel");
             panel.transform.SetParent(_ourCanvas.transform, false);
             
@@ -1163,6 +1210,12 @@ namespace BlackBartsGold.Core
                 () => {
                     Debug.Log("[UIManager] Closing full map");
                     _simpleFullMapPanel.SetActive(false);
+                    // Re-disable UIManager canvas in AR mode so AR HUD is visible again
+                    if (isInARMode && _ourCanvas != null)
+                    {
+                        _ourCanvas.enabled = false;
+                        Debug.Log("[UIManager] Disabled canvas after closing map in AR mode");
+                    }
                 });
             var closeBtnRect = closeBtn.GetComponent<RectTransform>();
             closeBtnRect.anchorMin = new Vector2(1, 0.5f);
@@ -1370,17 +1423,20 @@ namespace BlackBartsGold.Core
                     
                     if (texture != null && _fullMapImage != null)
                     {
+                        Debug.Log("[UIManager] Map tile callback: texture OK, _fullMapImage OK -> ApplyFullMapTextureNextFrame");
                         // Defer apply to next frame so layout is ready and we avoid Android display issues
                         StartCoroutine(ApplyFullMapTextureNextFrame(texture));
                     }
                     else
                     {
+                        Debug.Log($"[UIManager] Map tile callback: texture={texture != null}, _fullMapImage={_fullMapImage != null} - NOT applying");
                         _mapLoadPending = false;
                     }
                 });
             }
             else
             {
+                Debug.Log($"[UIManager] LoadFullMapTile SKIP - loc={(loc != null ? "ok" : "NULL")}, MapboxService={(MapboxService.Exists ? "ok" : "missing")}");
                 _mapLoadPending = false;
             }
         }
@@ -1395,6 +1451,7 @@ namespace BlackBartsGold.Core
             
             if (texture == null || _fullMapImage == null)
             {
+                Debug.Log($"[UIManager] ApplyFullMapTextureNextFrame ABORT - texture={texture != null}, _fullMapImage={_fullMapImage != null}");
                 _mapLoadPending = false;
                 yield break;
             }
@@ -1403,6 +1460,7 @@ namespace BlackBartsGold.Core
             Texture2D displayTex = useCopy ? EnsureTextureForUI(texture) : texture;
             if (displayTex == null)
             {
+                Debug.Log("[UIManager] ApplyFullMapTextureNextFrame: EnsureTextureForUI returned null (Android/iOS copy failed)");
                 _mapLoadPending = false;
                 yield break;
             }
@@ -1465,9 +1523,10 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void PopulateCoinMarkersOnMap()
         {
-            if (_coinMarkersContainer == null) return;
-            if (CoinManager.Instance == null) return;
-            if (_fullMapContainer == null) return;
+            Debug.Log("[UIManager] PopulateCoinMarkersOnMap called");
+            if (_coinMarkersContainer == null) { Debug.Log("[UIManager] PopulateCoinMarkers - _coinMarkersContainer null"); return; }
+            if (CoinManager.Instance == null) { Debug.Log("[UIManager] PopulateCoinMarkers - CoinManager null"); return; }
+            if (_fullMapContainer == null) { Debug.Log("[UIManager] PopulateCoinMarkers - _fullMapContainer null"); return; }
             
             // Clear existing markers
             foreach (var marker in _fullMapCoinMarkers.Values)
@@ -1477,7 +1536,7 @@ namespace BlackBartsGold.Core
             _fullMapCoinMarkers.Clear();
             
             var playerLoc = GPSManager.Instance?.CurrentLocation;
-            if (playerLoc == null) return;
+            if (playerLoc == null) { Debug.Log("[UIManager] PopulateCoinMarkers - playerLoc null, skipping"); return; }
             
             // Get map dimensions
             float mapWidth = _fullMapContainer.rect.width;

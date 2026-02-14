@@ -226,25 +226,33 @@ namespace BlackBartsGold.UI
         
         private void OpenFullMap()
         {
-            Log("Opening Full Map...");
+            Log("DirectTouch OpenFullMap - radar touch detected!");
+            Log($"FullMapUI.Exists={FullMapUI.Exists}, fullMapPanel={fullMapPanel != null}, ARHUD.Instance={ARHUD.Instance != null}, UIManager.Instance={Core.UIManager.Instance != null}");
             
             if (FullMapUI.Exists)
             {
-                Log("FullMapUI.Instance.Show()");
+                Log("Path: FullMapUI.Instance.Show()");
                 FullMapUI.Instance.Show();
                 return;
             }
             
             if (fullMapPanel != null)
             {
-                Log("Activating fullMapPanel directly");
+                Log("Path: Activating fullMapPanel directly (scene panel)");
                 fullMapPanel.gameObject.SetActive(true);
+                return;
+            }
+            
+            if (Core.UIManager.Instance != null)
+            {
+                Log("Path: UIManager.Instance.OnMiniMapClicked() (fallback)");
+                Core.UIManager.Instance.OnMiniMapClicked();
                 return;
             }
             
             if (ARHUD.Instance != null)
             {
-                Log("ARHUD.Instance.OnRadarTapped()");
+                Log("Path: ARHUD.Instance.OnRadarTapped()");
                 ARHUD.Instance.OnRadarTapped();
                 return;
             }

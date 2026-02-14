@@ -30,6 +30,7 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
+            Debug.Log("[DIAG] ====== AR SCENE START at T+" + Time.realtimeSinceStartup.ToString("F2") + "s ======");
             Debug.Log("========================================");
             Debug.Log("[ARHuntSceneSetup] START - Setting up AR HUD...");
             Debug.Log($"[ARHuntSceneSetup] GameObject: {gameObject.name}");
@@ -75,6 +76,8 @@ namespace BlackBartsGold.UI
                 if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
                 {
                     touchLogCount++;
+                    if (touchLogCount == 20)
+                        Debug.Log("[ARHuntSceneSetup] Touch logging CAPPED at 20 - further touches not logged");
                     Debug.Log($"[ARHuntSceneSetup] TOUCH #{touchLogCount} at {touch.screenPosition}");
                     
                     // Check if touch is over radar
@@ -89,7 +92,7 @@ namespace BlackBartsGold.UI
                         // Manual click if touch is on radar
                         if (contains)
                         {
-                            Debug.Log("[ARHuntSceneSetup] Touch IS on radar - manually triggering click!");
+                            Debug.Log("[ARHuntSceneSetup] Touch IS on radar - MANUAL trigger (bypassing Button) -> OnRadarClicked()");
                             OnRadarClicked();
                         }
                     }
@@ -320,8 +323,8 @@ namespace BlackBartsGold.UI
                 rect.anchorMax = new Vector2(1, 0);
                 rect.pivot = new Vector2(1, 0);
                 rect.anchoredPosition = new Vector2(-20, 20);
-                rect.sizeDelta = new Vector2(180, 180);
-                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor BR, pos (-20, 20), size 180x180");
+                rect.sizeDelta = new Vector2(360, 360); // 2x larger for better visibility
+                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor BR, pos (-20, 20), size 360x360");
             }
             
             // CRITICAL: Ensure there's an Image with raycastTarget = true
@@ -481,7 +484,7 @@ namespace BlackBartsGold.UI
             panelRect.anchorMax = new Vector2(0, 0);
             panelRect.pivot = new Vector2(0, 0);
             panelRect.anchoredPosition = new Vector2(20, 20);
-            panelRect.sizeDelta = new Vector2(400, 320);
+            panelRect.sizeDelta = new Vector2(800, 640); // 2x larger for easier reading
 
             var bgImage = debugPanel.AddComponent<Image>();
             bgImage.color = new Color(0, 0, 0, 0.8f);
@@ -511,7 +514,7 @@ namespace BlackBartsGold.UI
             diagRect.sizeDelta = new Vector2(-30, -70);
             _debugDiagnosticsText = diagGO.AddComponent<TextMeshProUGUI>();
             _debugDiagnosticsText.text = "Loading...";
-            _debugDiagnosticsText.fontSize = 20;
+            _debugDiagnosticsText.fontSize = 40; // 2x larger for easier reading
             _debugDiagnosticsText.color = Color.white;
             _debugDiagnosticsText.alignment = TextAlignmentOptions.TopLeft;
             _debugDiagnosticsText.enableWordWrapping = true;
@@ -526,7 +529,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void OnRadarClicked()
         {
-            Debug.Log("[ARHuntSceneSetup] RADAR CLICKED! Opening full map...");
+            Debug.Log("[ARHuntSceneSetup] RADAR CLICKED! (source: Button or manual touch) -> Opening full map...");
             
             // UIManager handles both FullMapUI (if exists) and programmatic map fallback
             if (Core.UIManager.Instance != null)

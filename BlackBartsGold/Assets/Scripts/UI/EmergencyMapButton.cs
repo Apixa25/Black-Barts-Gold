@@ -11,6 +11,7 @@
 // ============================================================================
 
 using UnityEngine;
+using BlackBartsGold.Core;
 
 namespace BlackBartsGold.UI
 {
@@ -147,6 +148,17 @@ namespace BlackBartsGold.UI
         {
             statusText = "Opening map...";
             Debug.Log("!!! EmergencyMapButton: Opening map !!!");
+            Debug.Log($"!!! EmergencyMapButton: FullMapUI.Exists={FullMapUI.Exists}, UIManager.Instance={UIManager.Instance != null} !!!");
+            
+            // Try UIManager first (handles both FullMapUI and SimpleFullMapPanel fallback)
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.OnMiniMapClicked();
+                isMapOpen = true;
+                statusText = "Map opened via UIManager";
+                Debug.Log("!!! EmergencyMapButton: Path=UIManager.OnMiniMapClicked() !!!");
+                return;
+            }
             
             // Try FullMapUI singleton
             if (FullMapUI.Exists)
@@ -154,6 +166,7 @@ namespace BlackBartsGold.UI
                 FullMapUI.Instance.Show();
                 isMapOpen = true;
                 statusText = "Map opened via FullMapUI";
+                Debug.Log("!!! EmergencyMapButton: Path=FullMapUI.Show() !!!");
                 return;
             }
             
@@ -164,6 +177,7 @@ namespace BlackBartsGold.UI
                 fullMapPanel.SetActive(true);
                 isMapOpen = true;
                 statusText = "Map opened via GameObject.Find";
+                Debug.Log("!!! EmergencyMapButton: Path=GameObject.Find(FullMapPanel) !!!");
                 return;
             }
             
@@ -173,6 +187,7 @@ namespace BlackBartsGold.UI
                 ARHUD.Instance.OnRadarTapped();
                 isMapOpen = true;
                 statusText = "Map opened via ARHUD";
+                Debug.Log("!!! EmergencyMapButton: Path=ARHUD.OnRadarTapped() !!!");
                 return;
             }
             
