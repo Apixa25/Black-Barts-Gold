@@ -34,7 +34,7 @@ namespace BlackBartsGold.Core
         
         [Header("Mapbox Configuration")]
         [Tooltip("Mapbox public token (pk.*). On mobile builds env vars aren't available, so this must be set.")]
-        [SerializeField] private string accessToken = "";
+        [SerializeField] private string accessToken = ""; // Set in Inspector or use MAPBOX_ACCESS_TOKEN env var;
         
         [Header("Map Style")]
         [Tooltip("Mapbox style ID - see mapbox.com/studio for options")]
