@@ -962,6 +962,7 @@ namespace BlackBartsGold.Core
                     _ourCanvas.enabled = false;
                     Debug.Log("[UIManager] Disabled canvas after hiding map in AR mode");
                 }
+                // arHudPanel stays hidden - ARHunt scene has its own RadarPanel with map
                 return;
             }
             
@@ -992,6 +993,12 @@ namespace BlackBartsGold.Core
             {
                 _ourCanvas.enabled = true;
                 Debug.Log("[UIManager] Re-enabled canvas for full map in AR mode");
+            }
+            // CRITICAL: Hide arHudPanel (MiniMapContainer) when full map is shown - prevents overlap/conflict
+            if (arHudPanel != null && arHudPanel.activeSelf)
+            {
+                arHudPanel.SetActive(false);
+                Debug.Log("[UIManager] Hid arHudPanel to avoid full map + mini-map conflict");
             }
             Debug.Log("[UIManager] Full map shown!");
         }

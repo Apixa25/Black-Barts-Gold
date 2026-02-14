@@ -13,6 +13,9 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using TMPro;
+using System.Collections;
+using BlackBartsGold.Location;
+using BlackBartsGold.Core;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
@@ -25,6 +28,12 @@ namespace BlackBartsGold.UI
         private RectTransform radarRect;
         private int touchLogCount = 0;
         private TextMeshProUGUI _debugDiagnosticsText;
+        private RawImage _radarMapTileImage;
+        private float _radarMapLastUpdate;
+        private double _radarMapLastLat, _radarMapLastLng;
+        private bool _radarMapUpdatePending;
+        private Texture2D _radarMapCurrentTile;
+        private bool _radarMapTileIsOurCopy;
         private float _lastDiagnosticUpdate;
         private const float _diagnosticUpdateInterval = 0.5f;
         
@@ -58,9 +67,18 @@ namespace BlackBartsGold.UI
         {
             EnhancedTouchSupport.Disable();
         }
+
+        private void OnDestroy()
+        {
+            if (_radarMapCurrentTile != null && _radarMapTileIsOurCopy)
+                Destroy(_radarMapCurrentTile);
+        }
         
         private void Update()
         {
+            // Update radar map tile from Mapbox
+            UpdateRadarMapTile();
+
             // Update debug diagnostics panel
             if (_debugDiagnosticsText != null && Time.time - _lastDiagnosticUpdate >= _diagnosticUpdateInterval)
             {
@@ -335,6 +353,7 @@ namespace BlackBartsGold.UI
                 Debug.Log("[ARHuntSceneSetup] Added Image to RadarPanel");
             }
             image.raycastTarget = true;
+            image.color = new Color(1f, 1f, 1f, 0.01f); // Nearly invisible so map tile shows through
             Debug.Log($"[ARHuntSceneSetup] RadarPanel Image raycastTarget: {image.raycastTarget}");
             
             // CRITICAL: Ensure there's a Button component
@@ -365,9 +384,9 @@ namespace BlackBartsGold.UI
         }
 
         /// <summary>
-        /// Create radar content (player dot, sweep line) and wire RadarUI at runtime.
+        /// Create radar content (map tile, player dot, sweep line) and wire RadarUI at runtime.
         /// Uses player.png and map-coin-icon.png from Resources/UI.
-        /// Defensive: uses explicit RectTransform refs to avoid NullReferenceException.
+        /// Map tile from Mapbox shows real streets behind the radar overlay.
         /// </summary>
         private void SetupRadarContent(Transform radar, RadarUI radarUI)
         {
@@ -381,6 +400,34 @@ namespace BlackBartsGold.UI
             RectTransform playerRect = null;
             RectTransform sweepRect = null;
             RectTransform northRect = null;
+
+            // === MAP TILE (Mapbox) - First child, behind everything ===
+            var mapTile = radar.Find("MapTile");
+            RawImage mapTileImage = null;
+            if (mapTile == null || !mapTile.gameObject)
+            {
+                var mapTileGO = new GameObject("MapTile");
+                mapTileGO.transform.SetParent(radar, false);
+                mapTileGO.transform.SetAsFirstSibling(); // Behind player, sweep, north
+                var mapTileRect = mapTileGO.AddComponent<RectTransform>();
+                mapTileRect.anchorMin = Vector2.zero;
+                mapTileRect.anchorMax = Vector2.one;
+                mapTileRect.offsetMin = Vector2.zero;
+                mapTileRect.offsetMax = Vector2.zero;
+                mapTileImage = mapTileGO.AddComponent<RawImage>();
+                mapTileImage.color = new Color(0.15f, 0.2f, 0.25f, 0.95f); // Dark placeholder while loading
+                mapTileImage.raycastTarget = false;
+                Debug.Log("[ARHuntSceneSetup] Created MapTile RawImage for radar");
+            }
+            else
+            {
+                mapTileImage = mapTile.GetComponent<RawImage>();
+                if (mapTileImage == null) mapTileImage = mapTile.gameObject.AddComponent<RawImage>();
+            }
+
+            _radarMapTileImage = mapTileImage;
+            EnsureMapboxService();
+            Debug.Log("[ARHuntSceneSetup] Map tile wired - will fetch from Mapbox");
 
             // Player dot at center
             var playerDot = radar.Find("PlayerDot");
@@ -523,6 +570,112 @@ namespace BlackBartsGold.UI
             Debug.Log("[ARHuntSceneSetup] Debug diagnostics panel created");
         }
         
+        /// <summary>
+        /// Fetch and apply Mapbox map tile to radar. Updates when location changes.
+        /// </summary>
+        private void UpdateRadarMapTile()
+        {
+            if (_radarMapTileImage == null) return;
+            if (!MapboxService.Exists) return;
+            if (GPSManager.Instance == null || !GPSManager.Instance.IsTracking) return;
+
+            var loc = GPSManager.Instance.CurrentLocation;
+            if (loc == null) return;
+
+            float timeSince = Time.time - _radarMapLastUpdate;
+            double latDiff = System.Math.Abs(loc.latitude - _radarMapLastLat);
+            double lngDiff = System.Math.Abs(loc.longitude - _radarMapLastLng);
+
+            bool needsUpdate = timeSince >= 2f &&
+                (latDiff > 0.0001 || lngDiff > 0.0001);
+
+            if (needsUpdate && !_radarMapUpdatePending)
+            {
+                _radarMapUpdatePending = true;
+                _radarMapLastUpdate = Time.time;
+                _radarMapLastLat = loc.latitude;
+                _radarMapLastLng = loc.longitude;
+
+                MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, 0f, OnRadarMapTileReceived);
+            }
+        }
+
+        private void OnRadarMapTileReceived(Texture2D texture)
+        {
+            if (texture == null || _radarMapTileImage == null)
+            {
+                _radarMapUpdatePending = false;
+                return;
+            }
+            StartCoroutine(ApplyRadarMapTileNextFrame(texture));
+        }
+
+        private IEnumerator ApplyRadarMapTileNextFrame(Texture2D texture)
+        {
+            yield return null;
+            if (texture == null || _radarMapTileImage == null)
+            {
+                _radarMapUpdatePending = false;
+                yield break;
+            }
+            bool useCopy = Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer;
+            Texture2D displayTex = useCopy ? EnsureRadarTextureForUI(texture) : texture;
+            if (displayTex == null)
+            {
+                _radarMapUpdatePending = false;
+                yield break;
+            }
+            if (_radarMapCurrentTile != null && _radarMapTileIsOurCopy)
+                Destroy(_radarMapCurrentTile);
+            _radarMapCurrentTile = displayTex;
+            _radarMapTileIsOurCopy = useCopy;
+            _radarMapTileImage.texture = _radarMapCurrentTile;
+            _radarMapTileImage.enabled = true;
+            _radarMapTileImage.color = Color.white;
+            Canvas.ForceUpdateCanvases();
+            _radarMapUpdatePending = false;
+            Debug.Log("[ARHuntSceneSetup] 🗺️ Map tile applied to radar!");
+        }
+
+        private static Texture2D EnsureRadarTextureForUI(Texture2D source)
+        {
+            if (source == null) return null;
+#if UNITY_ANDROID || UNITY_IOS
+            try
+            {
+                var rt = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32);
+                Graphics.Blit(source, rt);
+                var copy = new Texture2D(source.width, source.height, TextureFormat.ARGB32, false);
+                copy.filterMode = FilterMode.Bilinear;
+                var prev = RenderTexture.active;
+                RenderTexture.active = rt;
+                copy.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0);
+                copy.Apply(false, false);
+                RenderTexture.active = prev;
+                RenderTexture.ReleaseTemporary(rt);
+                return copy;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[ARHuntSceneSetup] EnsureRadarTextureForUI failed: {e.Message}");
+                return source;
+            }
+#else
+            return source;
+#endif
+        }
+
+        private static void EnsureMapboxService()
+        {
+            if (!MapboxService.Exists)
+            {
+                var go = new GameObject("MapboxService");
+                go.AddComponent<MapboxService>();
+                DontDestroyOnLoad(go);
+                Debug.Log("[ARHuntSceneSetup] Created MapboxService");
+            }
+        }
+
         /// <summary>
         /// Called when radar is clicked - opens full map.
         /// Uses UIManager.OnMiniMapClicked() which handles both FullMapUI and code-generated fallback.
