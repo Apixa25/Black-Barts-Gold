@@ -489,6 +489,25 @@ namespace BlackBartsGold.UI
         
         #endregion
         
+        #region Runtime Setup (Code-Only UI)
+        
+        /// <summary>
+        /// Set crosshairs and collection circle references at runtime.
+        /// Called by ARHuntSceneSetup when building UI from code.
+        /// </summary>
+        public void SetRuntimeReferences(Image crosshairsImg, Image collectionCircle)
+        {
+            crosshairsImage = crosshairsImg;
+            collectionSizeCircle = collectionCircle;
+            if (collectionSizeCircle != null)
+            {
+                collectionSizeCircle.gameObject.SetActive(false);
+            }
+            Debug.Log("[CrosshairsController] Runtime references set (code-only setup)");
+        }
+        
+        #endregion
+        
         #region Public Methods
         
         /// <summary>

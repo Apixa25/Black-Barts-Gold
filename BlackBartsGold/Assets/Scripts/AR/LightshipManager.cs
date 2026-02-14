@@ -187,6 +187,7 @@ namespace BlackBartsGold.AR
         
         /// <summary>
         /// Setup meshing - creates a 3D mesh of the real world.
+        /// ARMeshManager must be on XROrigin or a direct child.
         /// </summary>
         private void SetupMeshing()
         {
@@ -200,12 +201,29 @@ namespace BlackBartsGold.AR
                 return;
             }
             
-            // Get or add ARMeshManager (AR Foundation standard)
-            meshManager = xrOrigin.GetComponent<ARMeshManager>();
-            if (meshManager == null)
+            try
             {
-                meshManager = xrOrigin.gameObject.AddComponent<ARMeshManager>();
-                Log("Added ARMeshManager to XR Origin");
+                // ARMeshManager must be on a CHILD of XROrigin, not on XROrigin itself.
+                var meshHolder = xrOrigin.transform.Find("AR Mesh Manager");
+                if (meshHolder == null)
+                {
+                    var go = new GameObject("AR Mesh Manager");
+                    go.transform.SetParent(xrOrigin.transform, false);
+                    meshHolder = go.transform;
+                }
+                
+                meshManager = meshHolder.GetComponent<ARMeshManager>();
+                if (meshManager == null)
+                {
+                    meshManager = meshHolder.gameObject.AddComponent<ARMeshManager>();
+                    Log("Added ARMeshManager to XR Origin child");
+                }
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                LogError($"ARMeshManager setup failed: {ex.Message}. Meshing disabled.");
+                enableMeshing = false;
+                return;
             }
             
             // Create mesh prefab if not assigned

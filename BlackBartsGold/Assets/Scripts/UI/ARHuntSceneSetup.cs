@@ -176,16 +176,29 @@ namespace BlackBartsGold.UI
             }
         }
 
+        /// <summary>
+        /// CODE-ONLY setup for crosshairs and collection size ring.
+        /// Loads sprites from Resources/UI (crosshairs.jpg, gold ring.png).
+        /// No Unity Editor wiring required - everything built at runtime.
+        /// </summary>
         private void SetupCrosshairs()
         {
+            // Find or create Crosshairs container
             var crosshairs = transform.Find("Crosshairs");
-            if (crosshairs == null) return;
+            if (crosshairs == null)
+            {
+                crosshairs = new GameObject("Crosshairs").transform;
+                crosshairs.SetParent(transform, false);
+                crosshairs.gameObject.AddComponent<RectTransform>();
+                crosshairs.gameObject.AddComponent<CrosshairsController>();
+                Debug.Log("[ARHuntSceneSetup] Created Crosshairs from code");
+            }
 
-            // Add RectTransform if missing
             var rect = crosshairs.GetComponent<RectTransform>();
             if (rect == null)
             {
-                rect = crosshairs.gameObject.AddComponent<RectTransform>();
+                Debug.LogError("[ARHuntSceneSetup] Crosshairs has no RectTransform!");
+                return;
             }
 
             // Center of screen
@@ -193,41 +206,80 @@ namespace BlackBartsGold.UI
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(100, 100);
+            rect.sizeDelta = new Vector2(120, 120);
 
-            // Add image for crosshairs
+            // Load crosshairs sprite from Resources/UI
+            // Expected: Assets/Resources/UI/crosshairs.jpg and Assets/Resources/UI/gold ring.png
+            var crosshairsSprite = Resources.Load<Sprite>("UI/crosshairs");
+            if (crosshairsSprite == null) crosshairsSprite = Resources.Load<Sprite>("crosshairs");
+            if (crosshairsSprite == null)
+            {
+                Debug.LogWarning("[ARHuntSceneSetup] crosshairs.jpg not in Resources/UI - using programmatic fallback");
+            }
+
+            // Main crosshairs Image (on parent - used by CrosshairsController for color/state)
             var image = crosshairs.GetComponent<Image>();
-            if (image == null)
-            {
-                image = crosshairs.gameObject.AddComponent<Image>();
-            }
-            
-            image.color = new Color(1, 1, 1, 0.7f);
+            if (image == null) image = crosshairs.gameObject.AddComponent<Image>();
+            image.sprite = crosshairsSprite;
+            image.color = new Color(1f, 0.84f, 0f, 0.9f);
             image.raycastTarget = false;
-            
-            // Create simple crosshair using text
-            var textTransform = crosshairs.Find("CrosshairText");
-            if (textTransform == null)
+            image.preserveAspect = crosshairsSprite != null;
+            // No sprite = gold square fallback (better than white or nothing)
+
+            // Remove old CrosshairText (font doesn't support ⊕) - we use sprite now
+            var oldText = crosshairs.Find("CrosshairText");
+            if (oldText != null)
             {
-                var textGO = new GameObject("CrosshairText");
-                textGO.transform.SetParent(crosshairs, false);
-                
-                var textRect = textGO.AddComponent<RectTransform>();
-                textRect.anchorMin = Vector2.zero;
-                textRect.anchorMax = Vector2.one;
-                textRect.offsetMin = Vector2.zero;
-                textRect.offsetMax = Vector2.zero;
-                
-                var tmpText = textGO.AddComponent<TextMeshProUGUI>();
-                tmpText.text = "⊕";
-                tmpText.fontSize = 72;
-                tmpText.alignment = TextAlignmentOptions.Center;
-                tmpText.color = GoldColor;
-                tmpText.raycastTarget = false;
+                Destroy(oldText.gameObject);
             }
-            
-            // Hide the background image, just show crosshair symbol
-            image.color = new Color(0, 0, 0, 0);
+
+            // Create CollectionSizeCircle (gold ring) - shows when targeting coin
+            var collectionCircle = crosshairs.Find("CollectionSizeCircle");
+            if (collectionCircle == null)
+            {
+                var circleGO = new GameObject("CollectionSizeCircle");
+                circleGO.transform.SetParent(crosshairs, false);
+                collectionCircle = circleGO.transform;
+
+                var circleRect = circleGO.AddComponent<RectTransform>();
+                circleRect.anchorMin = new Vector2(0.5f, 0.5f);
+                circleRect.anchorMax = new Vector2(0.5f, 0.5f);
+                circleRect.pivot = new Vector2(0.5f, 0.5f);
+                circleRect.anchoredPosition = Vector2.zero;
+                circleRect.sizeDelta = new Vector2(80, 80);
+
+                var circleImage = circleGO.AddComponent<Image>();
+                var goldRingSprite = Resources.Load<Sprite>("UI/gold ring");
+                if (goldRingSprite == null) goldRingSprite = Resources.Load<Sprite>("gold ring");
+                circleImage.sprite = goldRingSprite;
+                circleImage.color = new Color(1f, 0.84f, 0f, 0.7f);
+                circleImage.raycastTarget = false;
+                circleImage.preserveAspect = true;
+                Debug.Log("[ARHuntSceneSetup] Created CollectionSizeCircle from code");
+            }
+            else
+            {
+                // Ensure existing circle has sprite and settings
+                var circleImage = collectionCircle.GetComponent<Image>();
+                if (circleImage != null)
+                {
+                    if (circleImage.sprite == null)
+                    {
+                        var goldRingSprite = Resources.Load<Sprite>("UI/gold ring");
+                        if (goldRingSprite == null) goldRingSprite = Resources.Load<Sprite>("gold ring");
+                        circleImage.sprite = goldRingSprite;
+                    }
+                    circleImage.raycastTarget = false;
+                }
+            }
+
+            // Wire CrosshairsController references at runtime
+            var controller = crosshairs.GetComponent<CrosshairsController>();
+            if (controller != null)
+            {
+                var circleImg = collectionCircle.GetComponent<Image>();
+                controller.SetRuntimeReferences(image, circleImg);
+            }
         }
         
         /// <summary>
