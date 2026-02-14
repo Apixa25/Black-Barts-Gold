@@ -160,6 +160,20 @@ namespace BlackBartsGold.UI
                 tmpText.alignment = TextAlignmentOptions.Center;
                 tmpText.color = Color.white;
             }
+
+            // Wire Back button to exit AR and return to MainMenu
+            var button = btn.GetComponent<Button>();
+            if (button != null)
+            {
+                button.onClick.RemoveAllListeners();
+                button.onClick.AddListener(() =>
+                {
+                    if (Core.UIManager.Instance != null)
+                        Core.UIManager.Instance.ExitARHunt();
+                    else
+                        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+                });
+            }
         }
 
         private void SetupCrosshairs()

@@ -82,8 +82,7 @@ namespace BlackBartsGold.Core
         /// </summary>
         private static bool SceneHasOwnUI(string sceneName)
         {
-            return sceneName == "Login" || sceneName == "Register" ||
-                   sceneName == "MainMenu" || sceneName == "Wallet" || sceneName == "Settings";
+            return SceneConfig.SceneHasOwnUI(sceneName);
         }
 
         private void FixEventSystem()

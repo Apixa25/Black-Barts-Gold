@@ -203,12 +203,7 @@ namespace BlackBartsGold.Core
         /// </summary>
         private bool SceneHasOwnUI(string sceneName)
         {
-            // These scenes have their own LoginUI, RegisterUI, MainMenuUI, etc.
-            bool hasOwn = sceneName == "Login" || 
-                   sceneName == "Register" || 
-                   sceneName == "MainMenu" ||
-                   sceneName == "Wallet" ||
-                   sceneName == "Settings";
+            bool hasOwn = SceneConfig.SceneHasOwnUI(sceneName);
             Debug.Log($"[UIManager] SceneHasOwnUI('{sceneName}') = {hasOwn}");
             return hasOwn;
         }
@@ -421,6 +416,17 @@ namespace BlackBartsGold.Core
             // Check if this scene has its own dedicated UI
             if (SceneHasOwnUI(scene.name))
             {
+                // ARHunt has scene-based UI but still needs coin fetch + AR mode flag
+                if (scene.name == "ARHunt")
+                {
+                    isInARMode = true;
+                    StartCoroutine(FetchCoinsFromAPI());
+                }
+                else
+                {
+                    isInARMode = false;
+                }
+
                 var es = UnityEngine.EventSystems.EventSystem.current;
                 Debug.Log($"[UIManager] ✅ Scene '{scene.name}' has its own UI | EventSystem.current={es?.name ?? "null"}");
                 Debug.Log("[UIManager] ➡️ DISABLING UIManager canvas entirely");
