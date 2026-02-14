@@ -1995,8 +1995,8 @@ namespace BlackBartsGold.Core
             var backText = backButton.GetComponentInChildren<TextMeshProUGUI>();
             if (backText != null) backText.color = Color.white;
             
-            // Crosshairs - using simple + that all fonts support
-            CreateCrosshairs(panel.transform);
+            // Crosshairs REMOVED - they cover the coin; gold ring (CollectionSizeCircle) shows when in range
+            // CreateCrosshairs(panel.transform);
             
             // Coin Counter (top-right) - using text that renders
             var coinCounter = CreateText(panel.transform, "CoinCounter", "Coins: 0", 

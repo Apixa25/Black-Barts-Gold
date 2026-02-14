@@ -18,6 +18,7 @@ using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.UI
 {
@@ -832,12 +833,12 @@ namespace BlackBartsGold.UI
             {
                 if (coin.isLocked)
                 {
-                    selectedCoinStatus.text = "🔒 LOCKED - Above your find limit";
+                    selectedCoinStatus.text = EmojiHelper.Sanitize("🔒 LOCKED - Above your find limit");
                     selectedCoinStatus.color = lockedCoinColor;
                 }
                 else
                 {
-                    selectedCoinStatus.text = "🎯 Available to collect!";
+                    selectedCoinStatus.text = EmojiHelper.Sanitize("🎯 Available to collect!");
                     selectedCoinStatus.color = selectedCoinColor;
                 }
             }

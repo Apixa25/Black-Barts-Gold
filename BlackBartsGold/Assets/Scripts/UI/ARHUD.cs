@@ -3,8 +3,8 @@
 // Black Bart's Gold - AR Heads-Up Display Controller
 // Path: Assets/Scripts/UI/ARHUD.cs
 // ============================================================================
-// Main controller for the AR HUD overlay. Manages all HUD elements including
-// compass, gas meter, find limit, crosshairs, and mini-map.
+// Main controller for the AR HUD overlay. Manages HUD elements including
+// compass, gas meter, find limit, and mini-map. (Crosshairs removed - code-based AR setup.)
 // Reference: BUILD-GUIDE.md Prompt 5.1
 // ============================================================================
 
@@ -58,9 +58,8 @@ namespace BlackBartsGold.UI
         [Tooltip("Radar/Mini-map UI component")]
         private RadarUI radar;
         
-        [SerializeField]
-        [Tooltip("Crosshairs UI component")]
-        private CrosshairsController crosshairs;
+        // Crosshairs removed - we use code-based AR setup (ARHuntSceneSetup) which does not use crosshairs.
+        // The white box was caused by emoji fallback in SelectedCoinStatus; fixed via EmojiHelper.
         
         [SerializeField]
         [Tooltip("Gas meter UI component")]
@@ -346,23 +345,7 @@ namespace BlackBartsGold.UI
         
         private void OnProximityZoneChanged(ProximityZone oldZone, ProximityZone newZone)
         {
-            // Update crosshairs based on zone
-            if (crosshairs != null)
-            {
-                switch (newZone)
-                {
-                    case ProximityZone.Collectible:
-                        crosshairs.SetState(CrosshairsState.InRange);
-                        break;
-                    case ProximityZone.Near:
-                    case ProximityZone.Medium:
-                        crosshairs.SetState(CrosshairsState.Hovering);
-                        break;
-                    default:
-                        crosshairs.SetState(CrosshairsState.Normal);
-                        break;
-                }
-            }
+            // Crosshairs removed - zone changes handled by code-based AR setup (CollectionSizeCircle, etc.)
         }
         
         /// <summary>
@@ -448,11 +431,7 @@ namespace BlackBartsGold.UI
             // Show exciting message
             ShowMessage("A Gold Doubloon appears! Walk closer to collect!");
             
-            // Update crosshairs to show target acquired
-            if (crosshairs != null)
-            {
-                crosshairs.SetState(CrosshairsState.Hovering);
-            }
+            // Crosshairs removed - target state shown by CollectionSizeCircle in code-based AR setup
         }
         
         #endregion

@@ -249,15 +249,16 @@ namespace BlackBartsGold.UI
                 Debug.LogWarning("[ARHuntSceneSetup] crosshairs.jpg not in Resources/UI - using programmatic fallback");
             }
 
-            // Main crosshairs Image (on parent - used by CrosshairsController for color/state)
+            // Main crosshairs Image - REMOVED: Crosshairs cover the coin - we want players to see the beautiful coin!
+            // Gold ring (CollectionSizeCircle) still shows when in range - that stays visible.
+            // Destroy the entire Image so nothing can render (more reliable than just disabling).
             var image = crosshairs.GetComponent<Image>();
-            if (image == null) image = crosshairs.gameObject.AddComponent<Image>();
-            image.sprite = crosshairsSprite;
-            // Use white tint so sprite's colors show; CrosshairsController tints for state (green=in range, etc.)
-            image.color = crosshairsSprite != null ? new Color(1f, 1f, 1f, 0.95f) : new Color(1f, 0.84f, 0f, 0.9f);
-            image.raycastTarget = false;
-            image.preserveAspect = crosshairsSprite != null;
-            // No sprite = gold square fallback (better than white or nothing)
+            if (image != null)
+            {
+                Destroy(image);
+                image = null;
+            }
+            // Don't add Image - we intentionally have no crosshairs visual
 
             // Remove old CrosshairText (font doesn't support ⊕) - we use sprite now
             var oldText = crosshairs.Find("CrosshairText");
