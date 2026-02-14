@@ -39,7 +39,8 @@ namespace BlackBartsGold.AR
             {
                 if (_instance == null)
                 {
-                    _instance = FindFirstObjectByType<ARRaycastController>();
+                    // Include inactive - XR Origin may start inactive during scene load
+                    _instance = FindFirstObjectByType<ARRaycastController>(FindObjectsInactive.Include);
                 }
                 return _instance;
             }

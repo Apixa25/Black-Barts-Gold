@@ -28,6 +28,17 @@ namespace BlackBartsGold.Core
         public static MapboxService Instance => _instance;
         public static bool Exists => _instance != null;
         
+        /// <summary>True if we have a valid pk.* token. When false, tile requests will 401.</summary>
+        public static bool HasValidToken
+        {
+            get
+            {
+                if (_instance == null) return false;
+                var t = _instance.EffectiveAccessToken;
+                return !string.IsNullOrEmpty(t) && t.StartsWith("pk.");
+            }
+        }
+        
         #endregion
         
         #region Configuration
@@ -194,6 +205,12 @@ namespace BlackBartsGold.Core
             Action<Texture2D> callback,
             float bearing = 0f)
         {
+            if (!HasValidToken)
+            {
+                Debug.LogWarning("[Mapbox] Skipping tile request - no valid token. Create MapboxToken.txt from MapboxToken.example.txt. See Docs/MAPBOX-SETUP.md");
+                callback?.Invoke(null);
+                return;
+            }
             StartCoroutine(FetchMapTile(latitude, longitude, zoom, width, height, bearing, callback));
         }
         

@@ -79,6 +79,7 @@ namespace BlackBartsGold.Utils
             { "\u2715",        "X" },           // ✕
             { "\U0001F17F\uFE0F", "[P]" },      // 🅿️
             { "\U0001F17F",    "[P]" },         // 🅿
+            { "\U0001F45B",    "[WALLET]" },    // 👟 (sneaker - "MY WALLET" in MainMenu)
         };
 
         // Regex to catch any remaining emoji/surrogates we didn't map

@@ -2059,7 +2059,7 @@ namespace BlackBartsGold.Core
             bgImage.raycastTarget = false;
             
             // Title - DOUBLED font size
-            var title = CreateText(debugPanel.transform, "DebugTitle", "🔧 DEBUG INFO", 
+            var title = CreateText(debugPanel.transform, "DebugTitle", EmojiHelper.Sanitize("🔧 DEBUG INFO"), 
                 Vector2.zero, 32, GoldColor, FontStyles.Bold);
             var titleRect = title.GetComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0, 1);

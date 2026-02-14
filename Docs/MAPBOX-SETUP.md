@@ -30,3 +30,4 @@ If you use Mapbox in the admin dashboard, you can use the same token. It lives i
 
 - **401 Unauthorized** – Token missing or invalid. Ensure `MapboxToken.txt` exists and contains a valid `pk.*` token.
 - **No maps showing** – Check ADB logs for `[Mapbox] hasValidToken=...` at startup.
+- **"Skipping tile request - no valid token"** – MapboxService now skips requests when token is invalid (avoids 401 spam). Create `MapboxToken.txt` from the example and add your `pk.*` token.

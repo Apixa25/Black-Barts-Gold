@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Location;
+using BlackBartsGold.Utils;
 
 namespace BlackBartsGold.AR
 {
@@ -187,6 +188,7 @@ namespace BlackBartsGold.AR
         #region Private Fields
         
         private Queue<CoinController> coinPool = new Queue<CoinController>();
+        private ARRaycastController _subscribedRaycastController;  // For unsubscribe in OnDestroy
         
         #endregion
         
@@ -201,7 +203,7 @@ namespace BlackBartsGold.AR
             }
             _instance = this;
             
-            Debug.Log($"[CoinManager] ===== AWAKE T+{Time.realtimeSinceStartup:F2}s =====");
+            DiagnosticLog.Log("CoinManager", $"AWAKE T+{Time.realtimeSinceStartup:F2}s");
             
             // Create coins parent
             if (coinsParent == null)
@@ -219,7 +221,7 @@ namespace BlackBartsGold.AR
         
         private void Start()
         {
-            Debug.Log($"[CoinManager] T+{Time.realtimeSinceStartup:F2}s: Start()");
+            DiagnosticLog.Log("CoinManager", $"Start T+{Time.realtimeSinceStartup:F2}s - subscribing to ARRaycastController");
             
             // Initialize compass heading for positioning
             ARCoinPositioner.CaptureInitialCompassHeading();
@@ -234,30 +236,35 @@ namespace BlackBartsGold.AR
             SetHuntMode(HuntMode.MapView);
         }
         
-        /// <summary>Retry finding ARRaycastController for a few seconds (handles late init when returning from MainMenu).</summary>
+        /// <summary>Retry finding ARRaycastController for a few seconds (handles late init when returning from MainMenu).
+        /// Uses FindObjectsInactive.Include so we find it even if XR Origin starts inactive.</summary>
         private System.Collections.IEnumerator SubscribeToARRaycastControllerWhenReady()
         {
-            const int maxAttempts = 10;
-            const float delaySeconds = 0.3f;
+            const int maxAttempts = 25;  // 25 * 0.4s = 10 seconds (XR can load slowly)
+            const float delaySeconds = 0.4f;
             for (int i = 0; i < maxAttempts; i++)
             {
-                if (ARRaycastController.Instance != null)
+                var ctrl = FindFirstObjectByType<ARRaycastController>(FindObjectsInactive.Include);
+                if (ctrl != null)
                 {
-                    ARRaycastController.Instance.OnCoinSelected += HandleCoinTapped;
-                    Log("Subscribed to ARRaycastController.OnCoinSelected for tap-to-collect");
+                    _subscribedRaycastController = ctrl;
+                    ctrl.OnCoinSelected += HandleCoinTapped;
+                    DiagnosticLog.Log("CoinManager", "Subscribed to ARRaycastController.OnCoinSelected for tap-to-collect");
                     yield break;
                 }
+                if (i % 5 == 0 && i > 0)
+                    DiagnosticLog.Log("CoinManager", $"Still waiting for ARRaycastController (attempt {i + 1}/{maxAttempts})");
                 yield return new WaitForSeconds(delaySeconds);
             }
-            Debug.LogWarning("[CoinManager] ARRaycastController not found after retries - tap-to-collect won't work!");
+            DiagnosticLog.Error("CoinManager", "ARRaycastController not found after retries - tap-to-collect won't work!");
         }
         
         private void OnDestroy()
         {
-            // Unsubscribe from raycast events
-            if (ARRaycastController.Instance != null)
+            if (_subscribedRaycastController != null)
             {
-                ARRaycastController.Instance.OnCoinSelected -= HandleCoinTapped;
+                _subscribedRaycastController.OnCoinSelected -= HandleCoinTapped;
+                _subscribedRaycastController = null;
             }
         }
         
