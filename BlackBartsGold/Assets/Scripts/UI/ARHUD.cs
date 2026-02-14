@@ -853,17 +853,22 @@ namespace BlackBartsGold.UI
         #region Full Map Integration
         
         /// <summary>
-        /// Open the full map view to select a coin
+        /// Open the full map view to select a coin.
+        /// Uses UIManager.OnMiniMapClicked() which handles both FullMapUI and code-generated fallback.
         /// </summary>
         public void OpenFullMap()
         {
-            if (FullMapUI.Exists)
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.OnMiniMapClicked();
+            }
+            else if (FullMapUI.Exists)
             {
                 FullMapUI.Instance.Show();
             }
             else
             {
-                Log("FullMapUI not found in scene");
+                Log("UIManager and FullMapUI not found");
                 ShowMessage("Map not available");
             }
         }

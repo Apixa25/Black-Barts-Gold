@@ -17,6 +17,7 @@ using UnityEngine.InputSystem.EnhancedTouch;
 using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
+using UIManager = BlackBartsGold.Core.UIManager;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
@@ -330,25 +331,25 @@ namespace BlackBartsGold.UI
         }
         
         /// <summary>
-        /// Handle radar tap - opens full map
+        /// Handle radar tap - opens full map.
+        /// Uses UIManager.OnMiniMapClicked() which handles both FullMapUI and code-generated fallback.
         /// </summary>
         private void OnRadarTapped()
         {
             Debug.Log("[RadarUI] RADAR TAPPED! Opening full map...");
             
-            // Open full map UI
-            if (FullMapUI.Exists)
+            // UIManager handles both FullMapUI (if exists) and programmatic map fallback
+            if (Core.UIManager.Instance != null)
             {
-                Debug.Log("[RadarUI] FullMapUI exists, calling Show()");
+                Core.UIManager.Instance.OnMiniMapClicked();
+            }
+            else if (FullMapUI.Exists)
+            {
                 FullMapUI.Instance.Show();
             }
             else
             {
-                Debug.LogWarning("[RadarUI] FullMapUI not found in scene!");
-                if (ARHUD.Instance != null)
-                {
-                    ARHUD.Instance.OnRadarTapped();
-                }
+                Debug.LogWarning("[RadarUI] UIManager and FullMapUI not found!");
             }
         }
         

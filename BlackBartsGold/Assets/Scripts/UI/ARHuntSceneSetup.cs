@@ -364,20 +364,28 @@ namespace BlackBartsGold.UI
         /// <summary>
         /// Create radar content (player dot, sweep line) and wire RadarUI at runtime.
         /// Uses player.png and map-coin-icon.png from Resources/UI.
+        /// Defensive: uses explicit RectTransform refs to avoid NullReferenceException.
         /// </summary>
         private void SetupRadarContent(Transform radar, RadarUI radarUI)
         {
             var rect = radar.GetComponent<RectTransform>();
-            if (rect == null) return;
+            if (rect == null)
+            {
+                Debug.LogError("[ARHuntSceneSetup] Radar has no RectTransform!");
+                return;
+            }
+
+            RectTransform playerRect = null;
+            RectTransform sweepRect = null;
+            RectTransform northRect = null;
 
             // Player dot at center
             var playerDot = radar.Find("PlayerDot");
-            if (playerDot == null)
+            if (playerDot == null || !playerDot.gameObject)
             {
                 var playerGO = new GameObject("PlayerDot");
-                playerDot = playerGO.transform;
-                playerDot.SetParent(radar, false);
-                var playerRect = playerGO.AddComponent<RectTransform>();
+                playerGO.transform.SetParent(radar, false);
+                playerRect = playerGO.AddComponent<RectTransform>();
                 playerRect.anchorMin = new Vector2(0.5f, 0.5f);
                 playerRect.anchorMax = new Vector2(0.5f, 0.5f);
                 playerRect.pivot = new Vector2(0.5f, 0.5f);
@@ -391,15 +399,19 @@ namespace BlackBartsGold.UI
                 playerImg.raycastTarget = false;
                 playerImg.preserveAspect = true;
             }
+            else
+            {
+                playerRect = playerDot.GetComponent<RectTransform>();
+                if (playerRect == null) playerRect = playerDot.gameObject.AddComponent<RectTransform>();
+            }
 
             // Sweep line (optional - thin rotating line)
             var sweepLine = radar.Find("SweepLine");
-            if (sweepLine == null)
+            if (sweepLine == null || !sweepLine.gameObject)
             {
                 var sweepGO = new GameObject("SweepLine");
-                sweepLine = sweepGO.transform;
-                sweepLine.SetParent(radar, false);
-                var sweepRect = sweepGO.AddComponent<RectTransform>();
+                sweepGO.transform.SetParent(radar, false);
+                sweepRect = sweepGO.AddComponent<RectTransform>();
                 sweepRect.anchorMin = new Vector2(0.5f, 0.5f);
                 sweepRect.anchorMax = new Vector2(0.5f, 0.5f);
                 sweepRect.pivot = new Vector2(0.5f, 0f);
@@ -409,15 +421,19 @@ namespace BlackBartsGold.UI
                 sweepImg.color = new Color(1f, 0.84f, 0f, 0.4f);
                 sweepImg.raycastTarget = false;
             }
+            else
+            {
+                sweepRect = sweepLine.GetComponent<RectTransform>();
+                if (sweepRect == null) sweepRect = sweepLine.gameObject.AddComponent<RectTransform>();
+            }
 
             // North indicator (optional)
             var northIndicator = radar.Find("NorthIndicator");
-            if (northIndicator == null)
+            if (northIndicator == null || !northIndicator.gameObject)
             {
                 var northGO = new GameObject("NorthIndicator");
-                northIndicator = northGO.transform;
-                northIndicator.SetParent(radar, false);
-                var northRect = northGO.AddComponent<RectTransform>();
+                northGO.transform.SetParent(radar, false);
+                northRect = northGO.AddComponent<RectTransform>();
                 northRect.anchorMin = new Vector2(0.5f, 1f);
                 northRect.anchorMax = new Vector2(0.5f, 1f);
                 northRect.pivot = new Vector2(0.5f, 1f);
@@ -427,10 +443,22 @@ namespace BlackBartsGold.UI
                 northImg.color = new Color(1f, 0.3f, 0.3f, 0.8f);
                 northImg.raycastTarget = false;
             }
+            else
+            {
+                northRect = northIndicator.GetComponent<RectTransform>();
+                if (northRect == null) northRect = northIndicator.gameObject.AddComponent<RectTransform>();
+            }
+
+            if (playerRect == null)
+            {
+                Debug.LogError("[ARHuntSceneSetup] Failed to get player dot RectTransform!");
+                return;
+            }
 
             var coinSprite = Resources.Load<Sprite>("UI/map-coin-icon");
             if (coinSprite == null) coinSprite = Resources.Load<Sprite>("map-coin-icon");
-            radarUI.SetRuntimeReferences(rect, playerDot.GetComponent<RectTransform>(), sweepLine.GetComponent<RectTransform>(), northIndicator.GetComponent<RectTransform>(), coinSprite);
+            radarUI.SetRuntimeReferences(rect, playerRect, sweepRect, northRect, coinSprite);
+            Debug.Log("[ARHuntSceneSetup] Radar content wired successfully");
         }
 
         /// <summary>
@@ -494,27 +522,24 @@ namespace BlackBartsGold.UI
         
         /// <summary>
         /// Called when radar is clicked - opens full map.
-        /// This is a backup handler in case RadarUI's handler isn't working.
+        /// Uses UIManager.OnMiniMapClicked() which handles both FullMapUI and code-generated fallback.
         /// </summary>
         private void OnRadarClicked()
         {
             Debug.Log("[ARHuntSceneSetup] RADAR CLICKED! Opening full map...");
             
-            // Try FullMapUI first
-            if (FullMapUI.Exists)
+            // UIManager handles both FullMapUI (if exists) and programmatic map fallback
+            if (Core.UIManager.Instance != null)
             {
-                Debug.Log("[ARHuntSceneSetup] Calling FullMapUI.Show()");
-                FullMapUI.Instance.Show();
+                Core.UIManager.Instance.OnMiniMapClicked();
             }
-            // Then try ARHUD
-            else if (ARHUD.Instance != null)
+            else if (FullMapUI.Exists)
             {
-                Debug.Log("[ARHuntSceneSetup] Calling ARHUD.OnRadarTapped()");
-                ARHUD.Instance.OnRadarTapped();
+                FullMapUI.Instance.Show();
             }
             else
             {
-                Debug.LogError("[ARHuntSceneSetup] Neither FullMapUI nor ARHUD found!");
+                Debug.LogError("[ARHuntSceneSetup] UIManager and FullMapUI not found!");
             }
         }
         
