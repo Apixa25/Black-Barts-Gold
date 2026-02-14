@@ -45,6 +45,7 @@ namespace BlackBartsGold.UI
             DiagnosticLog.Log("Setup", $"GameObject: {gameObject.name}");
             
             SetupCanvas();
+            CleanupStrayCenteredImages(); // Remove white square from orphan CompassArrowPanel etc.
             SetupBackButton();
             SetupCrosshairs();
             SetupRadarPanel();
@@ -165,6 +166,27 @@ namespace BlackBartsGold.UI
                 scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
                 scaler.referenceResolution = new Vector2(1080, 1920);
                 scaler.matchWidthOrHeight = 0.5f;
+            }
+        }
+
+        /// <summary>
+        /// Remove stray scene-baked UI that causes a white square at screen center.
+        /// CompassArrowPanel has an Image with no sprite (renders white). Not used by code-based CompassPanel.
+        /// </summary>
+        private void CleanupStrayCenteredImages()
+        {
+            var compassArrow = transform.Find("CompassArrowPanel");
+            if (compassArrow != null)
+            {
+                var img = compassArrow.GetComponent<Image>();
+                if (img != null)
+                {
+                    img.enabled = false;
+                    Destroy(img);
+                    DiagnosticLog.Log("Setup", "Disabled orphan CompassArrowPanel Image (was causing white square)");
+                }
+                // Deactivate entire panel - it's unused (CompassPanel is created in code)
+                compassArrow.gameObject.SetActive(false);
             }
         }
 
@@ -1195,7 +1217,7 @@ namespace BlackBartsGold.UI
             _radarMapTileImage.color = Color.white;
             Canvas.ForceUpdateCanvases();
             _radarMapUpdatePending = false;
-            Debug.Log("[ARHuntSceneSetup] 🗺️ Map tile applied to radar!");
+            Debug.Log("[ARHuntSceneSetup] Map tile applied to radar");
         }
 
         private static Texture2D EnsureRadarTextureForUI(Texture2D source)
