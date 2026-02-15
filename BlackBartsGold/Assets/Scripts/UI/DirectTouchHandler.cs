@@ -228,38 +228,24 @@ namespace BlackBartsGold.UI
         private void OpenFullMap()
         {
             Log("DirectTouch OpenFullMap - radar touch detected!");
-            Log($"FullMapUI.Exists={FullMapUI.Exists}, fullMapPanel={fullMapPanel != null}, ARHUD.Instance={ARHUD.Instance != null}, UIManager.Instance={Core.UIManager.Instance != null}");
+            Log($"UIManager.Instance={Core.UIManager.Instance != null}, ARHUD.Instance={ARHUD.Instance != null}");
             
-            // Prefer UIManager so we get code-based map (Mapbox tile) in AR mode - avoids scene/code path switching
+            // Single source of truth: UIManager's code-based map
             if (Core.UIManager.Instance != null)
             {
-                Log("Path: UIManager.Instance.OnMiniMapClicked() (unified code-based map)");
+                Log("Path: UIManager.Instance.OnMiniMapClicked()");
                 Core.UIManager.Instance.OnMiniMapClicked();
-                return;
-            }
-            
-            if (FullMapUI.Exists)
-            {
-                Log("Path: FullMapUI.Instance.Show() (UIManager not available)");
-                FullMapUI.Instance.Show();
-                return;
-            }
-            
-            if (fullMapPanel != null)
-            {
-                Log("Path: Activating fullMapPanel directly (scene panel)");
-                fullMapPanel.gameObject.SetActive(true);
                 return;
             }
             
             if (ARHUD.Instance != null)
             {
-                Log("Path: ARHUD.Instance.OnRadarTapped()");
+                Log("Path: ARHUD.Instance.OnRadarTapped() (UIManager fallback)");
                 ARHUD.Instance.OnRadarTapped();
                 return;
             }
             
-            LogError("Could not open full map - no handler found!");
+            LogError("Could not open full map - UIManager not found!");
         }
         
         private void Log(string message)

@@ -46,6 +46,14 @@ namespace BlackBartsGold.UI
             DiagnosticLog.Log("Setup", $"AR SCENE START T+{Time.realtimeSinceStartup:F2}s");
             DiagnosticLog.Log("Setup", $"GameObject: {gameObject.name}");
             
+            // Single source of truth: remove scene-based FullMapPanel - we use UIManager's code-based map only
+            var fullMap = transform.Find("FullMapPanel");
+            if (fullMap != null)
+            {
+                Destroy(fullMap.gameObject);
+                DiagnosticLog.Log("Setup", "Removed scene-based FullMapPanel - using code-based map only");
+            }
+            
             SetupCanvas();
             CleanupStrayCenteredImages(); // Remove white square from orphan CompassArrowPanel etc.
             SetupBackButton();
@@ -1280,24 +1288,19 @@ namespace BlackBartsGold.UI
 
         /// <summary>
         /// Called when radar is clicked - opens full map.
-        /// Uses UIManager.OnMiniMapClicked() which handles both FullMapUI and code-generated fallback.
+        /// Single source of truth: UIManager's code-based map (Mapbox tile, zoom, coin markers).
         /// </summary>
         private void OnRadarClicked()
         {
             DiagnosticLog.Log("Radar", "CLICKED -> Opening full map");
             
-            // UIManager handles both FullMapUI (if exists) and programmatic map fallback
             if (Core.UIManager.Instance != null)
             {
                 Core.UIManager.Instance.OnMiniMapClicked();
             }
-            else if (FullMapUI.Exists)
-            {
-                FullMapUI.Instance.Show();
-            }
             else
             {
-                Debug.LogError("[ARHuntSceneSetup] UIManager and FullMapUI not found!");
+                Debug.LogError("[ARHuntSceneSetup] UIManager not found - cannot open map!");
             }
         }
         

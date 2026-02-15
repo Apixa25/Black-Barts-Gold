@@ -957,6 +957,21 @@ namespace BlackBartsGold.Core
             ShowSimpleFullMap();
         }
         
+        /// <summary>
+        /// Hide the full map (code-based SimpleFullMapPanel). Used by EmergencyMapButton etc.
+        /// </summary>
+        public void HideFullMap()
+        {
+            if (_simpleFullMapPanel != null && _simpleFullMapPanel.activeSelf)
+            {
+                _simpleFullMapPanel.SetActive(false);
+                if (isInARMode && _ourCanvas != null)
+                {
+                    _ourCanvas.enabled = false;
+                }
+            }
+        }
+        
         private GameObject _simpleFullMapPanel;
         
         /// <summary>
@@ -1007,12 +1022,6 @@ namespace BlackBartsGold.Core
             {
                 _ourCanvas.enabled = true;
                 Debug.Log("[UIManager] Re-enabled canvas for full map in AR mode");
-            }
-            // Hide scene-based FullMapPanel so it doesn't overlap our code-based map
-            if (FullMapUI.Exists && FullMapUI.Instance.IsVisible)
-            {
-                FullMapUI.Instance.Hide();
-                Debug.Log("[UIManager] Hid scene FullMapUI to avoid overlap with code-based map");
             }
             // CRITICAL: Hide arHudPanel (MiniMapContainer) when full map is shown - prevents overlap/conflict
             if (arHudPanel != null && arHudPanel.activeSelf)

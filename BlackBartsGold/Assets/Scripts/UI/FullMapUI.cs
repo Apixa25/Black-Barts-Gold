@@ -306,6 +306,8 @@ namespace BlackBartsGold.UI
         
         private void OnDestroy()
         {
+            if (_instance == this)
+                _instance = null;
             if (CoinManager.Exists)
             {
                 CoinManager.Instance.OnKnownCoinsUpdated -= OnKnownCoinsUpdated;

@@ -144,70 +144,36 @@ namespace BlackBartsGold.UI
         private void OpenMap()
         {
             statusText = "Opening map...";
-            DiagnosticLog.Log("EmergencyBtn", $"Opening map: FullMapUI={FullMapUI.Exists}, UIManager={UIManager.Instance != null}");
             
-            // Try UIManager first (handles both FullMapUI and SimpleFullMapPanel fallback)
+            // Single source of truth: UIManager's code-based map
             if (UIManager.Instance != null)
             {
                 UIManager.Instance.OnMiniMapClicked();
                 isMapOpen = true;
-                statusText = "Map opened via UIManager";
-                DiagnosticLog.Log("EmergencyBtn", "Path: UIManager.OnMiniMapClicked()");
+                statusText = "Map opened";
                 return;
             }
             
-            // Try FullMapUI singleton
-            if (FullMapUI.Exists)
-            {
-                FullMapUI.Instance.Show();
-                isMapOpen = true;
-                statusText = "Map opened via FullMapUI";
-                DiagnosticLog.Log("EmergencyBtn", "Path: FullMapUI.Show()");
-                return;
-            }
-            
-            // Try to find FullMapPanel directly
-            var fullMapPanel = GameObject.Find("FullMapPanel");
-            if (fullMapPanel != null)
-            {
-                fullMapPanel.SetActive(true);
-                isMapOpen = true;
-                statusText = "Map opened via GameObject.Find";
-                DiagnosticLog.Log("EmergencyBtn", "Path: GameObject.Find(FullMapPanel)");
-                return;
-            }
-            
-            // Try ARHUD
             if (ARHUD.Instance != null)
             {
                 ARHUD.Instance.OnRadarTapped();
                 isMapOpen = true;
                 statusText = "Map opened via ARHUD";
-                DiagnosticLog.Log("EmergencyBtn", "Path: ARHUD.OnRadarTapped()");
                 return;
             }
             
             statusText = "ERROR: No map found!";
-            DiagnosticLog.Error("EmergencyBtn", "Could not find any map to open");
+            DiagnosticLog.Error("EmergencyBtn", "UIManager not found");
         }
         
         private void CloseMap()
         {
             statusText = "Closing map...";
-            DiagnosticLog.Log("EmergencyBtn", "Closing map");
             
-            if (FullMapUI.Exists && FullMapUI.Instance.IsVisible)
+            // Single source of truth: UIManager's code-based map
+            if (UIManager.Instance != null)
             {
-                FullMapUI.Instance.Hide();
-                isMapOpen = false;
-                statusText = "Map closed";
-                return;
-            }
-            
-            var fullMapPanel = GameObject.Find("FullMapPanel");
-            if (fullMapPanel != null && fullMapPanel.activeSelf)
-            {
-                fullMapPanel.SetActive(false);
+                UIManager.Instance.HideFullMap();
                 isMapOpen = false;
                 statusText = "Map closed";
                 return;

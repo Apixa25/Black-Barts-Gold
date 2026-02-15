@@ -332,26 +332,19 @@ namespace BlackBartsGold.UI
         
         /// <summary>
         /// Handle radar tap - opens full map.
-        /// Uses UIManager.OnMiniMapClicked() which handles both FullMapUI and code-generated fallback.
+        /// Single source of truth: UIManager's code-based map.
         /// </summary>
         private void OnRadarTapped()
         {
-            Debug.Log("[RadarUI] RADAR TAPPED! (from Button or OnPointerClick) Opening full map...");
-            Debug.Log($"[RadarUI] UIManager.Instance={Core.UIManager.Instance != null}, FullMapUI.Exists={FullMapUI.Exists}");
+            Debug.Log("[RadarUI] RADAR TAPPED! Opening full map...");
             
-            // UIManager handles both FullMapUI (if exists) and programmatic map fallback
             if (Core.UIManager.Instance != null)
             {
-                Debug.Log("[RadarUI] Path: UIManager.OnMiniMapClicked()");
                 Core.UIManager.Instance.OnMiniMapClicked();
-            }
-            else if (FullMapUI.Exists)
-            {
-                FullMapUI.Instance.Show();
             }
             else
             {
-                Debug.LogWarning("[RadarUI] UIManager and FullMapUI not found!");
+                Debug.LogWarning("[RadarUI] UIManager not found!");
             }
         }
         
