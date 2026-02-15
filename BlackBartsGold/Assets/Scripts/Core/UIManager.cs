@@ -981,17 +981,12 @@ namespace BlackBartsGold.Core
         {
             Debug.Log($"[UIManager] ShowSimpleFullMap: panel={(_simpleFullMapPanel != null ? "exists" : "null")}, active={_simpleFullMapPanel?.activeSelf}, canvas.enabled={_ourCanvas?.enabled}");
             
-            // If already showing, hide it
+            // Radar tap = OPEN only. No toggle - multiple handlers (DirectTouch, ARHuntSceneSetup, Button)
+            // fire on same tap; toggle caused open->close->open->close, map ended up closed.
+            // User closes via the red X button on the map.
             if (_simpleFullMapPanel != null && _simpleFullMapPanel.activeSelf)
             {
-                Debug.Log("[UIManager] Hiding full map (toggle off)");
-                _simpleFullMapPanel.SetActive(false);
-                if (isInARMode && _ourCanvas != null)
-                {
-                    _ourCanvas.enabled = false;
-                    Debug.Log("[UIManager] Disabled canvas after hiding map in AR mode");
-                }
-                // arHudPanel stays hidden - ARHunt scene has its own RadarPanel with map
+                Debug.Log("[UIManager] Map already visible - ignoring duplicate radar tap (no toggle)");
                 return;
             }
             
