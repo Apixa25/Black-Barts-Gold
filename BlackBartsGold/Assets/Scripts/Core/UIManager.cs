@@ -2036,11 +2036,7 @@ namespace BlackBartsGold.Core
             // Store reference for dynamic updates
             _coinCounterText = coinCounter.GetComponent<TextMeshProUGUI>();
             
-            // ================================================================
-            // DEBUG DIAGNOSTIC PANEL (bottom-left)
-            // Shows GPS, API status, and coin count to help debug connection issues
-            // ================================================================
-            CreateDebugDiagnosticsPanel(panel.transform);
+            // Debug panel only in AR view (ARHuntSceneSetup) - not needed on main menu
             
             // ================================================================
             // MINI-MAP (top-right corner) - Pokémon GO style radar
