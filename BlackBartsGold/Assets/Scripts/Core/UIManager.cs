@@ -936,7 +936,16 @@ namespace BlackBartsGold.Core
                 Debug.Log("[UIManager] Hid arHudPanel to avoid full map + mini-map conflict");
             }
             
-            // Try to use existing FullMapUI if it exists
+            // AR MODE: Always use code-based map (ShowSimpleFullMap) - has Mapbox tile, coin markers, zoom.
+            // Scene-based FullMapUI has no map tile; using it caused "map disappears on 2nd open" bug.
+            if (isInARMode)
+            {
+                Debug.Log("[UIManager] Path: AR mode -> ShowSimpleFullMap (code-based, always has Mapbox tile)");
+                ShowSimpleFullMap();
+                return;
+            }
+            
+            // Non-AR: Try FullMapUI if it exists, else code-based fallback
             if (FullMapUI.Exists)
             {
                 Debug.Log("[UIManager] Path: Using FullMapUI.Show()");
@@ -944,7 +953,6 @@ namespace BlackBartsGold.Core
                 return;
             }
             
-            // Otherwise create a simple full-screen map overlay
             Debug.Log("[UIManager] Path: FullMapUI.Exists=false, using ShowSimpleFullMap fallback");
             ShowSimpleFullMap();
         }
@@ -999,6 +1007,12 @@ namespace BlackBartsGold.Core
             {
                 _ourCanvas.enabled = true;
                 Debug.Log("[UIManager] Re-enabled canvas for full map in AR mode");
+            }
+            // Hide scene-based FullMapPanel so it doesn't overlap our code-based map
+            if (FullMapUI.Exists && FullMapUI.Instance.IsVisible)
+            {
+                FullMapUI.Instance.Hide();
+                Debug.Log("[UIManager] Hid scene FullMapUI to avoid overlap with code-based map");
             }
             // CRITICAL: Hide arHudPanel (MiniMapContainer) when full map is shown - prevents overlap/conflict
             if (arHudPanel != null && arHudPanel.activeSelf)

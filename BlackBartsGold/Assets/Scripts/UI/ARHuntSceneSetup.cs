@@ -39,7 +39,7 @@ namespace BlackBartsGold.UI
         private bool _radarMapTileIsOurCopy;
         private float _lastDiagnosticUpdate;
         private const float _diagnosticUpdateInterval = 0.5f;
-        private int _radarZoom = 16; // 16 = default; 18 = zoomed in when hunting
+        private int _radarZoom = 19; // 19 = default (3 levels closer); 21 = zoomed in when hunting
         
         private void Start()
         {
@@ -107,7 +107,7 @@ namespace BlackBartsGold.UI
         
         private void OnHuntModeChanged(HuntMode mode)
         {
-            _radarZoom = (mode == HuntMode.Hunting || mode == HuntMode.Collecting) ? 18 : 16;
+            _radarZoom = (mode == HuntMode.Hunting || mode == HuntMode.Collecting) ? 21 : 19;
             _radarMapUpdatePending = false;
             _radarMapLastUpdate = -999f; // Force immediate refresh on next Update
         }

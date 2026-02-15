@@ -230,9 +230,17 @@ namespace BlackBartsGold.UI
             Log("DirectTouch OpenFullMap - radar touch detected!");
             Log($"FullMapUI.Exists={FullMapUI.Exists}, fullMapPanel={fullMapPanel != null}, ARHUD.Instance={ARHUD.Instance != null}, UIManager.Instance={Core.UIManager.Instance != null}");
             
+            // Prefer UIManager so we get code-based map (Mapbox tile) in AR mode - avoids scene/code path switching
+            if (Core.UIManager.Instance != null)
+            {
+                Log("Path: UIManager.Instance.OnMiniMapClicked() (unified code-based map)");
+                Core.UIManager.Instance.OnMiniMapClicked();
+                return;
+            }
+            
             if (FullMapUI.Exists)
             {
-                Log("Path: FullMapUI.Instance.Show()");
+                Log("Path: FullMapUI.Instance.Show() (UIManager not available)");
                 FullMapUI.Instance.Show();
                 return;
             }
@@ -241,13 +249,6 @@ namespace BlackBartsGold.UI
             {
                 Log("Path: Activating fullMapPanel directly (scene panel)");
                 fullMapPanel.gameObject.SetActive(true);
-                return;
-            }
-            
-            if (Core.UIManager.Instance != null)
-            {
-                Log("Path: UIManager.Instance.OnMiniMapClicked() (fallback)");
-                Core.UIManager.Instance.OnMiniMapClicked();
                 return;
             }
             
