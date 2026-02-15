@@ -126,14 +126,14 @@ namespace BlackBartsGold.UI
             rect.anchorMin = new Vector2(0.5f, 0.8f);
             rect.anchorMax = new Vector2(0.5f, 0.8f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(600, 100);
+            rect.sizeDelta = new Vector2(800, 120);
             rect.anchoredPosition = Vector2.zero;
             
             // Add/configure TextMeshProUGUI
             var tmp = titleObj.GetComponent<TextMeshProUGUI>();
             if (tmp == null) tmp = titleObj.gameObject.AddComponent<TextMeshProUGUI>();
             
-            tmp.text = "Ahoy Matey!";
+            tmp.text = "There's treasure everywhere! Get ready to find it!";
             tmp.fontSize = 48;
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.color = new Color(1f, 0.84f, 0f, 1f); // Gold color
