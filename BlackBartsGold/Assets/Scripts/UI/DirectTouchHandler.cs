@@ -29,6 +29,9 @@ namespace BlackBartsGold.UI
         [SerializeField] private bool enableDebugLogs = true;
         [SerializeField] private bool enableDebugVisuals = true;
         
+        /// <summary>Disable debug overlay (e.g. when returning to MainMenu).</summary>
+        public bool EnableDebugVisuals { get => enableDebugVisuals; set => enableDebugVisuals = value; }
+        
         [Header("Runtime Status")]
         [SerializeField] private string lastTouchInfo = "No touch yet";
         [SerializeField] private int totalTouchCount = 0;

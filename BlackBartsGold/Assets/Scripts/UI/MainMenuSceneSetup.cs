@@ -45,8 +45,42 @@ namespace BlackBartsGold.UI
             SetupStartHuntButton();
             SetupWalletButton();
             SetupSettingsButton();
+            DisableDebugPanels();
             
             Debug.Log("[MainMenuSceneSetup] MainMenu UI setup complete!");
+        }
+        
+        /// <summary>
+        /// Disable all debug/diagnostic panels. Fixes bug: debug panel reappears when returning from AR.
+        /// </summary>
+        private void DisableDebugPanels()
+        {
+            // 1. Find DebugDiagnosticsPanel in scene (from ARHunt if it persisted, or MainMenu hierarchy)
+            var debugPanel = GameObject.Find("DebugDiagnosticsPanel");
+            if (debugPanel != null)
+            {
+                debugPanel.SetActive(false);
+                Debug.Log("[MainMenuSceneSetup] Debug panel explicitly disabled.");
+            }
+            
+            // 2. Disable EmergencyMapButton overlay (persists with DontDestroyOnLoad)
+            var emergencyBtn = FindFirstObjectByType<EmergencyMapButton>();
+            if (emergencyBtn != null)
+            {
+                emergencyBtn.showDebugInfo = false;
+                emergencyBtn.showButton = false;
+                Debug.Log("[MainMenuSceneSetup] EmergencyMapButton debug overlay disabled.");
+            }
+            
+            // 3. Disable DirectTouchHandler debug visuals
+            var touchHandlers = FindObjectsByType<DirectTouchHandler>(FindObjectsSortMode.None);
+            foreach (var h in touchHandlers)
+            {
+                if (h != null)
+                {
+                    h.EnableDebugVisuals = false;
+                }
+            }
         }
 
         private void SetupCanvas()

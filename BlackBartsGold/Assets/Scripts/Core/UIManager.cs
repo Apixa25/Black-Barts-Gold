@@ -908,10 +908,56 @@ namespace BlackBartsGold.Core
         {
             Debug.Log("[UIManager] Exiting AR Hunt");
             isInARMode = false;
+            
+            // CRITICAL: Disable AR debug panel BEFORE scene unload.
+            // GameManager persists (DontDestroyOnLoad) with DiagnosticsManager child.
+            // ARHunt's DebugDiagnosticsPanel (HUDCanvas child) is destroyed on unload,
+            // but any other debug UI (e.g. from persistent objects) must be hidden.
+            DisableAllDebugPanelsBeforeMainMenu();
+            
             SceneManager.LoadScene("MainMenu", LoadSceneMode.Single);
             
             // After scene loads, show main menu
             StartCoroutine(ShowMainMenuAfterLoad());
+        }
+        
+        /// <summary>
+        /// Disable all debug/diagnostic panels before loading MainMenu.
+        /// Fixes bug: debug panel reappears when returning from AR to main menu.
+        /// Finds DebugDiagnosticsPanel, EmergencyMapButton debug overlay, etc.
+        /// </summary>
+        private void DisableAllDebugPanelsBeforeMainMenu()
+        {
+            // 1. Disable DebugDiagnosticsPanel (ARHunt HUDCanvas child - will be destroyed on unload, but harmless)
+            var debugPanels = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var go in debugPanels)
+            {
+                if (go != null && go.name == "DebugDiagnosticsPanel")
+                {
+                    go.SetActive(false);
+                    Debug.Log("[UIManager] Disabled DebugDiagnosticsPanel before MainMenu load");
+                }
+            }
+            
+            // 2. Disable EmergencyMapButton's debug overlay (persists with DontDestroyOnLoad)
+            var emergencyBtn = FindFirstObjectByType<EmergencyMapButton>();
+            if (emergencyBtn != null)
+            {
+                emergencyBtn.showDebugInfo = false;
+                emergencyBtn.showButton = false;
+                Debug.Log("[UIManager] Disabled EmergencyMapButton debug overlay before MainMenu load");
+            }
+            
+            // 3. Disable DirectTouchHandler debug visuals (if it persists - usually on HUDCanvas, destroyed)
+            var touchHandlers = FindObjectsByType<DirectTouchHandler>(FindObjectsSortMode.None);
+            foreach (var h in touchHandlers)
+            {
+                if (h != null)
+                {
+                    h.EnableDebugVisuals = false;
+                    Debug.Log("[UIManager] Disabled DirectTouchHandler debug visuals before MainMenu load");
+                }
+            }
         }
         
         private IEnumerator ShowMainMenuAfterLoad()
