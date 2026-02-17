@@ -1228,6 +1228,11 @@ namespace BlackBartsGold.Core
             mapAreaRect.anchorMax = new Vector2(0.97f, 0.88f);
             mapAreaRect.offsetMin = Vector2.zero;
             mapAreaRect.offsetMax = Vector2.zero;
+            // Keep the full-map viewport square (Mapbox tile is square), so we do not
+            // render letterbox dead-space on tall phone screens.
+            var mapAreaAspect = mapArea.AddComponent<UnityEngine.UI.AspectRatioFitter>();
+            mapAreaAspect.aspectRatio = 1f;
+            mapAreaAspect.aspectMode = UnityEngine.UI.AspectRatioFitter.AspectMode.FitInParent;
             
             // Map border
             var mapBorder = mapArea.AddComponent<Image>();
@@ -1265,6 +1270,7 @@ namespace BlackBartsGold.Core
             
             _fullMapImage = mapImageObj.AddComponent<RawImage>();
             _fullMapImage.color = Color.white;
+            _fullMapImage.preserveAspect = false;
             
             // Coin markers container (overlay on map)
             var coinMarkers = new GameObject("CoinMarkers");
