@@ -60,6 +60,9 @@ namespace BlackBartsGold.Core
         
         private GameObject currentPanel;
         private bool isInARMode = false;
+        private bool _arHudWasVisibleBeforeFullMap = false;
+        private RadarUI _radarUIHiddenForFullMap;
+        private GameObject _radarPanelHiddenForFullMap;
         
         public bool IsInARMode => isInARMode;
         
@@ -974,13 +977,8 @@ namespace BlackBartsGold.Core
             Debug.Log("[UIManager] 🗺️ Opening FULL MAP!");
             Debug.Log($"[UIManager] FullMapUI.Exists={FullMapUI.Exists}, isInARMode={IsInARMode}, _ourCanvas.enabled={_ourCanvas?.enabled}");
             
-            // CRITICAL: Hide arHudPanel (MiniMapContainer) when opening full map - prevents overlap/conflict
-            // Must run for BOTH FullMapUI path AND ShowSimpleFullMap path
-            if (arHudPanel != null && arHudPanel.activeSelf)
-            {
-                arHudPanel.SetActive(false);
-                Debug.Log("[UIManager] Hid arHudPanel to avoid full map + mini-map conflict");
-            }
+            // Hide mini-map while full map is open (both UIManager AR HUD and scene-based RadarUI paths).
+            HideMiniMapForFullMap();
             
             // AR MODE: Always use code-based map (ShowSimpleFullMap) - has Mapbox tile, coin markers, zoom.
             // Scene-based FullMapUI has no map tile; using it caused "map disappears on 2nd open" bug.
@@ -1011,6 +1009,7 @@ namespace BlackBartsGold.Core
             if (_simpleFullMapPanel != null && _simpleFullMapPanel.activeSelf)
             {
                 _simpleFullMapPanel.SetActive(false);
+                RestoreMiniMapAfterFullMap();
                 if (isInARMode && _ourCanvas != null)
                 {
                     _ourCanvas.enabled = false;
@@ -1064,12 +1063,7 @@ namespace BlackBartsGold.Core
                 _ourCanvas.enabled = true;
                 Debug.Log("[UIManager] Re-enabled canvas for full map in AR mode");
             }
-            // CRITICAL: Hide arHudPanel (MiniMapContainer) when full map is shown - prevents overlap/conflict
-            if (arHudPanel != null && arHudPanel.activeSelf)
-            {
-                arHudPanel.SetActive(false);
-                Debug.Log("[UIManager] Hid arHudPanel to avoid full map + mini-map conflict");
-            }
+            HideMiniMapForFullMap();
             Debug.Log("[UIManager] Full map shown!");
         }
         
@@ -1290,10 +1284,11 @@ namespace BlackBartsGold.Core
             
             // Close button (X in top right)
             var closeBtn = CreateButton(titleBar.transform, "CloseButton", "✕", 
-                Vector2.zero, new Vector2(50, 50), new Color(0.8f, 0.2f, 0.2f),
+                Vector2.zero, new Vector2(96, 96), new Color(0.8f, 0.2f, 0.2f),
                 () => {
                     Debug.Log("[UIManager] Closing full map");
                     _simpleFullMapPanel.SetActive(false);
+                    RestoreMiniMapAfterFullMap();
                     // Re-disable UIManager canvas in AR mode so AR HUD is visible again
                     if (isInARMode && _ourCanvas != null)
                     {
@@ -1857,8 +1852,71 @@ namespace BlackBartsGold.Core
             {
                 _simpleFullMapPanel.SetActive(false);
             }
+            RestoreMiniMapAfterFullMap();
             
             Debug.Log("[UIManager] Target set! Hunt it down in AR!");
+        }
+        
+        /// <summary>
+        /// Hide mini-map visuals while the full map is open.
+        /// Supports both UIManager-built AR HUD and scene-built RadarPanel/RadarUI.
+        /// </summary>
+        private void HideMiniMapForFullMap()
+        {
+            _arHudWasVisibleBeforeFullMap = false;
+            _radarUIHiddenForFullMap = null;
+            _radarPanelHiddenForFullMap = null;
+            
+            if (arHudPanel != null && arHudPanel.activeSelf)
+            {
+                _arHudWasVisibleBeforeFullMap = true;
+                arHudPanel.SetActive(false);
+                Debug.Log("[UIManager] Hid arHudPanel for full map");
+            }
+            
+            var radarUI = FindFirstObjectByType<RadarUI>();
+            if (radarUI != null && radarUI.IsVisible)
+            {
+                _radarUIHiddenForFullMap = radarUI;
+                radarUI.Hide();
+                Debug.Log("[UIManager] Hid RadarUI for full map");
+                return;
+            }
+            
+            var radarPanel = GameObject.Find("RadarPanel");
+            if (radarPanel != null && radarPanel.activeSelf)
+            {
+                _radarPanelHiddenForFullMap = radarPanel;
+                radarPanel.SetActive(false);
+                Debug.Log("[UIManager] Hid RadarPanel for full map");
+            }
+        }
+        
+        /// <summary>
+        /// Restore mini-map visibility after full map closes.
+        /// Only restores elements that were hidden by HideMiniMapForFullMap.
+        /// </summary>
+        private void RestoreMiniMapAfterFullMap()
+        {
+            if (_arHudWasVisibleBeforeFullMap && arHudPanel != null)
+            {
+                arHudPanel.SetActive(true);
+            }
+            _arHudWasVisibleBeforeFullMap = false;
+            
+            if (_radarUIHiddenForFullMap != null)
+            {
+                _radarUIHiddenForFullMap.Show();
+                _radarUIHiddenForFullMap = null;
+                _radarPanelHiddenForFullMap = null;
+                return;
+            }
+            
+            if (_radarPanelHiddenForFullMap != null)
+            {
+                _radarPanelHiddenForFullMap.SetActive(true);
+                _radarPanelHiddenForFullMap = null;
+            }
         }
         
         private void HideAllPanels()
