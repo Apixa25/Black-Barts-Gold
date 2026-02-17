@@ -268,7 +268,10 @@ When working on this project:
 
 1. **Always read first**: Start sessions by reading this file and `DEVELOPMENT-LOG.md`
 2. **Use BUILD-GUIDE.md**: Follow sprint prompts for structured development
-3. **Be additive**: Don't delete working code
+3. **Change safety policy**:
+   - Prefer minimal-risk changes
+   - Preserve current behavior unless intentionally changing it
+   - Delete/refactor when there's clear benefit + verification
 4. **Explain clearly**: Long explanations with file paths
 5. **Use emojis**: Keep energy high! 🤠
 6. **Test on device**: AR doesn't work in Unity Editor
