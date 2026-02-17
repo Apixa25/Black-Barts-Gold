@@ -1270,7 +1270,6 @@ namespace BlackBartsGold.Core
             
             _fullMapImage = mapImageObj.AddComponent<RawImage>();
             _fullMapImage.color = Color.white;
-            _fullMapImage.preserveAspect = false;
             
             // Coin markers container (overlay on map)
             var coinMarkers = new GameObject("CoinMarkers");
