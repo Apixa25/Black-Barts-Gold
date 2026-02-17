@@ -192,6 +192,11 @@ namespace BlackBartsGold.Location
         private Coroutine locationCoroutine;
         private GPSAccuracy lastAccuracyLevel = GPSAccuracy.None;
         private float lastUpdateTime = 0f;
+        private double lastDeviceTimestamp = -1d;
+        private int staleDeviceFixCount = 0;
+        private float nextStaleFixLogTime = 0f;
+        private float nextMicroSkipLogTime = 0f;
+        private float nextAccuracyRejectLogTime = 0f;
         
         #endregion
         
@@ -536,10 +541,39 @@ namespace BlackBartsGold.Location
             
             LocationInfo info = Input.location.lastData;
             
+            // Detect stalled device fixes (Input.location.lastData timestamp not advancing).
+            double timestampDelta = lastDeviceTimestamp >= 0d ? info.timestamp - lastDeviceTimestamp : 0d;
+            if (lastDeviceTimestamp >= 0d)
+            {
+                if (Math.Abs(timestampDelta) < 0.0001d)
+                {
+                    staleDeviceFixCount++;
+                    if (Time.realtimeSinceStartup >= nextStaleFixLogTime)
+                    {
+                        nextStaleFixLogTime = Time.realtimeSinceStartup + 2f;
+                        Debug.LogWarning(
+                            $"[GPSManager] STALE_DEVICE_FIX: tsDelta={timestampDelta:F4}s, staleCount={staleDeviceFixCount}, " +
+                            $"lat={info.latitude:F6}, lng={info.longitude:F6}, acc={info.horizontalAccuracy:F1}m");
+                    }
+                }
+                else
+                {
+                    staleDeviceFixCount = 0;
+                }
+            }
+            lastDeviceTimestamp = info.timestamp;
+            
             // Check accuracy
             if (info.horizontalAccuracy > minAcceptableAccuracy)
             {
-                Log($"Location accuracy too low: {info.horizontalAccuracy}m (need < {minAcceptableAccuracy}m)");
+                if (Time.realtimeSinceStartup >= nextAccuracyRejectLogTime)
+                {
+                    nextAccuracyRejectLogTime = Time.realtimeSinceStartup + 2f;
+                    Log(
+                        $"Location accuracy too low: {info.horizontalAccuracy:F1}m (need < {minAcceptableAccuracy:F1}m), " +
+                        $"tsDelta={timestampDelta:F3}s, staleCount={staleDeviceFixCount}"
+                    );
+                }
                 return;
             }
             
@@ -555,12 +589,21 @@ namespace BlackBartsGold.Location
             };
             
             // Check if location actually changed (use smaller threshold for faster updates)
+            float movementSinceLastAccepted = -1f;
             if (CurrentLocation != null)
             {
-                float distance = CurrentLocation.DistanceTo(newLocation);
-                if (distance < 0.25f) // 0.25m threshold — respond to even small GPS shifts
+                movementSinceLastAccepted = CurrentLocation.DistanceTo(newLocation);
+                if (movementSinceLastAccepted < 0.25f) // 0.25m threshold — respond to even small GPS shifts
                 {
                     // Hasn't moved enough, skip update
+                    if (Time.realtimeSinceStartup >= nextMicroSkipLogTime)
+                    {
+                        nextMicroSkipLogTime = Time.realtimeSinceStartup + 2f;
+                        Debug.Log(
+                            $"[GPSManager] MICRO_SKIP: moved={movementSinceLastAccepted:F2}m (<0.25m), " +
+                            $"acc={info.horizontalAccuracy:F1}m, tsDelta={timestampDelta:F3}s, staleCount={staleDeviceFixCount}"
+                        );
+                    }
                     return;
                 }
             }
@@ -584,7 +627,11 @@ namespace BlackBartsGold.Location
             // Notify listeners
             OnLocationUpdated?.Invoke(newLocation);
             
-            Log($"Location updated: {newLocation.ToCoordinateString()} (±{newLocation.horizontalAccuracy:F0}m)");
+            Log(
+                $"Location updated: {newLocation.ToCoordinateString()} (±{newLocation.horizontalAccuracy:F0}m), " +
+                $"moved={(movementSinceLastAccepted >= 0f ? movementSinceLastAccepted.ToString("F2") : "first")}m, " +
+                $"tsDelta={timestampDelta:F3}s"
+            );
         }
         
         #endregion

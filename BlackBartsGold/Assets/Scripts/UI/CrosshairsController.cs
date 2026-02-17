@@ -125,6 +125,11 @@ namespace BlackBartsGold.UI
         private bool isInRange = false;
         
         /// <summary>
+        /// Throttle warnings when hovered object has no CoinController.
+        /// </summary>
+        private float nextMissingControllerWarnTime = 0f;
+        
+        /// <summary>
         /// Whether we've computed and set the collection circle size (once per session)
         /// </summary>
         private bool collectionCircleSizeSet;
@@ -448,43 +453,51 @@ namespace BlackBartsGold.UI
         #region Coin Checks
         
         /// <summary>
-        /// Check if coin is locked (above player's find limit)
-        /// TODO: Replace with actual CoinController check
+        /// Check if coin is locked (above player's find limit).
         /// </summary>
         private bool CheckIfCoinLocked(GameObject coin)
         {
-            // Try to get CoinController component
-            // var coinController = coin.GetComponent<CoinController>();
-            // if (coinController != null)
-            // {
-            //     return coinController.IsLocked;
-            // }
-            
-            // Placeholder: check for "Locked" tag
-            return coin.CompareTag("LockedCoin");
+            CoinController coinController = GetCoinController(coin);
+            if (coinController != null)
+            {
+                return coinController.IsLocked;
+            }
+            return false;
         }
         
         /// <summary>
-        /// Check if coin is within collection range
-        /// TODO: Replace with actual distance check
+        /// Check if coin is within collection range.
         /// </summary>
         private bool CheckIfCoinInRange(GameObject coin)
         {
-            // Try to get CoinController component
-            // var coinController = coin.GetComponent<CoinController>();
-            // if (coinController != null)
-            // {
-            //     return coinController.IsInRange;
-            // }
-            
-            // Placeholder: check distance to camera
-            if (Camera.main != null)
+            CoinController coinController = GetCoinController(coin);
+            if (coinController != null)
             {
-                float distance = Vector3.Distance(Camera.main.transform.position, coin.transform.position);
-                return distance <= 5f; // 5 meters is collection range
+                return coinController.IsInRange;
+            }
+            return false;
+        }
+        
+        /// <summary>
+        /// Resolve the coin controller from hovered object or its parent.
+        /// </summary>
+        private CoinController GetCoinController(GameObject coin)
+        {
+            if (coin == null) return null;
+            
+            CoinController coinController = coin.GetComponent<CoinController>();
+            if (coinController == null)
+            {
+                coinController = coin.GetComponentInParent<CoinController>();
             }
             
-            return false;
+            if (coinController == null && Time.time >= nextMissingControllerWarnTime)
+            {
+                nextMissingControllerWarnTime = Time.time + 2f;
+                Debug.LogWarning($"[CrosshairsController] Hovered object has no CoinController: {coin.name}");
+            }
+            
+            return coinController;
         }
         
         #endregion

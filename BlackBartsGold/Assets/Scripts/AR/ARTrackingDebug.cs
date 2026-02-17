@@ -45,6 +45,7 @@ namespace BlackBartsGold.AR
         private float lastLogTime;
         private float lastHeartbeatTime;
         private float lastFullDumpTime;
+        private float nextNoPoseWarningTime;
         private int frameCount = 0;
         private bool startupDiagnosticsDone = false;
         
@@ -296,19 +297,33 @@ namespace BlackBartsGold.AR
             
             // Try to read pose from XR device
             string xrPoseInfo = "NoDev";
+            bool hasXrPose = false;
             foreach (var device in devices)
             {
                 if (device.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 xrPos))
                 {
                     xrPoseInfo = $"XRPos={xrPos}";
+                    hasXrPose = true;
                 }
                 else
                 {
                     xrPoseInfo = $"Dev='{device.name}'/NoPose";
                 }
+                
+                if (!hasXrPose && device.TryGetFeatureValue(CommonUsages.centerEyeRotation, out Quaternion _))
+                {
+                    hasXrPose = true;
+                }
             }
             
-            Debug.Log($"[ARTrackingDebug] Camera: pos={currentPos}, rot=({currentRot.x:F0},{currentRot.y:F0},{currentRot.z:F0}), moved={movedDistance:F4}m, ARState={sessionState}, Loader={loaderInfo}, XRDevices={deviceCount}, {xrPoseInfo}");
+            Debug.Log($"[ARTrackingDebug] Camera: pos={currentPos}, rot=({currentRot.x:F0},{currentRot.y:F0},{currentRot.z:F0}), moved={movedDistance:F4}m, ARState={sessionState}, Loader={loaderInfo}, XRDevices={deviceCount}, PoseAvail={hasXrPose}, {xrPoseInfo}");
+            
+            bool currentlyMoving = movedDistance >= 0.001f;
+            if (sessionState == ARSessionState.SessionTracking.ToString() && !hasXrPose && Time.time >= nextNoPoseWarningTime)
+            {
+                nextNoPoseWarningTime = Time.time + 5f;
+                Debug.LogWarning($"[ARTrackingDebug] TRACKING_WITHOUT_POSE: ARSession=SessionTracking but XR pose features unavailable (devices={deviceCount}, loader={loaderInfo})");
+            }
             
             // Warn if camera is stationary after initial period
             if (movedDistance < 0.001f && frameCount > 300 && !everMoved)
@@ -319,7 +334,7 @@ namespace BlackBartsGold.AR
                 if (deviceCount == 0)
                 {
                     Debug.LogError("[ARTrackingDebug] NO XR INPUT DEVICES REGISTERED! " +
-                                   "The XR loader ({loaderInfo}) is not creating tracked devices. " +
+                                   $"The XR loader ({loaderInfo}) is not creating tracked devices. " +
                                    "This is the root cause - TrackedPoseDriver has nothing to read from.");
                 }
             }
@@ -338,7 +353,8 @@ namespace BlackBartsGold.AR
                 string loader = XRGeneralSettings.Instance?.Manager?.activeLoader?.name ?? "NoLoader";
                 string arSt = ARSession.state.ToString();
                 int xrDevCount = deviceCount;
-                bool camMoving = everMoved;
+                bool camMovingNow = currentlyMoving;
+                bool camEverMoved = everMoved;
                 float totalMoved = totalCameraMovement;
                 
                 // Check if gyro fallback is active on any coin
@@ -350,7 +366,7 @@ namespace BlackBartsGold.AR
                     gyroStatus = gyro != null && gyro.enabled ? "ACTIVE" : "off";
                 }
                 
-                Debug.Log($"[HEARTBEAT] T+{Time.realtimeSinceStartup:F0}s | AR={arSt} | Loader={loader} | XRDevices={xrDevCount} | CamMoved={camMoving} | TotalMovement={totalMoved:F3}m | CamPos={currentPos} | Gyro={gyroStatus}");
+                Debug.Log($"[HEARTBEAT] T+{Time.realtimeSinceStartup:F0}s | AR={arSt} | Loader={loader} | XRDevices={xrDevCount} | PoseAvail={hasXrPose} | CamMovingNow={camMovingNow} | CamEverMoved={camEverMoved} | TotalMovement={totalMoved:F3}m | CamPos={currentPos} | Gyro={gyroStatus}");
             }
             
             // ================================================================
