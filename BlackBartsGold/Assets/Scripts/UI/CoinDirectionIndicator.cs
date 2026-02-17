@@ -73,6 +73,14 @@ namespace BlackBartsGold.UI
         [Tooltip("Center zone - if coin is within this angle, show at edge")]
         private float onScreenAngleThreshold = 30f;
         
+        [SerializeField]
+        [Tooltip("Deadzone around center to prevent jitter when nearly aligned")]
+        private float centerDeadzoneDegrees = 4f;
+        
+        [SerializeField]
+        [Tooltip("Extra buffer to avoid on-screen/off-screen flicker")]
+        private float onScreenHysteresisDegrees = 6f;
+        
         [Header("Colors")]
         [SerializeField]
         private Color farColor = new Color(1f, 0.84f, 0f, 0.9f); // Gold
@@ -174,9 +182,10 @@ namespace BlackBartsGold.UI
         private Vector3 baseScale;
         private bool isPulsing = false;
         private float deviceHeading = 0f;
+        private float smoothedRelativeBearing = 0f;
+        private float relativeBearingVelocity = 0f;
         
-        // CanvasGroup for show/hide without deactivating the GameObject
-        // (SetActive(false) kills ALL scripts on the panel, including SimpleDirectionArrow)
+        // CanvasGroup for show/hide without deactivating the GameObject.
         private CanvasGroup canvasGroup;
         
         // Screen bounds for positioning
@@ -206,8 +215,7 @@ namespace BlackBartsGold.UI
             screenWidth = Screen.width;
             screenHeight = Screen.height;
             
-            // Get or add CanvasGroup — we use alpha to hide/show instead of SetActive
-            // because SetActive(false) kills ALL scripts on this panel (including SimpleDirectionArrow)
+            // Get or add CanvasGroup — we use alpha to hide/show instead of SetActive.
             canvasGroup = GetComponent<CanvasGroup>();
             if (canvasGroup == null)
             {
@@ -407,11 +415,37 @@ namespace BlackBartsGold.UI
             );
             
             // Calculate relative bearing (direction to turn)
-            // This is the angle between where we're facing and where the coin is
+            // This is the angle between where we're facing and where the coin is.
             float relativeBearing = GeoUtils.CalculateRelativeBearing(CurrentBearing, deviceHeading);
             
+            // When the coin is near and has a live AR object, use camera-to-coin
+            // horizontal angle for a more intuitive final approach.
+            if (CurrentDistance <= materializationDistance && CoinManager.Instance.TargetCoin != null && arCamera != null)
+            {
+                Vector3 toCoin = CoinManager.Instance.TargetCoin.transform.position - arCamera.transform.position;
+                Vector3 toCoinFlat = Vector3.ProjectOnPlane(toCoin, Vector3.up);
+                Vector3 camForwardFlat = Vector3.ProjectOnPlane(arCamera.transform.forward, Vector3.up);
+                if (toCoinFlat.sqrMagnitude > 0.0001f && camForwardFlat.sqrMagnitude > 0.0001f)
+                {
+                    relativeBearing = Vector3.SignedAngle(camForwardFlat, toCoinFlat, Vector3.up);
+                }
+            }
+            
+            // Prevent tiny heading jitter from constantly twitching the arrow.
+            if (Mathf.Abs(relativeBearing) < centerDeadzoneDegrees)
+            {
+                relativeBearing = 0f;
+            }
+            
+            smoothedRelativeBearing = Mathf.SmoothDampAngle(
+                smoothedRelativeBearing,
+                relativeBearing,
+                ref relativeBearingVelocity,
+                0.08f
+            );
+            
             // Arrow rotation (negative because UI rotates clockwise positive)
-            targetArrowRotation = -relativeBearing;
+            targetArrowRotation = -smoothedRelativeBearing;
             
             // Update distance text
             if (distanceText != null)
@@ -420,7 +454,7 @@ namespace BlackBartsGold.UI
             }
             
             // Check if coin is "on screen" (within camera FOV)
-            CheckIfCoinOnScreen(relativeBearing);
+            CheckIfCoinOnScreen(smoothedRelativeBearing);
         }
         
         /// <summary>
@@ -428,14 +462,19 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void CheckIfCoinOnScreen(float relativeBearing)
         {
-            // If relative bearing is small, coin is roughly in front of camera
             float absBearing = Mathf.Abs(relativeBearing);
             
-            // Consider "on screen" if within the FOV angle
-            // Typical phone camera is 60-70 degree FOV
             float halfFOV = arCamera != null ? arCamera.fieldOfView * 0.5f : 30f;
+            float threshold = Mathf.Min(halfFOV, onScreenAngleThreshold);
             
-            IsCoinOnScreen = absBearing < halfFOV;
+            if (IsCoinOnScreen)
+            {
+                IsCoinOnScreen = absBearing <= threshold + onScreenHysteresisDegrees;
+            }
+            else
+            {
+                IsCoinOnScreen = absBearing <= threshold - onScreenHysteresisDegrees;
+            }
         }
         
         #endregion
@@ -466,15 +505,35 @@ namespace BlackBartsGold.UI
         {
             if (indicatorContainer == null) return;
             
-            // For now, keep indicator at a fixed position (can enhance later)
-            // The arrow rotation already tells the player which way to turn
+            if (Mathf.Abs(screenWidth - Screen.width) > 0.1f || Mathf.Abs(screenHeight - Screen.height) > 0.1f)
+            {
+                screenWidth = Screen.width;
+                screenHeight = Screen.height;
+            }
             
-            // If we wanted edge positioning (like in some games), we would:
-            // 1. Calculate screen position based on bearing
-            // 2. Clamp to screen edges with padding
-            // 3. Position indicator at that edge
+            float halfW = screenWidth * 0.5f;
+            float halfH = screenHeight * 0.5f;
+            float sideX = Mathf.Max(80f, halfW - edgePadding);
+            float topY = Mathf.Max(120f, halfH - edgePadding);
             
-            // Current implementation: Fixed position, arrow rotates
+            if (IsCoinOnScreen)
+            {
+                indicatorContainer.anchoredPosition = new Vector2(0f, 140f);
+                return;
+            }
+            
+            float absBearing = Mathf.Abs(smoothedRelativeBearing);
+            float sign = Mathf.Sign(smoothedRelativeBearing);
+            
+            if (absBearing < 120f)
+            {
+                indicatorContainer.anchoredPosition = new Vector2(sign * sideX, 100f);
+            }
+            else
+            {
+                float xHint = sign * Mathf.Min(sideX * 0.35f, 220f);
+                indicatorContainer.anchoredPosition = new Vector2(xHint, topY);
+            }
         }
         
         #endregion
@@ -585,13 +644,13 @@ namespace BlackBartsGold.UI
         
         /// <summary>
         /// Show the direction indicator.
-        /// Uses CanvasGroup alpha so the GameObject stays active (keeping SimpleDirectionArrow alive).
+        /// Uses CanvasGroup alpha so the GameObject stays active.
         /// </summary>
         public void Show()
         {
             Debug.Log($"[CoinDirectionIndicator] Show() called! CanvasGroup={canvasGroup != null}, Container={indicatorContainer != null}");
             
-            // Prefer CanvasGroup for visibility — SetActive(false) kills ALL scripts on the panel
+            // Prefer CanvasGroup for visibility.
             if (canvasGroup != null)
             {
                 canvasGroup.alpha = 1f;
@@ -613,11 +672,11 @@ namespace BlackBartsGold.UI
         
         /// <summary>
         /// Hide the direction indicator.
-        /// Uses CanvasGroup alpha so the GameObject stays active (keeping SimpleDirectionArrow alive).
+        /// Uses CanvasGroup alpha so the GameObject stays active.
         /// </summary>
         public void Hide()
         {
-            // Prefer CanvasGroup for visibility — SetActive(false) kills ALL scripts on the panel
+            // Prefer CanvasGroup for visibility.
             if (canvasGroup != null)
             {
                 canvasGroup.alpha = 0f;

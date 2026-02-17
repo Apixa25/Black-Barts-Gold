@@ -1151,7 +1151,50 @@ namespace BlackBartsGold.UI
         private void SetupDirectionIndicatorPanel()
         {
             var existing = transform.Find("DirectionIndicatorPanel");
-            if (existing != null) return;
+            if (existing != null)
+            {
+                // Keep scene-authored panel, but enforce a single controller.
+                var legacyArrow = existing.GetComponent<SimpleDirectionArrow>();
+                if (legacyArrow != null)
+                {
+                    Destroy(legacyArrow);
+                    DiagnosticLog.Log("Setup", "Removed legacy SimpleDirectionArrow from DirectionIndicatorPanel");
+                }
+                
+                var panelRectExisting = existing.GetComponent<RectTransform>();
+                var bgPanelExisting = existing.GetComponent<Image>();
+                var arrowRectExisting = existing.Find("ArrowTransform")?.GetComponent<RectTransform>();
+                var distTextExisting = existing.Find("DistanceText")?.GetComponent<TextMeshProUGUI>();
+                var valTextExisting = existing.Find("ValueText")?.GetComponent<TextMeshProUGUI>();
+                var statTextExisting = existing.Find("StatusText")?.GetComponent<TextMeshProUGUI>();
+                var arrowImgExisting = arrowRectExisting != null ? arrowRectExisting.GetComponent<Image>() : null;
+                
+                var dirIndicatorExisting = existing.GetComponent<CoinDirectionIndicator>();
+                if (dirIndicatorExisting == null)
+                {
+                    dirIndicatorExisting = existing.gameObject.AddComponent<CoinDirectionIndicator>();
+                }
+                
+                if (panelRectExisting != null && bgPanelExisting != null &&
+                    arrowRectExisting != null && distTextExisting != null &&
+                    valTextExisting != null && statTextExisting != null && arrowImgExisting != null)
+                {
+                    dirIndicatorExisting.SetRuntimeReferences(
+                        arrowRectExisting,
+                        distTextExisting,
+                        valTextExisting,
+                        statTextExisting,
+                        panelRectExisting,
+                        bgPanelExisting,
+                        arrowImgExisting
+                    );
+                    DiagnosticLog.Log("Setup", "DirectionIndicatorPanel found and sanitized");
+                    return;
+                }
+                
+                DiagnosticLog.Warn("Setup", "Existing DirectionIndicatorPanel missing references - rebuilding");
+                Destroy(existing.gameObject);
+            }
 
             var panel = new GameObject("DirectionIndicatorPanel");
             panel.transform.SetParent(transform, false);
