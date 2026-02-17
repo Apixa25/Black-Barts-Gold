@@ -108,7 +108,7 @@ namespace BlackBartsGold.UI
         private TMP_InputField profileDisplayNameInput;
         private TMP_Text profileAgeText;
         private TMP_Text profileAvatarPresetText;
-        private TMP_Text profileBankingSummaryText;
+        private TMP_Text profileWalletHintText;
         private Button profilePrevAvatarButton;
         private Button profileNextAvatarButton;
         private Button profileSaveButton;
@@ -266,8 +266,6 @@ namespace BlackBartsGold.UI
             // Update hunt button state
             UpdateHuntButtonState(player.CanPlay);
 
-            RefreshProfilePanelSummary();
-            
             Log("UI refreshed");
         }
         
@@ -539,7 +537,6 @@ namespace BlackBartsGold.UI
 
             CreateLabel(panelGo.transform, "Title", "Player Profile", new Vector2(0, -50), new Vector2(760, 70), 46, goldColor, TextAlignmentOptions.Center);
             CreateLabel(panelGo.transform, "IdentityHeader", "Identity", new Vector2(-300, -130), new Vector2(300, 40), 32, goldColor, TextAlignmentOptions.Left);
-            CreateLabel(panelGo.transform, "BankingHeader", "Banking", new Vector2(-300, -520), new Vector2(300, 40), 32, goldColor, TextAlignmentOptions.Left);
 
             CreateLabel(panelGo.transform, "DisplayNameLabel", "Display Name", new Vector2(-300, -190), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
             profileDisplayNameInput = CreateInputField(panelGo.transform, "DisplayNameInput", new Vector2(0, -245), new Vector2(620, 72));
@@ -552,11 +549,20 @@ namespace BlackBartsGold.UI
             profileAvatarPresetText = CreateLabel(panelGo.transform, "AvatarPresetValue", "-", new Vector2(0, -445), new Vector2(420, 56), 28, Color.white, TextAlignmentOptions.Center);
             profileNextAvatarButton = CreatePanelButton(panelGo.transform, "AvatarNextButton", ">", new Vector2(210, -445), new Vector2(70, 56), 32);
 
-            profileBankingSummaryText = CreateLabel(panelGo.transform, "BankingSummary", "Loading...", new Vector2(0, -640), new Vector2(700, 220), 28, Color.white, TextAlignmentOptions.TopLeft);
+            profileWalletHintText = CreateLabel(
+                panelGo.transform,
+                "WalletHint",
+                "Wallet balances and transactions now live in MY WALLET.",
+                new Vector2(0, -585),
+                new Vector2(700, 90),
+                24,
+                new Color(0.9f, 0.9f, 0.9f, 1f),
+                TextAlignmentOptions.Center
+            );
 
-            profileSaveButton = CreatePanelButton(panelGo.transform, "SaveProfileButton", "Save Profile", new Vector2(-180, -900), new Vector2(240, 72), 30);
-            profileCloseButton = CreatePanelButton(panelGo.transform, "CloseProfileButton", "Close", new Vector2(95, -900), new Vector2(180, 72), 30);
-            profileSkipButton = CreatePanelButton(panelGo.transform, "SkipProfileButton", "Skip For Now", new Vector2(320, -900), new Vector2(240, 72), 24);
+            profileSaveButton = CreatePanelButton(panelGo.transform, "SaveProfileButton", "Save Profile", new Vector2(-180, -840), new Vector2(240, 72), 30);
+            profileCloseButton = CreatePanelButton(panelGo.transform, "CloseProfileButton", "Close", new Vector2(95, -840), new Vector2(180, 72), 30);
+            profileSkipButton = CreatePanelButton(panelGo.transform, "SkipProfileButton", "Skip For Now", new Vector2(320, -840), new Vector2(240, 72), 24);
 
             profilePrevAvatarButton.onClick.RemoveAllListeners();
             profilePrevAvatarButton.onClick.AddListener(OnAvatarPrevClicked);
@@ -693,7 +699,7 @@ namespace BlackBartsGold.UI
             if (profilePanel == null || !PlayerData.Exists || PlayerData.Instance.CurrentUser == null) return;
 
             profilePanel.SetActive(true);
-            profileSkipButton.gameObject.SetActive(onboarding);
+            UpdateProfileActionLayout(onboarding);
 
             var user = PlayerData.Instance.CurrentUser;
             profileDisplayNameInput.text = user.displayName ?? "";
@@ -703,7 +709,6 @@ namespace BlackBartsGold.UI
             selectedAvatarPresetIndex = Mathf.Max(0, AvatarPresetIds.IndexOf(avatarId));
             if (selectedAvatarPresetIndex < 0) selectedAvatarPresetIndex = 0;
             RefreshAvatarPresetLabel();
-            RefreshProfilePanelSummary();
         }
 
         private void CloseProfilePanel()
@@ -769,23 +774,27 @@ namespace BlackBartsGold.UI
             CloseProfilePanel();
         }
 
-        private void RefreshProfilePanelSummary()
+        private void UpdateProfileActionLayout(bool onboarding)
         {
-            if (profileBankingSummaryText == null || !PlayerData.Exists) return;
-            var player = PlayerData.Instance;
-            var wallet = player.Wallet;
-            if (wallet == null)
+            if (profileCloseButton == null || profileSkipButton == null)
             {
-                profileBankingSummaryText.text = "Banking data unavailable.";
                 return;
             }
 
-            profileBankingSummaryText.text =
-                $"Total Balance: ${wallet.total:F2} BBG\n" +
-                $"Gas Tank: ${wallet.gasTank:F2} ({wallet.gasRemainingDays:F1} days)\n" +
-                $"Parked: ${wallet.parked:F2}\n" +
-                $"Pending: ${wallet.pending:F2}\n\n" +
-                "Need full transaction details?\nTap MY WALLET from Main Menu.";
+            profileSkipButton.gameObject.SetActive(onboarding);
+
+            var closeRect = profileCloseButton.GetComponent<RectTransform>();
+            if (closeRect != null)
+            {
+                closeRect.anchoredPosition = onboarding
+                    ? new Vector2(95, -840)
+                    : new Vector2(180, -840);
+            }
+
+            if (profileWalletHintText != null)
+            {
+                profileWalletHintText.gameObject.SetActive(true);
+            }
         }
 
         #endregion
