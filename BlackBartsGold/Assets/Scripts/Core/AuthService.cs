@@ -244,6 +244,8 @@ namespace BlackBartsGold.Core
                 
                 // Map response to User
                 User newUser = MapAuthResponseToUser(response);
+                newUser.age = age;
+                newUser.profileOnboardingDismissed = false;
                 string token = response.token;
                 
                 // Save session
@@ -739,6 +741,15 @@ namespace BlackBartsGold.Core
             }
             
             var userData = response.user;
+            int existingAge = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
+                ? PlayerData.Instance.CurrentUser.age
+                : 18;
+            string existingPreset = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
+                ? PlayerData.Instance.CurrentUser.avatarPresetId
+                : null;
+            bool existingDismissed = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
+                ? PlayerData.Instance.CurrentUser.profileOnboardingDismissed
+                : false;
             
             return new User
             {
@@ -757,7 +768,9 @@ namespace BlackBartsGold.Core
                 accountStatus = AccountStatus.Active,
                 authMethod = AuthMethod.Email,
                 emailVerified = true,
-                age = 18 // Default, not stored in auth response
+                age = existingAge, // Auth payload currently omits age
+                avatarPresetId = existingPreset,
+                profileOnboardingDismissed = existingDismissed
             };
         }
         
@@ -772,6 +785,15 @@ namespace BlackBartsGold.Core
             }
             
             var userData = response.user;
+            int existingAge = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
+                ? PlayerData.Instance.CurrentUser.age
+                : 18;
+            string existingPreset = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
+                ? PlayerData.Instance.CurrentUser.avatarPresetId
+                : null;
+            bool existingDismissed = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
+                ? PlayerData.Instance.CurrentUser.profileOnboardingDismissed
+                : false;
             
             return new User
             {
@@ -790,7 +812,9 @@ namespace BlackBartsGold.Core
                 accountStatus = AccountStatus.Active,
                 authMethod = AuthMethod.Email,
                 emailVerified = true,
-                age = 18
+                age = existingAge,
+                avatarPresetId = existingPreset,
+                profileOnboardingDismissed = existingDismissed
             };
         }
         

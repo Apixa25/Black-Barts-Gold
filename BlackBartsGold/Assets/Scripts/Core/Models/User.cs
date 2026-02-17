@@ -39,6 +39,11 @@ namespace BlackBartsGold.Core.Models
         /// URL to profile avatar image
         /// </summary>
         public string avatarUrl;
+
+        /// <summary>
+        /// Selected preset avatar identifier (preferred over raw URL for MVP safety).
+        /// </summary>
+        public string avatarPresetId;
         
         #endregion
         
@@ -129,6 +134,11 @@ namespace BlackBartsGold.Core.Models
         /// User's age (for legal compliance)
         /// </summary>
         public int age;
+
+        /// <summary>
+        /// Whether user dismissed first-time profile completion prompt.
+        /// </summary>
+        public bool profileOnboardingDismissed;
         
         #endregion
         
@@ -242,6 +252,31 @@ namespace BlackBartsGold.Core.Models
         {
             return coinValue <= findLimit;
         }
+
+        /// <summary>
+        /// Has user selected some form of profile image?
+        /// </summary>
+        public bool HasAvatar()
+        {
+            return !string.IsNullOrWhiteSpace(avatarPresetId) || !string.IsNullOrWhiteSpace(avatarUrl);
+        }
+
+        /// <summary>
+        /// Is profile complete enough for social identity features?
+        /// </summary>
+        public bool IsProfileComplete()
+        {
+            return !string.IsNullOrWhiteSpace(displayName) && age >= 13 && HasAvatar();
+        }
+
+        /// <summary>
+        /// Assign a safe preset avatar and mirror into avatarUrl namespace.
+        /// </summary>
+        public void SetAvatarPreset(string presetId)
+        {
+            avatarPresetId = presetId;
+            avatarUrl = string.IsNullOrWhiteSpace(presetId) ? avatarUrl : $"preset://{presetId}";
+        }
         
         /// <summary>
         /// Get how much gas in days remains
@@ -331,7 +366,10 @@ namespace BlackBartsGold.Core.Models
                 accountStatus = AccountStatus.Active,
                 authMethod = AuthMethod.Email,
                 emailVerified = true,
-                age = 25
+                age = 25,
+                avatarPresetId = "outlaw-hat-01",
+                avatarUrl = "preset://outlaw-hat-01",
+                profileOnboardingDismissed = true
             };
         }
         
@@ -355,7 +393,8 @@ namespace BlackBartsGold.Core.Models
                 createdAt = DateTime.UtcNow.ToString("o"),
                 lastLoginAt = DateTime.UtcNow.ToString("o"),
                 accountStatus = AccountStatus.Active,
-                emailVerified = false
+                emailVerified = false,
+                profileOnboardingDismissed = false
             };
         }
         

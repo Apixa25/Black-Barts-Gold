@@ -12,6 +12,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
+using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 namespace BlackBartsGold.UI
@@ -56,6 +57,9 @@ namespace BlackBartsGold.UI
         
         [SerializeField]
         private Button settingsButton;
+
+        [SerializeField]
+        private Button profileButton;
         
         [Header("Quick Stats")]
         [SerializeField]
@@ -100,6 +104,27 @@ namespace BlackBartsGold.UI
         #region Private Fields
         
         private bool canHunt = true;
+        private GameObject profilePanel;
+        private TMP_InputField profileDisplayNameInput;
+        private TMP_Text profileAgeText;
+        private TMP_Text profileAvatarPresetText;
+        private TMP_Text profileBankingSummaryText;
+        private Button profilePrevAvatarButton;
+        private Button profileNextAvatarButton;
+        private Button profileSaveButton;
+        private Button profileCloseButton;
+        private Button profileSkipButton;
+        private int selectedAvatarPresetIndex;
+
+        private static readonly List<string> AvatarPresetIds = new List<string>
+        {
+            "outlaw-hat-01",
+            "outlaw-bandana-02",
+            "stagecoach-scout-03",
+            "desert-ranger-04",
+            "gold-rush-05",
+            "frontier-captain-06"
+        };
         
         #endregion
         
@@ -107,6 +132,8 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
+            EnsureProfileUi();
+
             // Setup button listeners
             SetupButtons();
             
@@ -124,6 +151,8 @@ namespace BlackBartsGold.UI
             {
                 loadingPanel.SetActive(false);
             }
+
+            MaybeOpenProfileOnboarding();
         }
         
         private void OnDestroy()
@@ -167,6 +196,12 @@ namespace BlackBartsGold.UI
             if (settingsButton != null)
             {
                 settingsButton.onClick.AddListener(OnSettingsClicked);
+            }
+
+            if (profileButton != null)
+            {
+                profileButton.onClick.RemoveAllListeners();
+                profileButton.onClick.AddListener(OnProfileClicked);
             }
             
             if (buyGasButton != null)
@@ -230,6 +265,8 @@ namespace BlackBartsGold.UI
             
             // Update hunt button state
             UpdateHuntButtonState(player.CanPlay);
+
+            RefreshProfilePanelSummary();
             
             Log("UI refreshed");
         }
@@ -377,6 +414,15 @@ namespace BlackBartsGold.UI
             Log("Settings clicked");
             LoadScene(SceneNames.Settings);
         }
+
+        /// <summary>
+        /// Handle Profile button click
+        /// </summary>
+        private void OnProfileClicked()
+        {
+            Log("Profile clicked");
+            OpenProfilePanel(false);
+        }
         
         /// <summary>
         /// Handle Buy Gas button click
@@ -423,6 +469,325 @@ namespace BlackBartsGold.UI
             }
         }
         
+        #endregion
+
+        #region Profile UI
+
+        private void EnsureProfileUi()
+        {
+            if (profileButton == null)
+            {
+                profileButton = CreateMainMenuButton("ProfileButton", "\u263a PROFILE", new Vector2(0, -290), new Vector2(550, 90));
+            }
+
+            if (profilePanel == null)
+            {
+                profilePanel = BuildProfilePanel();
+            }
+        }
+
+        private Button CreateMainMenuButton(string objectName, string label, Vector2 anchoredPosition, Vector2 size)
+        {
+            var buttonGo = new GameObject(objectName);
+            buttonGo.transform.SetParent(transform, false);
+
+            var rect = buttonGo.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            var image = buttonGo.AddComponent<Image>();
+            image.color = new Color(0.961f, 0.902f, 0.827f, 1f);
+
+            var button = buttonGo.AddComponent<Button>();
+
+            var textGo = new GameObject("ButtonText");
+            textGo.transform.SetParent(buttonGo.transform, false);
+            var textRect = textGo.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(10, 5);
+            textRect.offsetMax = new Vector2(-10, -5);
+
+            var text = textGo.AddComponent<TextMeshProUGUI>();
+            text.text = label;
+            text.fontSize = 32;
+            text.fontStyle = FontStyles.Bold;
+            text.alignment = TextAlignmentOptions.Center;
+            text.color = new Color(0.239f, 0.161f, 0.078f, 1f);
+            text.raycastTarget = false;
+
+            return button;
+        }
+
+        private GameObject BuildProfilePanel()
+        {
+            var panelGo = new GameObject("ProfilePanel");
+            panelGo.transform.SetParent(transform, false);
+
+            var rect = panelGo.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(860, 980);
+
+            var image = panelGo.AddComponent<Image>();
+            image.color = new Color(0f, 0f, 0f, 0.9f);
+
+            CreateLabel(panelGo.transform, "Title", "Player Profile", new Vector2(0, -50), new Vector2(760, 70), 46, goldColor, TextAlignmentOptions.Center);
+            CreateLabel(panelGo.transform, "IdentityHeader", "Identity", new Vector2(-300, -130), new Vector2(300, 40), 32, goldColor, TextAlignmentOptions.Left);
+            CreateLabel(panelGo.transform, "BankingHeader", "Banking", new Vector2(-300, -520), new Vector2(300, 40), 32, goldColor, TextAlignmentOptions.Left);
+
+            CreateLabel(panelGo.transform, "DisplayNameLabel", "Display Name", new Vector2(-300, -190), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profileDisplayNameInput = CreateInputField(panelGo.transform, "DisplayNameInput", new Vector2(0, -245), new Vector2(620, 72));
+
+            CreateLabel(panelGo.transform, "AgeLabel", "Age", new Vector2(-300, -325), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profileAgeText = CreateLabel(panelGo.transform, "AgeValue", "-", new Vector2(0, -325), new Vector2(620, 48), 30, Color.white, TextAlignmentOptions.Left);
+
+            CreateLabel(panelGo.transform, "AvatarLabel", "Avatar Preset", new Vector2(-300, -390), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profilePrevAvatarButton = CreatePanelButton(panelGo.transform, "AvatarPrevButton", "<", new Vector2(-210, -445), new Vector2(70, 56), 32);
+            profileAvatarPresetText = CreateLabel(panelGo.transform, "AvatarPresetValue", "-", new Vector2(0, -445), new Vector2(420, 56), 28, Color.white, TextAlignmentOptions.Center);
+            profileNextAvatarButton = CreatePanelButton(panelGo.transform, "AvatarNextButton", ">", new Vector2(210, -445), new Vector2(70, 56), 32);
+
+            profileBankingSummaryText = CreateLabel(panelGo.transform, "BankingSummary", "Loading...", new Vector2(0, -640), new Vector2(700, 220), 28, Color.white, TextAlignmentOptions.TopLeft);
+
+            profileSaveButton = CreatePanelButton(panelGo.transform, "SaveProfileButton", "Save Profile", new Vector2(-180, -900), new Vector2(240, 72), 30);
+            profileCloseButton = CreatePanelButton(panelGo.transform, "CloseProfileButton", "Close", new Vector2(95, -900), new Vector2(180, 72), 30);
+            profileSkipButton = CreatePanelButton(panelGo.transform, "SkipProfileButton", "Skip For Now", new Vector2(320, -900), new Vector2(240, 72), 24);
+
+            profilePrevAvatarButton.onClick.RemoveAllListeners();
+            profilePrevAvatarButton.onClick.AddListener(OnAvatarPrevClicked);
+            profileNextAvatarButton.onClick.RemoveAllListeners();
+            profileNextAvatarButton.onClick.AddListener(OnAvatarNextClicked);
+            profileSaveButton.onClick.RemoveAllListeners();
+            profileSaveButton.onClick.AddListener(OnProfileSaveClicked);
+            profileCloseButton.onClick.RemoveAllListeners();
+            profileCloseButton.onClick.AddListener(CloseProfilePanel);
+            profileSkipButton.onClick.RemoveAllListeners();
+            profileSkipButton.onClick.AddListener(OnProfileSkipClicked);
+
+            panelGo.SetActive(false);
+            return panelGo;
+        }
+
+        private TMP_Text CreateLabel(Transform parent, string name, string textValue, Vector2 anchoredPosition, Vector2 size, int fontSize, Color color, TextAlignmentOptions align)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            var text = go.AddComponent<TextMeshProUGUI>();
+            text.text = textValue;
+            text.fontSize = fontSize;
+            text.alignment = align;
+            text.color = color;
+            text.enableWordWrapping = true;
+            text.raycastTarget = false;
+            return text;
+        }
+
+        private TMP_InputField CreateInputField(Transform parent, string name, Vector2 anchoredPosition, Vector2 size)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            var bg = go.AddComponent<Image>();
+            bg.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
+
+            var input = go.AddComponent<TMP_InputField>();
+
+            var placeholderGo = new GameObject("Placeholder");
+            placeholderGo.transform.SetParent(go.transform, false);
+            var placeholderRect = placeholderGo.AddComponent<RectTransform>();
+            placeholderRect.anchorMin = Vector2.zero;
+            placeholderRect.anchorMax = Vector2.one;
+            placeholderRect.offsetMin = new Vector2(16, 10);
+            placeholderRect.offsetMax = new Vector2(-16, -10);
+            var placeholderText = placeholderGo.AddComponent<TextMeshProUGUI>();
+            placeholderText.text = "Enter display name";
+            placeholderText.fontSize = 28;
+            placeholderText.color = new Color(0.75f, 0.75f, 0.75f, 0.75f);
+            placeholderText.alignment = TextAlignmentOptions.Left;
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(go.transform, false);
+            var textRect = textGo.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(16, 10);
+            textRect.offsetMax = new Vector2(-16, -10);
+            var text = textGo.AddComponent<TextMeshProUGUI>();
+            text.text = "";
+            text.fontSize = 30;
+            text.color = Color.white;
+            text.alignment = TextAlignmentOptions.Left;
+
+            input.textViewport = rect;
+            input.textComponent = text;
+            input.placeholder = placeholderText;
+            input.characterLimit = 20;
+
+            return input;
+        }
+
+        private Button CreatePanelButton(Transform parent, string name, string label, Vector2 anchoredPosition, Vector2 size, int fontSize)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            var image = go.AddComponent<Image>();
+            image.color = new Color(0.15f, 0.15f, 0.15f, 0.95f);
+
+            var button = go.AddComponent<Button>();
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(go.transform, false);
+            var textRect = textGo.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+            var text = textGo.AddComponent<TextMeshProUGUI>();
+            text.text = label;
+            text.fontSize = fontSize;
+            text.alignment = TextAlignmentOptions.Center;
+            text.color = Color.white;
+            text.raycastTarget = false;
+
+            return button;
+        }
+
+        private void MaybeOpenProfileOnboarding()
+        {
+            var user = PlayerData.Exists ? PlayerData.Instance.CurrentUser : null;
+            if (user == null) return;
+            if (user.profileOnboardingDismissed) return;
+            if (user.IsProfileComplete()) return;
+
+            OpenProfilePanel(true);
+        }
+
+        private void OpenProfilePanel(bool onboarding)
+        {
+            EnsureProfileUi();
+            if (profilePanel == null || !PlayerData.Exists || PlayerData.Instance.CurrentUser == null) return;
+
+            profilePanel.SetActive(true);
+            profileSkipButton.gameObject.SetActive(onboarding);
+
+            var user = PlayerData.Instance.CurrentUser;
+            profileDisplayNameInput.text = user.displayName ?? "";
+            profileAgeText.text = user.age > 0 ? user.age.ToString() : "-";
+
+            var avatarId = !string.IsNullOrWhiteSpace(user.avatarPresetId) ? user.avatarPresetId : AvatarPresetIds[0];
+            selectedAvatarPresetIndex = Mathf.Max(0, AvatarPresetIds.IndexOf(avatarId));
+            if (selectedAvatarPresetIndex < 0) selectedAvatarPresetIndex = 0;
+            RefreshAvatarPresetLabel();
+            RefreshProfilePanelSummary();
+        }
+
+        private void CloseProfilePanel()
+        {
+            if (profilePanel != null)
+            {
+                profilePanel.SetActive(false);
+            }
+        }
+
+        private void OnAvatarPrevClicked()
+        {
+            if (AvatarPresetIds.Count == 0) return;
+            selectedAvatarPresetIndex = (selectedAvatarPresetIndex - 1 + AvatarPresetIds.Count) % AvatarPresetIds.Count;
+            RefreshAvatarPresetLabel();
+        }
+
+        private void OnAvatarNextClicked()
+        {
+            if (AvatarPresetIds.Count == 0) return;
+            selectedAvatarPresetIndex = (selectedAvatarPresetIndex + 1) % AvatarPresetIds.Count;
+            RefreshAvatarPresetLabel();
+        }
+
+        private void RefreshAvatarPresetLabel()
+        {
+            if (profileAvatarPresetText == null || AvatarPresetIds.Count == 0) return;
+            profileAvatarPresetText.text = AvatarPresetIds[selectedAvatarPresetIndex];
+        }
+
+        private void OnProfileSaveClicked()
+        {
+            if (!PlayerData.Exists || PlayerData.Instance.CurrentUser == null) return;
+
+            string displayName = profileDisplayNameInput != null ? profileDisplayNameInput.text.Trim() : "";
+            if (displayName.Length < 3 || displayName.Length > 20)
+            {
+                Log("Profile save blocked: display name must be 3-20 chars");
+                return;
+            }
+
+            var user = PlayerData.Instance.CurrentUser;
+            user.displayName = displayName;
+            user.SetAvatarPreset(AvatarPresetIds[selectedAvatarPresetIndex]);
+            user.profileOnboardingDismissed = true;
+
+            PlayerData.Instance.UpdateUser(user);
+            RefreshUI();
+            CloseProfilePanel();
+        }
+
+        private void OnProfileSkipClicked()
+        {
+            if (!PlayerData.Exists || PlayerData.Instance.CurrentUser == null)
+            {
+                CloseProfilePanel();
+                return;
+            }
+
+            var user = PlayerData.Instance.CurrentUser;
+            user.profileOnboardingDismissed = true;
+            PlayerData.Instance.UpdateUser(user);
+            CloseProfilePanel();
+        }
+
+        private void RefreshProfilePanelSummary()
+        {
+            if (profileBankingSummaryText == null || !PlayerData.Exists) return;
+            var player = PlayerData.Instance;
+            var wallet = player.Wallet;
+            if (wallet == null)
+            {
+                profileBankingSummaryText.text = "Banking data unavailable.";
+                return;
+            }
+
+            profileBankingSummaryText.text =
+                $"Total Balance: ${wallet.total:F2} BBG\n" +
+                $"Gas Tank: ${wallet.gasTank:F2} ({wallet.gasRemainingDays:F1} days)\n" +
+                $"Parked: ${wallet.parked:F2}\n" +
+                $"Pending: ${wallet.pending:F2}\n\n" +
+                "Need full transaction details?\nTap MY WALLET from Main Menu.";
+        }
+
         #endregion
         
         #region Debug

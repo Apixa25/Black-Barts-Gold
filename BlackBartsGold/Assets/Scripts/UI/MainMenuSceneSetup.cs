@@ -129,17 +129,18 @@ namespace BlackBartsGold.UI
                 rect.anchorMax = new Vector2(0.5f, 1f);
                 rect.pivot = new Vector2(0.5f, 1f);
                 rect.anchoredPosition = new Vector2(0, -150);
-                rect.sizeDelta = new Vector2(900, 200);
+                rect.sizeDelta = new Vector2(900, 280); // Taller for multi-line banner
             }
 
             var text = title.GetComponent<TMP_Text>();
             if (text != null)
             {
-                text.text = "Black Bart's Gold";
+                text.text = "I've hidden treasure out there. Get out there and find it!";
                 text.fontSize = 56;
                 text.fontStyle = FontStyles.Bold;
                 text.alignment = TextAlignmentOptions.Center;
                 text.color = GoldColor;
+                text.enableWordWrapping = true; // Long banner text
                 text.raycastTarget = false; // Don't block touches
             }
         }
