@@ -67,6 +67,14 @@ namespace BlackBartsGold.UI
         [SerializeField]
         [Tooltip("Radar radius in pixels")]
         private float radarRadius = 120f;
+
+        [SerializeField]
+        [Tooltip("Visual scale multiplier for radar internals")]
+        private float miniMapScale = 2f;
+
+        [SerializeField]
+        [Tooltip("Auto-adjust radar range to target distance")]
+        private bool autoZoomEnabled = false;
         
         [SerializeField]
         [Tooltip("Rotate radar with device heading")]
@@ -144,6 +152,11 @@ namespace BlackBartsGold.UI
         /// Current radar range
         /// </summary>
         public float Range => radarRange;
+
+        /// <summary>
+        /// Is automatic range zoom enabled?
+        /// </summary>
+        public bool AutoZoomEnabled => autoZoomEnabled;
         
         /// <summary>
         /// Number of coins on radar
@@ -153,6 +166,16 @@ namespace BlackBartsGold.UI
         #endregion
         
         #region Private Fields
+
+        private const float BaseRadarRadiusPixels = 60f;
+        private const float BaseDotSizePixels = 8f;
+        private const float MinRadarRangeMeters = 15f;
+        private const float MaxRadarRangeMeters = 200f;
+        private const float AutoZoomPaddingMultiplier = 1.35f;
+        private const float AutoZoomRangeChangeThreshold = 0.5f;
+        private const string RadarRangePrefKey = "RadarUI.RangeMeters";
+        private const string RadarAutoPrefKey = "RadarUI.AutoZoom";
+        private const string RadarScalePrefKey = "RadarUI.MiniMapScale";
         
         private Dictionary<string, RectTransform> activeDots = new Dictionary<string, RectTransform>();
         private Queue<RectTransform> dotPool = new Queue<RectTransform>();
@@ -176,6 +199,10 @@ namespace BlackBartsGold.UI
                 // Auto-find references if not assigned
                 AutoFindReferences();
                 Debug.Log("[RadarUI] AutoFindReferences done");
+
+                // Restore user zoom preferences before first radar render
+                LoadPreferences();
+                SetMiniMapScale(miniMapScale);
                 
                 // ============================================================
                 // CRITICAL: Ensure Canvas has GraphicRaycaster for UI clicks!
@@ -467,6 +494,15 @@ namespace BlackBartsGold.UI
                 playerLocation.latitude, playerLocation.longitude,
                 targetData.latitude, targetData.longitude
             );
+
+            if (autoZoomEnabled)
+            {
+                float desiredRange = Mathf.Clamp(distance * AutoZoomPaddingMultiplier, MinRadarRangeMeters, MaxRadarRangeMeters);
+                if (Mathf.Abs(radarRange - desiredRange) > AutoZoomRangeChangeThreshold)
+                {
+                    radarRange = desiredRange;
+                }
+            }
             
             // Calculate bearing to target
             float bearing = GeoUtils.CalculateBearing(
@@ -590,7 +626,9 @@ namespace BlackBartsGold.UI
         {
             if (dotPool.Count > 0)
             {
-                return dotPool.Dequeue();
+                var pooledDot = dotPool.Dequeue();
+                ApplyDotSize(pooledDot);
+                return pooledDot;
             }
             
             // Create new dot
@@ -609,10 +647,30 @@ namespace BlackBartsGold.UI
                 img.color = normalCoinColor;
                 
                 RectTransform rt = dotObj.GetComponent<RectTransform>();
-                rt.sizeDelta = new Vector2(16, 16);
+                ApplyDotSize(rt);
             }
             
             return dotObj.GetComponent<RectTransform>();
+        }
+
+        private void ApplyDotSizes()
+        {
+            foreach (var dot in activeDots.Values)
+            {
+                ApplyDotSize(dot);
+            }
+
+            foreach (var pooledDot in dotPool)
+            {
+                ApplyDotSize(pooledDot);
+            }
+        }
+
+        private void ApplyDotSize(RectTransform dot)
+        {
+            if (dot == null) return;
+            float dotSize = BaseDotSizePixels * miniMapScale;
+            dot.sizeDelta = new Vector2(dotSize, dotSize);
         }
         
         /// <summary>
@@ -703,7 +761,13 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void SetRange(float meters)
         {
-            radarRange = Mathf.Max(10f, meters);
+            if (autoZoomEnabled)
+            {
+                autoZoomEnabled = false;
+            }
+
+            radarRange = Mathf.Clamp(meters, MinRadarRangeMeters, MaxRadarRangeMeters);
+            SavePreferences();
             UpdateRadar();
         }
         
@@ -712,7 +776,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void ZoomIn()
         {
-            SetRange(radarRange * 0.5f);
+            SetRange(radarRange * 0.8f);
         }
         
         /// <summary>
@@ -720,12 +784,61 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void ZoomOut()
         {
-            SetRange(radarRange * 2f);
+            SetRange(radarRange * 1.25f);
+        }
+
+        /// <summary>
+        /// Set mini-map visual scale (radar radius + marker sizing).
+        /// </summary>
+        public void SetMiniMapScale(float scale)
+        {
+            miniMapScale = Mathf.Clamp(scale, 0.5f, 4f);
+            radarRadius = BaseRadarRadiusPixels * miniMapScale;
+            ApplyDotSizes();
+            SavePreferences();
+            UpdateRadar();
+        }
+
+        /// <summary>
+        /// Enable/disable automatic radar range adaptation.
+        /// </summary>
+        public void SetAutoZoomEnabled(bool enabled)
+        {
+            autoZoomEnabled = enabled;
+            SavePreferences();
+            UpdateRadar();
+        }
+
+        /// <summary>
+        /// Toggle automatic radar range adaptation.
+        /// </summary>
+        public void ToggleAutoZoom()
+        {
+            SetAutoZoomEnabled(!autoZoomEnabled);
         }
         
         #endregion
         
         #region Helpers
+
+        #region Persistence
+
+        private void LoadPreferences()
+        {
+            radarRange = Mathf.Clamp(PlayerPrefs.GetFloat(RadarRangePrefKey, radarRange), MinRadarRangeMeters, MaxRadarRangeMeters);
+            miniMapScale = Mathf.Clamp(PlayerPrefs.GetFloat(RadarScalePrefKey, miniMapScale), 0.5f, 4f);
+            autoZoomEnabled = PlayerPrefs.GetInt(RadarAutoPrefKey, autoZoomEnabled ? 1 : 0) == 1;
+        }
+
+        private void SavePreferences()
+        {
+            PlayerPrefs.SetFloat(RadarRangePrefKey, radarRange);
+            PlayerPrefs.SetFloat(RadarScalePrefKey, miniMapScale);
+            PlayerPrefs.SetInt(RadarAutoPrefKey, autoZoomEnabled ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        #endregion
         
         /// <summary>
         /// Get player location

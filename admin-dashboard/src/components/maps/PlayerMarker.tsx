@@ -67,6 +67,16 @@ export function PlayerMarker({
   const playerInitial = useMemo(() => {
     return playerDisplayName.charAt(0).toUpperCase() || "?"
   }, [playerDisplayName])
+
+  const playerDisplayEmail = useMemo(() => {
+    const trimmedEmail = player.user_email?.trim()
+    if (!trimmedEmail) return null
+
+    const trimmedName = player.user_name?.trim()
+    if (!trimmedName) return null
+
+    return trimmedEmail
+  }, [player.user_name, player.user_email])
   
   // Get current status (may have changed since data was fetched)
   const currentStatus = useMemo(() => {
@@ -204,6 +214,11 @@ export function PlayerMarker({
                 <div className="font-semibold text-saddle-dark truncate">
                   {playerDisplayName}
                 </div>
+                {playerDisplayEmail && (
+                  <div className="text-xs text-leather-light truncate">
+                    {playerDisplayEmail}
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5 text-xs">
                   <span 
                     className="w-2 h-2 rounded-full" 

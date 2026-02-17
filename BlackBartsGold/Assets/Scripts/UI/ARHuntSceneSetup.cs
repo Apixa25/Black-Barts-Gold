@@ -36,9 +36,18 @@ namespace BlackBartsGold.UI
         private bool _radarMapTileIsOurCopy;
         private float _lastDiagnosticUpdate;
         private const float _diagnosticUpdateInterval = 0.5f;
+        private const float _radarControlsRefreshInterval = 0.25f;
         private int _radarZoom = 19; // 19 = default (3 levels closer); 21 = zoomed in when hunting
         private Sprite _cachedMapCoinIconSprite;
         private bool _mapCoinIconLoadLogged = false;
+        private const float _miniMapUiScale = 2f; // Single tuning point for AR mini-map sizing
+        private const float _radarBaseSize = 360f;
+        private float _lastRadarControlsRefresh;
+        private RadarUI _radarZoomRadarUI;
+        private Button _radarMinusButton;
+        private Button _radarPlusButton;
+        private Button _radarAutoButton;
+        private TextMeshProUGUI _radarRangeText;
         
         private void Start()
         {
@@ -128,6 +137,12 @@ namespace BlackBartsGold.UI
             {
                 _lastDiagnosticUpdate = Time.time;
                 _debugDiagnosticsText.text = Core.UIManager.GetDiagnosticsString();
+            }
+
+            if (_radarZoomRadarUI != null && Time.time - _lastRadarControlsRefresh >= _radarControlsRefreshInterval)
+            {
+                _lastRadarControlsRefresh = Time.time;
+                RefreshRadarZoomControlsUi();
             }
         }
 
@@ -372,13 +387,14 @@ namespace BlackBartsGold.UI
             var rect = radar.GetComponent<RectTransform>();
             if (rect != null)
             {
+                float radarSize = _radarBaseSize * _miniMapUiScale;
                 // Position in top-right corner with safe margin (below status bar)
                 rect.anchorMin = new Vector2(1, 1);
                 rect.anchorMax = new Vector2(1, 1);
                 rect.pivot = new Vector2(1, 1);
                 rect.anchoredPosition = new Vector2(-20, -20);
-                rect.sizeDelta = new Vector2(720, 720); // 2x larger again for improved AR visibility
-                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor TR, pos (-20, -20), size 720x720");
+                rect.sizeDelta = new Vector2(radarSize, radarSize);
+                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor TR, pos (-20, -20), size {radarSize}x{radarSize}");
             }
             
             // CRITICAL: Ensure there's an Image with raycastTarget = true
@@ -409,6 +425,8 @@ namespace BlackBartsGold.UI
             if (radarUI != null)
             {
                 SetupRadarContent(radar, radarUI);
+                radarUI.SetMiniMapScale(_miniMapUiScale);
+                SetupRadarZoomControls(radarUI);
                 Debug.Log("[ARHuntSceneSetup] RadarUI wired with code-based setup");
             }
             else
@@ -434,6 +452,7 @@ namespace BlackBartsGold.UI
             RectTransform playerRect = null;
             RectTransform sweepRect = null;
             RectTransform northRect = null;
+            float localScale = _miniMapUiScale;
 
             // === MAP TILE (Mapbox) - First child, behind everything ===
             var mapTile = radar.Find("MapTile");
@@ -474,7 +493,7 @@ namespace BlackBartsGold.UI
                 playerRect.anchorMax = new Vector2(0.5f, 0.5f);
                 playerRect.pivot = new Vector2(0.5f, 0.5f);
                 playerRect.anchoredPosition = Vector2.zero;
-                playerRect.sizeDelta = new Vector2(48, 48);
+                playerRect.sizeDelta = new Vector2(24f * localScale, 24f * localScale);
                 var playerImg = playerGO.AddComponent<Image>();
                 var playerSprite = Resources.Load<Sprite>("UI/player");
                 if (playerSprite == null) playerSprite = Resources.Load<Sprite>("player");
@@ -488,6 +507,7 @@ namespace BlackBartsGold.UI
                 playerRect = playerDot.GetComponent<RectTransform>();
                 if (playerRect == null) playerRect = playerDot.gameObject.AddComponent<RectTransform>();
             }
+            playerRect.sizeDelta = new Vector2(24f * localScale, 24f * localScale);
 
             // Sweep line (optional - thin rotating line)
             var sweepLine = radar.Find("SweepLine");
@@ -500,7 +520,7 @@ namespace BlackBartsGold.UI
                 sweepRect.anchorMax = new Vector2(0.5f, 0.5f);
                 sweepRect.pivot = new Vector2(0.5f, 0f);
                 sweepRect.anchoredPosition = Vector2.zero;
-                sweepRect.sizeDelta = new Vector2(8, 140);
+                sweepRect.sizeDelta = new Vector2(4f * localScale, 70f * localScale);
                 var sweepImg = sweepGO.AddComponent<Image>();
                 sweepImg.color = new Color(1f, 0.84f, 0f, 0.4f);
                 sweepImg.raycastTarget = false;
@@ -510,6 +530,7 @@ namespace BlackBartsGold.UI
                 sweepRect = sweepLine.GetComponent<RectTransform>();
                 if (sweepRect == null) sweepRect = sweepLine.gameObject.AddComponent<RectTransform>();
             }
+            sweepRect.sizeDelta = new Vector2(4f * localScale, 70f * localScale);
 
             // North indicator (optional)
             var northIndicator = radar.Find("NorthIndicator");
@@ -521,8 +542,8 @@ namespace BlackBartsGold.UI
                 northRect.anchorMin = new Vector2(0.5f, 1f);
                 northRect.anchorMax = new Vector2(0.5f, 1f);
                 northRect.pivot = new Vector2(0.5f, 1f);
-                northRect.anchoredPosition = new Vector2(0, -10);
-                northRect.sizeDelta = new Vector2(16, 24);
+                northRect.anchoredPosition = new Vector2(0, -10f * localScale);
+                northRect.sizeDelta = new Vector2(8f * localScale, 12f * localScale);
                 var northImg = northGO.AddComponent<Image>();
                 northImg.color = new Color(1f, 0.3f, 0.3f, 0.8f);
                 northImg.raycastTarget = false;
@@ -532,6 +553,8 @@ namespace BlackBartsGold.UI
                 northRect = northIndicator.GetComponent<RectTransform>();
                 if (northRect == null) northRect = northIndicator.gameObject.AddComponent<RectTransform>();
             }
+            northRect.anchoredPosition = new Vector2(0, -10f * localScale);
+            northRect.sizeDelta = new Vector2(8f * localScale, 12f * localScale);
 
             if (playerRect == null)
             {
@@ -542,6 +565,182 @@ namespace BlackBartsGold.UI
             var coinSprite = GetMapCoinIconSprite();
             radarUI.SetRuntimeReferences(rect, playerRect, sweepRect, northRect, coinSprite);
             Debug.Log("[ARHuntSceneSetup] Radar content wired successfully");
+        }
+
+        private void SetupRadarZoomControls(RadarUI radarUI)
+        {
+            if (radarUI == null) return;
+
+            var controls = transform.Find("RadarZoomControls");
+            if (controls == null)
+            {
+                var controlsGO = new GameObject("RadarZoomControls");
+                controlsGO.transform.SetParent(transform, false);
+                controls = controlsGO.transform;
+                controlsGO.AddComponent<RectTransform>();
+                controlsGO.AddComponent<Image>();
+            }
+
+            var controlsRect = controls.GetComponent<RectTransform>();
+            controlsRect.anchorMin = new Vector2(1f, 1f);
+            controlsRect.anchorMax = new Vector2(1f, 1f);
+            controlsRect.pivot = new Vector2(1f, 1f);
+            controlsRect.anchoredPosition = new Vector2(-20f, -(_radarBaseSize * _miniMapUiScale + 28f));
+            controlsRect.sizeDelta = new Vector2(270f, 64f);
+
+            var controlsBg = controls.GetComponent<Image>();
+            controlsBg.color = new Color(0f, 0f, 0f, 0.45f);
+            controlsBg.raycastTarget = true;
+
+            var minusButton = EnsureRadarZoomButton(controls, "MinusButton", "-", new Vector2(36f, -32f));
+            var plusButton = EnsureRadarZoomButton(controls, "PlusButton", "+", new Vector2(100f, -32f));
+            var rangeText = EnsureRadarZoomLabel(controls, "RangeText", new Vector2(158f, -32f));
+            var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(232f, -32f), new Vector2(70f, 56f), 20f);
+
+            _radarZoomRadarUI = radarUI;
+            _radarMinusButton = minusButton;
+            _radarPlusButton = plusButton;
+            _radarAutoButton = autoButton;
+            _radarRangeText = rangeText;
+            _lastRadarControlsRefresh = -999f;
+
+            minusButton.onClick.RemoveAllListeners();
+            minusButton.onClick.AddListener(() =>
+            {
+                radarUI.ZoomOut();
+                TriggerZoomHaptic();
+                RefreshRadarZoomControlsUi();
+            });
+
+            plusButton.onClick.RemoveAllListeners();
+            plusButton.onClick.AddListener(() =>
+            {
+                radarUI.ZoomIn();
+                TriggerZoomHaptic();
+                RefreshRadarZoomControlsUi();
+            });
+
+            autoButton.onClick.RemoveAllListeners();
+            autoButton.onClick.AddListener(() =>
+            {
+                radarUI.ToggleAutoZoom();
+                TriggerZoomHaptic();
+                RefreshRadarZoomControlsUi();
+            });
+
+            RefreshRadarZoomControlsUi();
+        }
+
+        private Button EnsureRadarZoomButton(Transform parent, string buttonName, string label, Vector2 anchoredPosition, Vector2? sizeOverride = null, float fontSize = 32f)
+        {
+            var buttonTransform = parent.Find(buttonName);
+            if (buttonTransform == null)
+            {
+                var buttonGO = new GameObject(buttonName);
+                buttonGO.transform.SetParent(parent, false);
+                buttonTransform = buttonGO.transform;
+                buttonGO.AddComponent<RectTransform>();
+                buttonGO.AddComponent<Image>();
+                buttonGO.AddComponent<Button>();
+
+                var textGO = new GameObject("Text");
+                textGO.transform.SetParent(buttonTransform, false);
+                var textRect = textGO.AddComponent<RectTransform>();
+                textRect.anchorMin = Vector2.zero;
+                textRect.anchorMax = Vector2.one;
+                textRect.offsetMin = Vector2.zero;
+                textRect.offsetMax = Vector2.zero;
+
+                var tmpText = textGO.AddComponent<TextMeshProUGUI>();
+                tmpText.alignment = TextAlignmentOptions.Center;
+                tmpText.fontSize = fontSize;
+                tmpText.color = Color.white;
+            }
+
+            var rect = buttonTransform.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = sizeOverride ?? new Vector2(56f, 56f);
+
+            var image = buttonTransform.GetComponent<Image>();
+            image.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
+            image.raycastTarget = true;
+
+            var button = buttonTransform.GetComponent<Button>();
+            button.transition = Selectable.Transition.ColorTint;
+
+            var labelText = buttonTransform.Find("Text")?.GetComponent<TextMeshProUGUI>();
+            if (labelText != null)
+            {
+                labelText.text = label;
+                labelText.fontSize = fontSize;
+            }
+
+            return button;
+        }
+
+        private TextMeshProUGUI EnsureRadarZoomLabel(Transform parent, string name, Vector2 anchoredPosition)
+        {
+            var textTransform = parent.Find(name);
+            if (textTransform == null)
+            {
+                var textGO = new GameObject(name);
+                textGO.transform.SetParent(parent, false);
+                textTransform = textGO.transform;
+                textGO.AddComponent<RectTransform>();
+                textGO.AddComponent<TextMeshProUGUI>();
+            }
+
+            var rect = textTransform.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(70f, 44f);
+
+            var tmpText = textTransform.GetComponent<TextMeshProUGUI>();
+            tmpText.fontSize = 24f;
+            tmpText.color = GoldColor;
+            tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.text = "50m";
+
+            return tmpText;
+        }
+
+        private void RefreshRadarZoomControlsUi()
+        {
+            if (_radarZoomRadarUI == null || _radarRangeText == null) return;
+
+            _radarRangeText.text = _radarZoomRadarUI.AutoZoomEnabled
+                ? $"A {Mathf.RoundToInt(_radarZoomRadarUI.Range)}m"
+                : $"{Mathf.RoundToInt(_radarZoomRadarUI.Range)}m";
+
+            if (_radarMinusButton != null)
+                _radarMinusButton.interactable = !_radarZoomRadarUI.AutoZoomEnabled;
+
+            if (_radarPlusButton != null)
+                _radarPlusButton.interactable = !_radarZoomRadarUI.AutoZoomEnabled;
+
+            if (_radarAutoButton != null)
+            {
+                var autoImage = _radarAutoButton.GetComponent<Image>();
+                if (autoImage != null)
+                {
+                    autoImage.color = _radarZoomRadarUI.AutoZoomEnabled
+                        ? new Color(0.2f, 0.45f, 0.2f, 0.95f)
+                        : new Color(0.1f, 0.1f, 0.1f, 0.85f);
+                }
+            }
+        }
+
+        private static void TriggerZoomHaptic()
+        {
+            if (HapticService.Instance != null)
+            {
+                HapticService.Instance.Vibrate(50);
+            }
         }
         
         /// <summary>
