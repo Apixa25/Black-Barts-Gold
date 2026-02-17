@@ -66,7 +66,7 @@ namespace BlackBartsGold.UI
         
         [SerializeField]
         [Tooltip("Radar radius in pixels")]
-        private float radarRadius = 60f;
+        private float radarRadius = 120f;
         
         [SerializeField]
         [Tooltip("Rotate radar with device heading")]
@@ -609,7 +609,7 @@ namespace BlackBartsGold.UI
                 img.color = normalCoinColor;
                 
                 RectTransform rt = dotObj.GetComponent<RectTransform>();
-                rt.sizeDelta = new Vector2(8, 8);
+                rt.sizeDelta = new Vector2(16, 16);
             }
             
             return dotObj.GetComponent<RectTransform>();

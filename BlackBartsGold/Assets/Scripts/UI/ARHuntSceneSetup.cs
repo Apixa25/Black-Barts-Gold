@@ -377,8 +377,8 @@ namespace BlackBartsGold.UI
                 rect.anchorMax = new Vector2(1, 1);
                 rect.pivot = new Vector2(1, 1);
                 rect.anchoredPosition = new Vector2(-20, -20);
-                rect.sizeDelta = new Vector2(360, 360); // 2x larger for better visibility
-                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor TR, pos (-20, -20), size 360x360");
+                rect.sizeDelta = new Vector2(720, 720); // 2x larger again for improved AR visibility
+                Debug.Log($"[ARHuntSceneSetup] RadarPanel positioned: anchor TR, pos (-20, -20), size 720x720");
             }
             
             // CRITICAL: Ensure there's an Image with raycastTarget = true
@@ -474,7 +474,7 @@ namespace BlackBartsGold.UI
                 playerRect.anchorMax = new Vector2(0.5f, 0.5f);
                 playerRect.pivot = new Vector2(0.5f, 0.5f);
                 playerRect.anchoredPosition = Vector2.zero;
-                playerRect.sizeDelta = new Vector2(24, 24);
+                playerRect.sizeDelta = new Vector2(48, 48);
                 var playerImg = playerGO.AddComponent<Image>();
                 var playerSprite = Resources.Load<Sprite>("UI/player");
                 if (playerSprite == null) playerSprite = Resources.Load<Sprite>("player");
@@ -500,7 +500,7 @@ namespace BlackBartsGold.UI
                 sweepRect.anchorMax = new Vector2(0.5f, 0.5f);
                 sweepRect.pivot = new Vector2(0.5f, 0f);
                 sweepRect.anchoredPosition = Vector2.zero;
-                sweepRect.sizeDelta = new Vector2(4, 70);
+                sweepRect.sizeDelta = new Vector2(8, 140);
                 var sweepImg = sweepGO.AddComponent<Image>();
                 sweepImg.color = new Color(1f, 0.84f, 0f, 0.4f);
                 sweepImg.raycastTarget = false;
@@ -522,7 +522,7 @@ namespace BlackBartsGold.UI
                 northRect.anchorMax = new Vector2(0.5f, 1f);
                 northRect.pivot = new Vector2(0.5f, 1f);
                 northRect.anchoredPosition = new Vector2(0, -10);
-                northRect.sizeDelta = new Vector2(8, 12);
+                northRect.sizeDelta = new Vector2(16, 24);
                 var northImg = northGO.AddComponent<Image>();
                 northImg.color = new Color(1f, 0.3f, 0.3f, 0.8f);
                 northImg.raycastTarget = false;
