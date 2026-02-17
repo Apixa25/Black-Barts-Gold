@@ -61,6 +61,7 @@ namespace BlackBartsGold.Core
         private GameObject currentPanel;
         private bool isInARMode = false;
         private bool _arHudWasVisibleBeforeFullMap = false;
+        private bool _miniMapHiddenForFullMap = false;
         private readonly List<RadarUI> _radarUIsHiddenForFullMap = new List<RadarUI>();
         private readonly List<GameObject> _radarPanelsHiddenForFullMap = new List<GameObject>();
         private readonly List<GameObject> _extraMiniMapObjectsHiddenForFullMap = new List<GameObject>();
@@ -1874,6 +1875,16 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void HideMiniMapForFullMap()
         {
+            // Guard against duplicate open-map paths calling this twice.
+            // If we clear our tracking lists again, restore has nothing to re-enable.
+            if (_miniMapHiddenForFullMap)
+            {
+                Debug.Log($"[UIManager][MiniMapState] Duplicate hide ignored | hidden={_miniMapHiddenForFullMap}, arHudWasVisible={_arHudWasVisibleBeforeFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
+                return;
+            }
+
+            Debug.Log($"[UIManager][MiniMapState] Hide begin | arHudActive={arHudPanel?.activeSelf}, inAR={isInARMode}, fullMapActive={_simpleFullMapPanel?.activeSelf}");
+            _miniMapHiddenForFullMap = true;
             _arHudWasVisibleBeforeFullMap = false;
             _radarUIsHiddenForFullMap.Clear();
             _radarPanelsHiddenForFullMap.Clear();
@@ -1926,6 +1937,8 @@ namespace BlackBartsGold.Core
                     Debug.Log($"[UIManager] Hid {name} for full map");
                 }
             }
+
+            Debug.Log($"[UIManager][MiniMapState] Hide complete | hidden={_miniMapHiddenForFullMap}, arHudWasVisible={_arHudWasVisibleBeforeFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
         }
         
         /// <summary>
@@ -1934,9 +1947,12 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void RestoreMiniMapAfterFullMap()
         {
+            Debug.Log($"[UIManager][MiniMapState] Restore begin | hidden={_miniMapHiddenForFullMap}, arHudWasVisible={_arHudWasVisibleBeforeFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}, inAR={isInARMode}, fullMapActive={_simpleFullMapPanel?.activeSelf}");
+
             if (_arHudWasVisibleBeforeFullMap && arHudPanel != null)
             {
                 arHudPanel.SetActive(true);
+                Debug.Log("[UIManager][MiniMapState] Restored arHudPanel active");
             }
             _arHudWasVisibleBeforeFullMap = false;
             
@@ -1947,6 +1963,7 @@ namespace BlackBartsGold.Core
                     if (radarUI != null)
                     {
                         radarUI.Show();
+                        Debug.Log($"[UIManager][MiniMapState] Restored RadarUI '{radarUI.gameObject.name}'");
                     }
                 }
                 _radarUIsHiddenForFullMap.Clear();
@@ -1959,6 +1976,7 @@ namespace BlackBartsGold.Core
                     if (radarPanel != null)
                     {
                         radarPanel.SetActive(true);
+                        Debug.Log($"[UIManager][MiniMapState] Restored panel '{radarPanel.name}'");
                     }
                 }
                 _radarPanelsHiddenForFullMap.Clear();
@@ -1968,10 +1986,17 @@ namespace BlackBartsGold.Core
             {
                 foreach (var go in _extraMiniMapObjectsHiddenForFullMap)
                 {
-                    if (go != null) go.SetActive(true);
+                    if (go != null)
+                    {
+                        go.SetActive(true);
+                        Debug.Log($"[UIManager][MiniMapState] Restored extra '{go.name}'");
+                    }
                 }
                 _extraMiniMapObjectsHiddenForFullMap.Clear();
             }
+
+            _miniMapHiddenForFullMap = false;
+            Debug.Log($"[UIManager][MiniMapState] Restore complete | hidden={_miniMapHiddenForFullMap}, arHudActive={arHudPanel?.activeSelf}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
         }
         
         private void HideAllPanels()
