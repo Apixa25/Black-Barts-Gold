@@ -885,7 +885,8 @@ namespace BlackBartsGold.UI
         }
         
         /// <summary>
-        /// Called when radar/mini-map is tapped
+        /// Compatibility wrapper used by legacy callers.
+        /// Canonical map-open path is still UIManager.OnMiniMapClicked().
         /// </summary>
         public void OnRadarTapped()
         {

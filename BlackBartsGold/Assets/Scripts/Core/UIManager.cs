@@ -403,11 +403,11 @@ namespace BlackBartsGold.Core
             }
             
             // ================================================================
-            // UI STATE - For ADB debugging: which map path, canvas state
+            // UI STATE - For ADB debugging: map/canvas state
             // ================================================================
             sb.AppendLine("---");
             sb.AppendLine($"<b>Scene:</b> {UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
-            sb.AppendLine($"<b>FullMapUI:</b> {(FullMapUI.Exists ? "EXISTS" : "none")}");
+            sb.AppendLine("<b>FullMap Path:</b> SimpleFullMapPanel");
             if (Instance != null)
             {
                 sb.AppendLine($"<b>UIMgr Canvas:</b> {(Instance._ourCanvas != null ? (Instance._ourCanvas.enabled ? "ON" : "OFF") : "null")}");
@@ -952,16 +952,6 @@ namespace BlackBartsGold.Core
                 Debug.Log("[UIManager] Disabled EmergencyMapButton debug overlay before MainMenu load");
             }
             
-            // 3. Disable DirectTouchHandler debug visuals (if it persists - usually on HUDCanvas, destroyed)
-            var touchHandlers = FindObjectsByType<DirectTouchHandler>(FindObjectsSortMode.None);
-            foreach (var h in touchHandlers)
-            {
-                if (h != null)
-                {
-                    h.EnableDebugVisuals = false;
-                    Debug.Log("[UIManager] Disabled DirectTouchHandler debug visuals before MainMenu load");
-                }
-            }
         }
         
         private IEnumerator ShowMainMenuAfterLoad()
@@ -976,29 +966,12 @@ namespace BlackBartsGold.Core
         public void OnMiniMapClicked()
         {
             Debug.Log("[UIManager] 🗺️ Opening FULL MAP!");
-            Debug.Log($"[UIManager] FullMapUI.Exists={FullMapUI.Exists}, isInARMode={IsInARMode}, _ourCanvas.enabled={_ourCanvas?.enabled}");
+            Debug.Log($"[UIManager] Opening via SimpleFullMapPanel, isInARMode={IsInARMode}, _ourCanvas.enabled={_ourCanvas?.enabled}");
             
             // Hide mini-map while full map is open (both UIManager AR HUD and scene-based RadarUI paths).
             HideMiniMapForFullMap();
             
-            // AR MODE: Always use code-based map (ShowSimpleFullMap) - has Mapbox tile, coin markers, zoom.
-            // Scene-based FullMapUI has no map tile; using it caused "map disappears on 2nd open" bug.
-            if (isInARMode)
-            {
-                Debug.Log("[UIManager] Path: AR mode -> ShowSimpleFullMap (code-based, always has Mapbox tile)");
-                ShowSimpleFullMap();
-                return;
-            }
-            
-            // Non-AR: Try FullMapUI if it exists, else code-based fallback
-            if (FullMapUI.Exists)
-            {
-                Debug.Log("[UIManager] Path: Using FullMapUI.Show()");
-                FullMapUI.Instance.Show();
-                return;
-            }
-            
-            Debug.Log("[UIManager] Path: FullMapUI.Exists=false, using ShowSimpleFullMap fallback");
+            // Single source of truth across all modes.
             ShowSimpleFullMap();
         }
         
@@ -1027,8 +1000,7 @@ namespace BlackBartsGold.Core
         {
             Debug.Log($"[UIManager] ShowSimpleFullMap: panel={(_simpleFullMapPanel != null ? "exists" : "null")}, active={_simpleFullMapPanel?.activeSelf}, canvas.enabled={_ourCanvas?.enabled}");
             
-            // Radar tap = OPEN only. No toggle - multiple handlers (DirectTouch, ARHuntSceneSetup, Button)
-            // fire on same tap; toggle caused open->close->open->close, map ended up closed.
+            // Radar tap = OPEN only. No toggle.
             // User closes via the red X button on the map.
             if (_simpleFullMapPanel != null && _simpleFullMapPanel.activeSelf)
             {

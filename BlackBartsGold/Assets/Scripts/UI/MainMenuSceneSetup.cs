@@ -72,15 +72,6 @@ namespace BlackBartsGold.UI
                 Debug.Log("[MainMenuSceneSetup] EmergencyMapButton debug overlay disabled.");
             }
             
-            // 3. Disable DirectTouchHandler debug visuals
-            var touchHandlers = FindObjectsByType<DirectTouchHandler>(FindObjectsSortMode.None);
-            foreach (var h in touchHandlers)
-            {
-                if (h != null)
-                {
-                    h.EnableDebugVisuals = false;
-                }
-            }
         }
 
         private void SetupCanvas()

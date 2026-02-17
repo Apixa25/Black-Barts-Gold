@@ -11,16 +11,12 @@
 
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.EnhancedTouch;
 using System.Collections.Generic;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using UIManager = BlackBartsGold.Core.UIManager;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
-using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
 {
@@ -28,9 +24,9 @@ namespace BlackBartsGold.UI
     /// Mini radar display showing the TARGET coin only (single-target mode).
     /// Player is at center, target coin appears as a dot.
     /// Tap radar to open full map and select a different coin.
-    /// Implements IPointerClickHandler for reliable tap detection.
+    /// Uses a dedicated Button click handler for map open.
     /// </summary>
-    public class RadarUI : MonoBehaviour, IPointerClickHandler
+    public class RadarUI : MonoBehaviour
     {
         #region Inspector Fields
         
@@ -278,7 +274,7 @@ namespace BlackBartsGold.UI
             
             // ============================================================
             // CRITICAL: Ensure we have an Image with raycastTarget = true
-            // Without this, IPointerClickHandler won't receive events!
+            // Without this, Button.onClick won't receive events.
             // ============================================================
             Image radarImage = GetComponent<Image>();
             if (radarImage == null)
@@ -348,25 +344,8 @@ namespace BlackBartsGold.UI
             }
         }
         
-        /// <summary>
-        /// IPointerClickHandler implementation - called when radar is tapped.
-        /// This is more reliable than Button.onClick for UI elements.
-        /// </summary>
-        public void OnPointerClick(PointerEventData eventData)
-        {
-            Debug.Log("[RadarUI] OnPointerClick triggered!");
-            OnRadarTapped();
-        }
-        
-        private void OnEnable()
-        {
-            EnhancedTouchSupport.Enable();
-        }
-        
         private void OnDestroy()
         {
-            EnhancedTouchSupport.Disable();
-            
             if (GPSManager.Exists)
             {
                 GPSManager.Instance.OnLocationUpdated -= OnLocationUpdated;
@@ -393,31 +372,6 @@ namespace BlackBartsGold.UI
             {
                 lastUpdateTime = Time.time;
                 UpdateRadar();
-            }
-            
-            // Debug: Check for any touch input (new Input System)
-            var activeTouches = Touch.activeTouches;
-            if (activeTouches.Count > 0)
-            {
-                var touch = activeTouches[0];
-                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
-                {
-                    Debug.Log($"[RadarUI] Touch detected at screen position: {touch.screenPosition}");
-                    
-                    // Check if touch is within radar bounds
-                    if (radarContainer != null)
-                    {
-                        Vector2 localPoint;
-                        RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                            radarContainer, touch.screenPosition, null, out localPoint);
-                        Debug.Log($"[RadarUI] Local point in radar: {localPoint}, Radar size: {radarContainer.rect.size}");
-                        
-                        if (radarContainer.rect.Contains(localPoint))
-                        {
-                            Debug.Log("[RadarUI] Touch IS inside radar bounds - should trigger click!");
-                        }
-                    }
-                }
             }
         }
         

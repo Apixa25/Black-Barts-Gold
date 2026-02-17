@@ -1,6 +1,6 @@
 // ============================================================================
 // EmergencyMapButton.cs  
-// Black Bart's Gold - Emergency fallback button for map access
+// Black Bart's Gold - Emergency diagnostic button for map access
 // Path: Assets/Scripts/UI/EmergencyMapButton.cs
 // Created: 2026-01-27 - Guaranteed visible map button
 // ============================================================================
@@ -151,14 +151,6 @@ namespace BlackBartsGold.UI
                 UIManager.Instance.OnMiniMapClicked();
                 isMapOpen = true;
                 statusText = "Map opened";
-                return;
-            }
-            
-            if (ARHUD.Instance != null)
-            {
-                ARHUD.Instance.OnRadarTapped();
-                isMapOpen = true;
-                statusText = "Map opened via ARHUD";
                 return;
             }
             

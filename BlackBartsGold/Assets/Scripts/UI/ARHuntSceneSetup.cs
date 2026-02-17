@@ -18,7 +18,6 @@ using BlackBartsGold.Location;
 using BlackBartsGold.Core;
 using BlackBartsGold.Utils;
 using BlackBartsGold.AR;
-using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace BlackBartsGold.UI
 {
@@ -28,8 +27,6 @@ namespace BlackBartsGold.UI
         private readonly Color GoldColor = new Color(1f, 0.84f, 0f);
         private readonly Color SemiTransparentBlack = new Color(0, 0, 0, 0.5f);
 
-        private RectTransform radarRect;
-        private int touchLogCount = 0;
         private TextMeshProUGUI _debugDiagnosticsText;
         private RawImage _radarMapTileImage;
         private float _radarMapLastUpdate;
@@ -71,7 +68,6 @@ namespace BlackBartsGold.UI
             SetupFindLimitPanel();
             SetupDirectionIndicatorPanel();
             VerifyEventSystem();
-            SetupDirectTouchHandler();
             SetupLightship(); // Pokemon GO technology!
             
             // Subscribe to hunt mode - zoom radar in when coin selected
@@ -132,51 +128,6 @@ namespace BlackBartsGold.UI
             {
                 _lastDiagnosticUpdate = Time.time;
                 _debugDiagnosticsText.text = Core.UIManager.GetDiagnosticsString();
-            }
-
-            // Debug: Log touches every frame (first 20 touches only to avoid spam)
-            var activeTouches = Touch.activeTouches;
-            if (activeTouches.Count > 0 && touchLogCount < 20)
-            {
-                var touch = activeTouches[0];
-                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
-                {
-                    touchLogCount++;
-                    if (touchLogCount == 20)
-                        Debug.Log("[ARHuntSceneSetup] Touch logging CAPPED at 20 - further touches not logged");
-                    Debug.Log($"[ARHuntSceneSetup] TOUCH #{touchLogCount} at {touch.screenPosition}");
-                    
-                    // Check if touch is over radar
-                    if (radarRect != null)
-                    {
-                        Vector2 localPoint;
-                        bool isInside = RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                            radarRect, touch.screenPosition, null, out localPoint);
-                        bool contains = radarRect.rect.Contains(localPoint);
-                        Debug.Log($"[ARHuntSceneSetup] Radar check: localPoint={localPoint}, contains={contains}, rect={radarRect.rect}");
-                        
-                        // Manual click if touch is on radar
-                        if (contains)
-                        {
-                            Debug.Log("[ARHuntSceneSetup] Touch IS on radar - MANUAL trigger (bypassing Button) -> OnRadarClicked()");
-                            OnRadarClicked();
-                        }
-                    }
-                    
-                    // Log EventSystem info
-                    if (EventSystem.current != null)
-                    {
-                        var eventData = new PointerEventData(EventSystem.current);
-                        eventData.position = touch.screenPosition;
-                        var results = new System.Collections.Generic.List<RaycastResult>();
-                        EventSystem.current.RaycastAll(eventData, results);
-                        Debug.Log($"[ARHuntSceneSetup] EventSystem raycast hit {results.Count} objects");
-                        foreach (var r in results)
-                        {
-                            Debug.Log($"[ARHuntSceneSetup]   - Hit: {r.gameObject.name}");
-                        }
-                    }
-                }
             }
         }
 
@@ -417,9 +368,8 @@ namespace BlackBartsGold.UI
                 DiagnosticLog.Log("Setup", $"Found RadarPanel: {radar.name}");
             }
             
-            // Get or add RectTransform and store for touch detection
+            // Get or add RectTransform
             var rect = radar.GetComponent<RectTransform>();
-            radarRect = rect; // Store for Update() touch detection
             if (rect != null)
             {
                 // Position in top-right corner with safe margin (below status bar)
@@ -451,10 +401,8 @@ namespace BlackBartsGold.UI
                 Debug.Log("[ARHuntSceneSetup] Added Button to RadarPanel");
             }
             
-            // Wire up button to open full map
+            // Radar click ownership lives in RadarUI.SetupRadarTap() to avoid duplicate handlers.
             button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(OnRadarClicked);
-            Debug.Log("[ARHuntSceneSetup] RadarPanel button click handler registered");
             
             // Wire RadarUI and create radar content (player dot, coin sprite) - code-only
             var radarUI = radar.GetComponent<RadarUI>();
@@ -1381,24 +1329,6 @@ namespace BlackBartsGold.UI
         }
 
         /// <summary>
-        /// Called when radar is clicked - opens full map.
-        /// Single source of truth: UIManager's code-based map (Mapbox tile, zoom, coin markers).
-        /// </summary>
-        private void OnRadarClicked()
-        {
-            DiagnosticLog.Log("Radar", "CLICKED -> Opening full map");
-            
-            if (Core.UIManager.Instance != null)
-            {
-                Core.UIManager.Instance.OnMiniMapClicked();
-            }
-            else
-            {
-                Debug.LogError("[ARHuntSceneSetup] UIManager not found - cannot open map!");
-            }
-        }
-        
-        /// <summary>
         /// Setup Niantic Lightship for Pokemon GO-style AR features.
         /// Enables occlusion, meshing, semantics, and depth.
         /// </summary>
@@ -1423,27 +1353,6 @@ namespace BlackBartsGold.UI
             Debug.Log("  - Meshing: Coins sit on real surfaces");
             Debug.Log("  - Semantics: Sky/ground detection");
             Debug.Log("  - Depth: Better AR placement");
-        }
-        
-        /// <summary>
-        /// Setup the DirectTouchHandler for Pokemon GO style touch detection.
-        /// This bypasses Unity's EventSystem entirely for maximum reliability.
-        /// </summary>
-        private void SetupDirectTouchHandler()
-        {
-            Debug.Log("[ARHuntSceneSetup] Setting up DirectTouchHandler...");
-            
-            // Check if already exists
-            var existing = GetComponent<DirectTouchHandler>();
-            if (existing != null)
-            {
-                Debug.Log("[ARHuntSceneSetup] DirectTouchHandler already exists");
-                return;
-            }
-            
-            // Add the component
-            var handler = gameObject.AddComponent<DirectTouchHandler>();
-            Debug.Log("[ARHuntSceneSetup] Added DirectTouchHandler component!");
         }
         
         /// <summary>
