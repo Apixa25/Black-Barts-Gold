@@ -53,6 +53,20 @@ export function PlayerMarker({
   size = 32,
 }: PlayerMarkerProps) {
   const [showPopup, setShowPopup] = useState(false)
+
+  const playerDisplayName = useMemo(() => {
+    const trimmedName = player.user_name?.trim()
+    if (trimmedName) return trimmedName
+
+    const trimmedEmail = player.user_email?.trim()
+    if (trimmedEmail) return trimmedEmail
+
+    return "Unknown Player"
+  }, [player.user_name, player.user_email])
+
+  const playerInitial = useMemo(() => {
+    return playerDisplayName.charAt(0).toUpperCase() || "?"
+  }, [playerDisplayName])
   
   // Get current status (may have changed since data was fetched)
   const currentStatus = useMemo(() => {
@@ -116,7 +130,7 @@ export function PlayerMarker({
             <Avatar className="w-full h-full">
               <AvatarImage src={player.avatar_url || undefined} />
               <AvatarFallback className="bg-saddle-100 text-saddle-700 text-xs">
-                {player.user_name?.[0]?.toUpperCase() || <User className="w-3 h-3" />}
+                {playerInitial}
               </AvatarFallback>
             </Avatar>
           </div>
@@ -183,12 +197,12 @@ export function PlayerMarker({
               <Avatar className="h-10 w-10 border-2" style={{ borderColor: statusColors.fill }}>
                 <AvatarImage src={player.avatar_url || undefined} />
                 <AvatarFallback className="bg-saddle-100 text-saddle-700">
-                  {player.user_name?.[0]?.toUpperCase() || '?'}
+                  {playerInitial}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-saddle-dark truncate">
-                  {player.user_name || 'Anonymous'}
+                  {playerDisplayName}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs">
                   <span 

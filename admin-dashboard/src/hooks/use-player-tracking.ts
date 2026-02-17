@@ -81,7 +81,7 @@ function computeStatsFromPlayers(players: ActivePlayer[]): PlayerTrackingStats {
  */
 function transformToActivePlayer(
   location: PlayerLocation & { 
-    profiles?: { full_name: string | null; avatar_url: string | null } | null 
+    profiles?: { full_name: string | null; avatar_url: string | null; email?: string | null } | null
     zones?: { name: string } | null
   }
 ): ActivePlayer {
@@ -89,6 +89,7 @@ function transformToActivePlayer(
     id: location.id,
     user_id: location.user_id,
     user_name: location.profiles?.full_name || null,
+    user_email: location.profiles?.email || null,
     avatar_url: location.profiles?.avatar_url || null,
     latitude: location.latitude,
     longitude: location.longitude,
@@ -131,6 +132,7 @@ function generateMockPlayers(count: number = 5): ActivePlayer[] {
       id: `mock-player-${i}`,
       user_id: `user-${i}`,
       user_name: names[i % names.length],
+      user_email: `${names[i % names.length].toLowerCase()}@example.com`,
       avatar_url: null,
       latitude: baseLat + (Math.random() - 0.5) * 0.05,
       longitude: baseLng + (Math.random() - 0.5) * 0.05,
@@ -265,6 +267,7 @@ export function usePlayerTracking(
           id: location.id,
           user_id: location.user_id,
           user_name: null, // Will fetch separately if needed
+          user_email: null,
           avatar_url: null,
           latitude: location.latitude,
           longitude: location.longitude,
@@ -286,7 +289,7 @@ export function usePlayerTracking(
         const userIds = [...new Set(transformed.map(p => p.user_id))]
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url')
+          .select('*')
           .in('id', userIds)
         
         if (profiles) {
@@ -294,6 +297,7 @@ export function usePlayerTracking(
           transformed = transformed.map(p => ({
             ...p,
             user_name: profilesMap.get(p.user_id)?.full_name || null,
+            user_email: profilesMap.get(p.user_id)?.email || null,
             avatar_url: profilesMap.get(p.user_id)?.avatar_url || null,
           }))
         }

@@ -755,6 +755,7 @@ export interface ActivePlayer {
   id: string
   user_id: string
   user_name: string | null
+  user_email: string | null
   avatar_url: string | null
   
   // Position
