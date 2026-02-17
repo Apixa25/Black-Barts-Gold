@@ -40,6 +40,8 @@ namespace BlackBartsGold.UI
         private float _lastDiagnosticUpdate;
         private const float _diagnosticUpdateInterval = 0.5f;
         private int _radarZoom = 19; // 19 = default (3 levels closer); 21 = zoomed in when hunting
+        private Sprite _cachedMapCoinIconSprite;
+        private bool _mapCoinIconLoadLogged = false;
         
         private void Start()
         {
@@ -589,10 +591,55 @@ namespace BlackBartsGold.UI
                 return;
             }
 
-            var coinSprite = Resources.Load<Sprite>("UI/map-coin-icon");
-            if (coinSprite == null) coinSprite = Resources.Load<Sprite>("map-coin-icon");
+            var coinSprite = GetMapCoinIconSprite();
             radarUI.SetRuntimeReferences(rect, playerRect, sweepRect, northRect, coinSprite);
             Debug.Log("[ARHuntSceneSetup] Radar content wired successfully");
+        }
+        
+        /// <summary>
+        /// Resolve map-coin-icon from Resources with a Texture2D fallback.
+        /// Handles projects where import mode is Texture2D instead of Sprite.
+        /// </summary>
+        private Sprite GetMapCoinIconSprite()
+        {
+            if (_cachedMapCoinIconSprite != null)
+                return _cachedMapCoinIconSprite;
+            
+            var sprite = Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+            if (sprite != null)
+            {
+                _cachedMapCoinIconSprite = sprite;
+                if (!_mapCoinIconLoadLogged)
+                {
+                    _mapCoinIconLoadLogged = true;
+                    Debug.Log($"[ARHuntSceneSetup][MapIcon] Loaded as Sprite: {_cachedMapCoinIconSprite.texture.width}x{_cachedMapCoinIconSprite.texture.height}");
+                }
+                return _cachedMapCoinIconSprite;
+            }
+            
+            var tex = Resources.Load<Texture2D>("UI/map-coin-icon") ?? Resources.Load<Texture2D>("map-coin-icon");
+            if (tex != null)
+            {
+                _cachedMapCoinIconSprite = Sprite.Create(
+                    tex,
+                    new Rect(0, 0, tex.width, tex.height),
+                    new Vector2(0.5f, 0.5f),
+                    100f
+                );
+                if (!_mapCoinIconLoadLogged)
+                {
+                    _mapCoinIconLoadLogged = true;
+                    Debug.Log($"[ARHuntSceneSetup][MapIcon] Loaded via Texture2D fallback: {tex.width}x{tex.height}");
+                }
+                return _cachedMapCoinIconSprite;
+            }
+            
+            if (!_mapCoinIconLoadLogged)
+            {
+                _mapCoinIconLoadLogged = true;
+                Debug.LogWarning("[ARHuntSceneSetup][MapIcon] map-coin-icon not found in Resources (Sprite/Texture2D)");
+            }
+            return null;
         }
 
         /// <summary>

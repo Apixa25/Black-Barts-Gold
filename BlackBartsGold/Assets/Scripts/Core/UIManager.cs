@@ -1083,6 +1083,8 @@ namespace BlackBartsGold.Core
         private TMP_Text _zoomLevelText;
         private bool _mapLoadPending = false;
         private bool _fullMapTileIsOurCopy = false; // true if _fullMapTile was copied for Android UI
+        private Sprite _cachedMapCoinIconSprite;
+        private bool _mapCoinIconLoadLogged = false;
         
         /// <summary>
         /// On Android, RawImage sometimes does not display textures from UnityWebRequest (format/GPU).
@@ -1174,6 +1176,52 @@ namespace BlackBartsGold.Core
             var img = strip.AddComponent<Image>();
             img.color = color;
             img.raycastTarget = false;
+        }
+        
+        /// <summary>
+        /// Load map coin icon as Sprite from Resources with a Texture2D fallback.
+        /// This prevents yellow fallback squares when import settings are texture-only.
+        /// </summary>
+        private Sprite GetMapCoinIconSprite()
+        {
+            if (_cachedMapCoinIconSprite != null)
+                return _cachedMapCoinIconSprite;
+            
+            var sprite = Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+            if (sprite != null)
+            {
+                _cachedMapCoinIconSprite = sprite;
+                if (!_mapCoinIconLoadLogged)
+                {
+                    _mapCoinIconLoadLogged = true;
+                    Debug.Log($"[UIManager][MapIcon] Loaded as Sprite: {_cachedMapCoinIconSprite.texture.width}x{_cachedMapCoinIconSprite.texture.height}");
+                }
+                return _cachedMapCoinIconSprite;
+            }
+            
+            var tex = Resources.Load<Texture2D>("UI/map-coin-icon") ?? Resources.Load<Texture2D>("map-coin-icon");
+            if (tex != null)
+            {
+                _cachedMapCoinIconSprite = Sprite.Create(
+                    tex,
+                    new Rect(0, 0, tex.width, tex.height),
+                    new Vector2(0.5f, 0.5f),
+                    100f
+                );
+                if (!_mapCoinIconLoadLogged)
+                {
+                    _mapCoinIconLoadLogged = true;
+                    Debug.Log($"[UIManager][MapIcon] Loaded via Texture2D fallback: {tex.width}x{tex.height}");
+                }
+                return _cachedMapCoinIconSprite;
+            }
+            
+            if (!_mapCoinIconLoadLogged)
+            {
+                _mapCoinIconLoadLogged = true;
+                Debug.LogWarning("[UIManager][MapIcon] map-coin-icon not found in Resources (Sprite/Texture2D)");
+            }
+            return null;
         }
         
         private GameObject CreateSimpleFullMapPanel()
@@ -1687,7 +1735,7 @@ namespace BlackBartsGold.Core
             iconRect.anchoredPosition = new Vector2(0, 10);
             iconRect.sizeDelta = new Vector2(40, 40);
             var iconImg = iconObj.AddComponent<Image>();
-            var coinIconSprite = Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+            var coinIconSprite = GetMapCoinIconSprite();
             iconImg.sprite = coinIconSprite;
             iconImg.color = coinIconSprite != null ? Color.white : GoldColor;
             iconImg.raycastTarget = false;
@@ -2529,7 +2577,7 @@ namespace BlackBartsGold.Core
                 dot.anchorMax = new Vector2(0.5f, 0.5f);
                 dot.sizeDelta = new Vector2(48, 48); // 2x for bigger mini-map
                 var dotImage = dotObj.AddComponent<Image>();
-                var coinDotSprite = Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+                var coinDotSprite = GetMapCoinIconSprite();
                 dotImage.sprite = coinDotSprite;
                 dotImage.color = coinDotSprite != null ? Color.white : GoldColor;
                 dotImage.raycastTarget = false;

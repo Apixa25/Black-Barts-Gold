@@ -143,6 +143,8 @@ namespace BlackBartsGold.UI
         private Dictionary<string, RectTransform> coinMarkers = new Dictionary<string, RectTransform>();
         private Queue<RectTransform> markerPool = new Queue<RectTransform>();
         private string selectedMarkerId = null;
+        private Sprite _cachedMapCoinIconSprite;
+        private bool _mapCoinIconLoadLogged = false;
         
         #endregion
         
@@ -815,6 +817,52 @@ namespace BlackBartsGold.UI
         
         #region Object Pool
         
+        /// <summary>
+        /// Resolve map-coin-icon from Resources with a Texture2D fallback.
+        /// Handles projects where import mode is Texture2D instead of Sprite.
+        /// </summary>
+        private Sprite GetMapCoinIconSprite()
+        {
+            if (_cachedMapCoinIconSprite != null)
+                return _cachedMapCoinIconSprite;
+            
+            var sprite = coinMarkerSprite ?? Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+            if (sprite != null)
+            {
+                _cachedMapCoinIconSprite = sprite;
+                if (!_mapCoinIconLoadLogged)
+                {
+                    _mapCoinIconLoadLogged = true;
+                    Debug.Log($"[FullMapUI][MapIcon] Loaded as Sprite: {_cachedMapCoinIconSprite.texture.width}x{_cachedMapCoinIconSprite.texture.height}");
+                }
+                return _cachedMapCoinIconSprite;
+            }
+            
+            var tex = Resources.Load<Texture2D>("UI/map-coin-icon") ?? Resources.Load<Texture2D>("map-coin-icon");
+            if (tex != null)
+            {
+                _cachedMapCoinIconSprite = Sprite.Create(
+                    tex,
+                    new Rect(0, 0, tex.width, tex.height),
+                    new Vector2(0.5f, 0.5f),
+                    100f
+                );
+                if (!_mapCoinIconLoadLogged)
+                {
+                    _mapCoinIconLoadLogged = true;
+                    Debug.Log($"[FullMapUI][MapIcon] Loaded via Texture2D fallback: {tex.width}x{tex.height}");
+                }
+                return _cachedMapCoinIconSprite;
+            }
+            
+            if (!_mapCoinIconLoadLogged)
+            {
+                _mapCoinIconLoadLogged = true;
+                Debug.LogWarning("[FullMapUI][MapIcon] map-coin-icon not found in Resources (Sprite/Texture2D)");
+            }
+            return null;
+        }
+        
         private RectTransform GetMarkerFromPool()
         {
             if (markerPool.Count > 0)
@@ -833,7 +881,7 @@ namespace BlackBartsGold.UI
                 // Create default marker (map-coin-icon from Resources/UI)
                 markerObj = new GameObject("CoinMarker");
                 Image img = markerObj.AddComponent<Image>();
-                var sprite = coinMarkerSprite ?? Resources.Load<Sprite>("UI/map-coin-icon") ?? Resources.Load<Sprite>("map-coin-icon");
+                var sprite = GetMapCoinIconSprite();
                 img.sprite = sprite;
                 img.color = sprite != null ? Color.white : normalCoinColor;
                 img.preserveAspect = sprite != null;
