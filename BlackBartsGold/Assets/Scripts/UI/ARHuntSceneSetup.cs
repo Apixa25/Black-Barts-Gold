@@ -1179,6 +1179,8 @@ namespace BlackBartsGold.UI
                     arrowRectExisting != null && distTextExisting != null &&
                     valTextExisting != null && statTextExisting != null && arrowImgExisting != null)
                 {
+                    // Keep the panel active in hierarchy. CoinDirectionIndicator controls visibility via CanvasGroup.
+                    existing.gameObject.SetActive(true);
                     dirIndicatorExisting.SetRuntimeReferences(
                         arrowRectExisting,
                         distTextExisting,
@@ -1266,7 +1268,9 @@ namespace BlackBartsGold.UI
 
             var dirIndicator = panel.AddComponent<CoinDirectionIndicator>();
             dirIndicator.SetRuntimeReferences(arrowRect, distText, valText, statText, panelRect, bgPanel, arrowImg);
-            panel.SetActive(false);
+            // Keep active so lifecycle/event subscriptions run. Visibility is handled by CanvasGroup alpha.
+            panel.SetActive(true);
+            dirIndicator.Hide();
             DiagnosticLog.Log("Setup", "DirectionIndicatorPanel created");
         }
         

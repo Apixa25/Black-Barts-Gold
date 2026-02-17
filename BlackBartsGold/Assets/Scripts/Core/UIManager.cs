@@ -61,8 +61,9 @@ namespace BlackBartsGold.Core
         private GameObject currentPanel;
         private bool isInARMode = false;
         private bool _arHudWasVisibleBeforeFullMap = false;
-        private RadarUI _radarUIHiddenForFullMap;
-        private GameObject _radarPanelHiddenForFullMap;
+        private readonly List<RadarUI> _radarUIsHiddenForFullMap = new List<RadarUI>();
+        private readonly List<GameObject> _radarPanelsHiddenForFullMap = new List<GameObject>();
+        private readonly List<GameObject> _extraMiniMapObjectsHiddenForFullMap = new List<GameObject>();
         
         public bool IsInARMode => isInARMode;
         
@@ -1741,16 +1742,6 @@ namespace BlackBartsGold.Core
             iconImg.raycastTarget = false;
             iconImg.preserveAspect = coinIconSprite != null;
             
-            // Glow effect
-            var glowObj = new GameObject("Glow");
-            glowObj.transform.SetParent(iconObj.transform, false);
-            glowObj.transform.SetAsFirstSibling();
-            var glowRect = glowObj.AddComponent<RectTransform>();
-            glowRect.sizeDelta = new Vector2(55, 55);
-            var glowImg = glowObj.AddComponent<Image>();
-            glowImg.color = new Color(1f, 0.9f, 0.3f, 0.4f);
-            glowImg.raycastTarget = false;
-            
             // Value text
             var valueText = CreateText(marker.transform, "Value", $"${coin.value:F0}", 
                 Vector2.zero, 14, Color.white, FontStyles.Bold);
@@ -1769,9 +1760,9 @@ namespace BlackBartsGold.Core
             button.targetGraphic = iconImg;
             
             var colors = button.colors;
-            colors.normalColor = GoldColor;
-            colors.highlightedColor = new Color(1f, 0.95f, 0.5f);
-            colors.pressedColor = new Color(0.8f, 0.7f, 0.2f);
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 0.9f);
+            colors.pressedColor = new Color(1f, 1f, 1f, 0.8f);
             button.colors = colors;
             
             // Capture coin reference
@@ -1912,8 +1903,9 @@ namespace BlackBartsGold.Core
         private void HideMiniMapForFullMap()
         {
             _arHudWasVisibleBeforeFullMap = false;
-            _radarUIHiddenForFullMap = null;
-            _radarPanelHiddenForFullMap = null;
+            _radarUIsHiddenForFullMap.Clear();
+            _radarPanelsHiddenForFullMap.Clear();
+            _extraMiniMapObjectsHiddenForFullMap.Clear();
             
             if (arHudPanel != null && arHudPanel.activeSelf)
             {
@@ -1922,21 +1914,45 @@ namespace BlackBartsGold.Core
                 Debug.Log("[UIManager] Hid arHudPanel for full map");
             }
             
-            var radarUI = FindFirstObjectByType<RadarUI>();
-            if (radarUI != null && radarUI.IsVisible)
+            var radarUIs = FindObjectsByType<RadarUI>(FindObjectsSortMode.None);
+            foreach (var radarUI in radarUIs)
             {
-                _radarUIHiddenForFullMap = radarUI;
+                if (radarUI == null || !radarUI.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                _radarUIsHiddenForFullMap.Add(radarUI);
                 radarUI.Hide();
-                Debug.Log("[UIManager] Hid RadarUI for full map");
-                return;
+
+                // Defensive hide: if RadarUI has missing runtime refs, Hide() may not disable object.
+                if (radarUI.gameObject.activeSelf)
+                {
+                    radarUI.gameObject.SetActive(false);
+                    _extraMiniMapObjectsHiddenForFullMap.Add(radarUI.gameObject);
+                }
+                Debug.Log($"[UIManager] Hid RadarUI '{radarUI.gameObject.name}' for full map");
             }
             
             var radarPanel = GameObject.Find("RadarPanel");
             if (radarPanel != null && radarPanel.activeSelf)
             {
-                _radarPanelHiddenForFullMap = radarPanel;
+                _radarPanelsHiddenForFullMap.Add(radarPanel);
                 radarPanel.SetActive(false);
                 Debug.Log("[UIManager] Hid RadarPanel for full map");
+            }
+            
+            // Extra safety for alternate radar naming/layouts.
+            string[] extraMiniMapNames = { "MiniMapContainer", "Radar" };
+            foreach (var name in extraMiniMapNames)
+            {
+                var go = GameObject.Find(name);
+                if (go != null && go.activeSelf && go != arHudPanel && !_radarPanelsHiddenForFullMap.Contains(go))
+                {
+                    go.SetActive(false);
+                    _extraMiniMapObjectsHiddenForFullMap.Add(go);
+                    Debug.Log($"[UIManager] Hid {name} for full map");
+                }
             }
         }
         
@@ -1952,18 +1968,37 @@ namespace BlackBartsGold.Core
             }
             _arHudWasVisibleBeforeFullMap = false;
             
-            if (_radarUIHiddenForFullMap != null)
+            if (_radarUIsHiddenForFullMap.Count > 0)
             {
-                _radarUIHiddenForFullMap.Show();
-                _radarUIHiddenForFullMap = null;
-                _radarPanelHiddenForFullMap = null;
-                return;
+                foreach (var radarUI in _radarUIsHiddenForFullMap)
+                {
+                    if (radarUI != null)
+                    {
+                        radarUI.Show();
+                    }
+                }
+                _radarUIsHiddenForFullMap.Clear();
             }
             
-            if (_radarPanelHiddenForFullMap != null)
+            if (_radarPanelsHiddenForFullMap.Count > 0)
             {
-                _radarPanelHiddenForFullMap.SetActive(true);
-                _radarPanelHiddenForFullMap = null;
+                foreach (var radarPanel in _radarPanelsHiddenForFullMap)
+                {
+                    if (radarPanel != null)
+                    {
+                        radarPanel.SetActive(true);
+                    }
+                }
+                _radarPanelsHiddenForFullMap.Clear();
+            }
+            
+            if (_extraMiniMapObjectsHiddenForFullMap.Count > 0)
+            {
+                foreach (var go in _extraMiniMapObjectsHiddenForFullMap)
+                {
+                    if (go != null) go.SetActive(true);
+                }
+                _extraMiniMapObjectsHiddenForFullMap.Clear();
             }
         }
         

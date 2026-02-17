@@ -352,7 +352,7 @@ namespace BlackBartsGold.UI
         {
             Log($"Hunt mode: {mode}");
             
-            if (mode == HuntMode.Hunting && CoinManager.Instance.HasTarget)
+            if ((mode == HuntMode.Hunting || mode == HuntMode.Collecting) && CoinManager.Instance.HasTarget)
             {
                 Show();
             }
@@ -650,6 +650,12 @@ namespace BlackBartsGold.UI
         {
             Debug.Log($"[CoinDirectionIndicator] Show() called! CanvasGroup={canvasGroup != null}, Container={indicatorContainer != null}");
             
+            // Always ensure the root is active first. CanvasGroup alpha has no effect if the object is inactive.
+            if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+            }
+            
             // Prefer CanvasGroup for visibility.
             if (canvasGroup != null)
             {
@@ -676,6 +682,12 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void Hide()
         {
+            // Never deactivate root object; we need updates/events alive so Show() is always recoverable.
+            if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+            }
+            
             // Prefer CanvasGroup for visibility.
             if (canvasGroup != null)
             {
