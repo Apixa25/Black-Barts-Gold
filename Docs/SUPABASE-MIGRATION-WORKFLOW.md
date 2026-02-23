@@ -124,6 +124,6 @@ npm run supabase:db:pull
 
 For the profile upgrade (age/phone/avatar preset):
 
-- SQL migration: `admin-dashboard/supabase/migrations/011_profiles_contact_and_age.sql`
+- SQL migration: `admin-dashboard/supabase/migrations/013_profiles_contact_and_age.sql`
 - Profile API route: `admin-dashboard/src/app/api/v1/user/profile/route.ts`
 
