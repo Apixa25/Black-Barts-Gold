@@ -984,17 +984,48 @@ namespace BlackBartsGold.UI
 
             try
             {
+                string avatarBase64 = null;
+                string avatarMimeType = null;
+                if (pendingProfileTexture != null)
+                {
+                    byte[] jpg = pendingProfileTexture.EncodeToJPG(80);
+                    avatarBase64 = Convert.ToBase64String(jpg);
+                    avatarMimeType = "image/jpeg";
+                }
+
+                string avatarUrl = user.avatarUrl;
+                if (!string.IsNullOrWhiteSpace(avatarUrl) && !avatarUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) && !avatarUrl.StartsWith("preset://", StringComparison.OrdinalIgnoreCase))
+                {
+                    avatarUrl = null;
+                }
+
                 var payload = new ProfileUpdateRequest
                 {
                     email = user.email,
                     displayName = user.displayName,
                     age = user.age,
                     phoneNumber = string.IsNullOrWhiteSpace(user.phoneNumber) ? null : user.phoneNumber,
-                    avatarUrl = user.avatarUrl,
-                    avatarPresetId = user.avatarPresetId
+                    avatarUrl = avatarUrl,
+                    avatarPresetId = user.avatarPresetId,
+                    avatarBase64 = avatarBase64,
+                    avatarMimeType = avatarMimeType
                 };
 
-                await ApiClient.Instance.Patch<ProfileUpdateResponse>(ApiConfig.User.PROFILE, payload);
+                var response = await ApiClient.Instance.Patch<ProfileUpdateResponse>(ApiConfig.User.PROFILE, payload);
+                if (response != null && response.success && response.profile != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(response.profile.avatarUrl))
+                    {
+                        user.avatarUrl = response.profile.avatarUrl;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(response.profile.phoneNumber))
+                    {
+                        user.phoneNumber = response.profile.phoneNumber;
+                    }
+
+                    PlayerData.Instance.UpdateUser(user);
+                }
             }
             catch (Exception ex)
             {
@@ -1013,6 +1044,8 @@ namespace BlackBartsGold.UI
             public string phoneNumber;
             public string avatarUrl;
             public string avatarPresetId;
+            public string avatarBase64;
+            public string avatarMimeType;
         }
 
         [Serializable]
@@ -1020,6 +1053,14 @@ namespace BlackBartsGold.UI
         {
             public bool success;
             public string error;
+            public ProfilePayload profile;
+        }
+
+        [Serializable]
+        private class ProfilePayload
+        {
+            public string avatarUrl;
+            public string phoneNumber;
         }
         
         #region Debug

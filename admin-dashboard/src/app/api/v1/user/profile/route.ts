@@ -24,7 +24,12 @@ interface UpdateProfileRequest {
   phoneNumber?: string | null
   avatarUrl?: string | null
   avatarPresetId?: string | null
+  avatarBase64?: string | null
+  avatarMimeType?: string | null
 }
+
+const AVATAR_BUCKET = 'profile-images'
+const MAX_AVATAR_BYTES = 6 * 1024 * 1024
 
 function normalizePhoneE164(input: string | null | undefined): string | null {
   if (!input) return null
@@ -37,6 +42,16 @@ function normalizePhoneE164(input: string | null | undefined): string | null {
 function isValidE164(phone: string | null): boolean {
   if (!phone) return true
   return /^\+[1-9]\d{7,14}$/.test(phone)
+}
+
+async function ensureAvatarBucket(serviceClient: ReturnType<typeof createServiceRoleClient>) {
+  const { data: existingBucket } = await serviceClient.storage.getBucket(AVATAR_BUCKET)
+  if (existingBucket) return
+
+  await serviceClient.storage.createBucket(AVATAR_BUCKET, {
+    public: true,
+    fileSizeLimit: `${MAX_AVATAR_BYTES}`,
+  })
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse<ProfileResponse>> {
@@ -149,6 +164,44 @@ export async function PATCH(request: NextRequest): Promise<NextResponse<ProfileR
       }
 
       updates.email = email
+    }
+
+    if (typeof body.avatarBase64 === 'string' && body.avatarBase64.trim()) {
+      const avatarMimeType = body.avatarMimeType?.trim() || 'image/jpeg'
+      if (!/^image\/(jpeg|jpg|png|webp)$/i.test(avatarMimeType)) {
+        return NextResponse.json({ success: false, error: 'Unsupported avatar image type' }, { status: 400 })
+      }
+
+      let avatarBytes: Buffer
+      try {
+        avatarBytes = Buffer.from(body.avatarBase64, 'base64')
+      } catch {
+        return NextResponse.json({ success: false, error: 'Avatar image encoding is invalid' }, { status: 400 })
+      }
+
+      if (avatarBytes.length <= 0 || avatarBytes.length > MAX_AVATAR_BYTES) {
+        return NextResponse.json({ success: false, error: 'Avatar image must be between 1 byte and 6MB' }, { status: 400 })
+      }
+
+      await ensureAvatarBucket(serviceClient)
+      const extension = avatarMimeType.toLowerCase().includes('png')
+        ? 'png'
+        : avatarMimeType.toLowerCase().includes('webp')
+          ? 'webp'
+          : 'jpg'
+      const avatarPath = `${authData.user.id}/avatar.${extension}`
+
+      const { error: uploadError } = await serviceClient.storage
+        .from(AVATAR_BUCKET)
+        .upload(avatarPath, avatarBytes, { contentType: avatarMimeType, upsert: true })
+
+      if (uploadError) {
+        console.error('[User Profile PATCH] Avatar upload failed:', uploadError.message)
+        return NextResponse.json({ success: false, error: 'Failed to upload avatar image' }, { status: 500 })
+      }
+
+      const { data: publicUrlData } = serviceClient.storage.from(AVATAR_BUCKET).getPublicUrl(avatarPath)
+      updates.avatar_url = publicUrlData?.publicUrl || null
     }
 
     updates.updated_at = new Date().toISOString()
