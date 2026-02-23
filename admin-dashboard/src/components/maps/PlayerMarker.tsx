@@ -61,12 +61,12 @@ export function PlayerMarker({
     const trimmedEmail = player.user_email?.trim()
     if (trimmedEmail) return trimmedEmail
 
-    return "Unknown Player"
-  }, [player.user_name, player.user_email])
+    if (player.user_id) {
+      return `Player ${player.user_id.slice(0, 6)}`
+    }
 
-  const playerInitial = useMemo(() => {
-    return playerDisplayName.charAt(0).toUpperCase() || "?"
-  }, [playerDisplayName])
+    return "Player"
+  }, [player.user_name, player.user_email, player.user_id])
 
   const playerDisplayEmail = useMemo(() => {
     const trimmedEmail = player.user_email?.trim()
@@ -140,7 +140,7 @@ export function PlayerMarker({
             <Avatar className="w-full h-full">
               <AvatarImage src={player.avatar_url || undefined} />
               <AvatarFallback className="bg-saddle-100 text-saddle-700 text-xs">
-                {playerInitial}
+                <User className="w-3 h-3" />
               </AvatarFallback>
             </Avatar>
           </div>
@@ -207,7 +207,7 @@ export function PlayerMarker({
               <Avatar className="h-10 w-10 border-2" style={{ borderColor: statusColors.fill }}>
                 <AvatarImage src={player.avatar_url || undefined} />
                 <AvatarFallback className="bg-saddle-100 text-saddle-700">
-                  {playerInitial}
+                  <User className="w-4 h-4" />
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">

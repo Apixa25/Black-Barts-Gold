@@ -34,7 +34,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
-import { keysToSnakeCase } from '@/lib/api-utils'
 
 // Request body type (camelCase from Unity)
 interface LocationUpdateRequest {
@@ -250,6 +249,109 @@ export async function POST(request: NextRequest) {
         error: 'Internal server error',
         code: 'INTERNAL_ERROR'
       },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * GET /api/v1/player/location
+ *
+ * Returns active player rows for the admin dashboard map, enriched with
+ * profile details (name/email/avatar) and optional zone names.
+ * Uses service role client so admin map cards have complete profile context.
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const includeOffline = searchParams.get('includeOffline') === 'true'
+    const zoneId = searchParams.get('zoneId')
+
+    const supabase = createServiceRoleClient()
+
+    let query = supabase
+      .from('player_locations')
+      .select('*')
+      .order('updated_at', { ascending: false })
+
+    if (zoneId) {
+      query = query.eq('current_zone_id', zoneId)
+    }
+
+    // Keep default behavior aligned with dashboard: active/idle/stale only.
+    if (!includeOffline) {
+      const cutoffTime = new Date()
+      cutoffTime.setMinutes(cutoffTime.getMinutes() - 30)
+      query = query.gte('updated_at', cutoffTime.toISOString())
+    }
+
+    const { data: locations, error: locationsError } = await query
+    if (locationsError) {
+      console.error('[API] Error fetching player locations:', locationsError)
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch player locations', code: 'DB_ERROR' },
+        { status: 500 }
+      )
+    }
+
+    const rows = locations || []
+    if (rows.length === 0) {
+      return NextResponse.json({ success: true, players: [] })
+    }
+
+    const uniqueUserIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))]
+    const uniqueZoneIds = [...new Set(rows.map((r: any) => r.current_zone_id).filter(Boolean))]
+
+    const [{ data: profiles }, { data: zones }] = await Promise.all([
+      uniqueUserIds.length > 0
+        ? supabase.from('profiles').select('id, full_name, email, avatar_url').in('id', uniqueUserIds)
+        : Promise.resolve({ data: [] as any[] }),
+      uniqueZoneIds.length > 0
+        ? supabase.from('zones').select('id, name').in('id', uniqueZoneIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ])
+
+    const profilesMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+    const zonesMap = new Map((zones || []).map((z: any) => [z.id, z]))
+
+    const players = rows.map((location: any) => {
+      const profile = profilesMap.get(location.user_id)
+      const zone = zonesMap.get(location.current_zone_id)
+      const updatedAtMs = new Date(location.updated_at).getTime()
+      const ageMs = Date.now() - updatedAtMs
+      const ageSec = Math.floor(ageMs / 1000)
+
+      let activityStatus: 'active' | 'idle' | 'stale' | 'offline' = 'offline'
+      if (ageSec <= 30) activityStatus = 'active'
+      else if (ageSec <= 120) activityStatus = 'idle'
+      else if (ageSec <= 600) activityStatus = 'stale'
+
+      return {
+        id: location.id,
+        user_id: location.user_id,
+        user_name: profile?.full_name || null,
+        user_email: profile?.email || null,
+        avatar_url: profile?.avatar_url || null,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracy_meters: location.accuracy_meters,
+        heading: location.heading,
+        activity_status: activityStatus,
+        is_ar_active: location.is_ar_active,
+        movement_type: location.movement_type,
+        current_zone_id: location.current_zone_id,
+        current_zone_name: zone?.name || null,
+        coins_collected_session: 0,
+        time_active_minutes: 0,
+        last_updated: location.updated_at,
+      }
+    })
+
+    return NextResponse.json({ success: true, players })
+  } catch (error) {
+    console.error('[API] Unexpected error in GET /player/location:', error)
+    return NextResponse.json(
+      { success: false, error: 'Internal server error', code: 'INTERNAL_ERROR' },
       { status: 500 }
     )
   }

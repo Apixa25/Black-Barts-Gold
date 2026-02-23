@@ -13,14 +13,11 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
 import type { 
   ActivePlayer, 
-  PlayerLocation, 
   PlayerTrackingStats,
   PlayerActivityStatus 
 } from "@/types/database"
 import { 
-  getActivityStatus, 
-  PLAYER_UPDATE_INTERVALS,
-  PLAYER_ACTIVITY_THRESHOLDS 
+  PLAYER_UPDATE_INTERVALS
 } from "@/components/maps/player-config"
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
@@ -73,36 +70,6 @@ function computeStatsFromPlayers(players: ActivePlayer[]): PlayerTrackingStats {
     suspicious_players: players.filter((p) => p.movement_type === 'suspicious').length,
     average_session_minutes: 0,
     total_distance_traveled_km: 0,
-  }
-}
-
-/**
- * Transform raw player location data to ActivePlayer format
- */
-function transformToActivePlayer(
-  location: PlayerLocation & { 
-    profiles?: { full_name: string | null; avatar_url: string | null; email?: string | null } | null
-    zones?: { name: string } | null
-  }
-): ActivePlayer {
-  return {
-    id: location.id,
-    user_id: location.user_id,
-    user_name: location.profiles?.full_name || null,
-    user_email: location.profiles?.email || null,
-    avatar_url: location.profiles?.avatar_url || null,
-    latitude: location.latitude,
-    longitude: location.longitude,
-    accuracy_meters: location.accuracy_meters,
-    heading: location.heading,
-    activity_status: getActivityStatus(location.updated_at),
-    is_ar_active: location.is_ar_active,
-    movement_type: location.movement_type,
-    current_zone_id: location.current_zone_id,
-    current_zone_name: location.zones?.name || null,
-    coins_collected_session: 0, // TODO: Join with session stats
-    time_active_minutes: 0,     // TODO: Calculate from session start
-    last_updated: location.updated_at,
   }
 }
 
@@ -179,7 +146,7 @@ export function usePlayerTracking(
    */
   const fetchPlayers = useCallback(async () => {
     try {
-      // Use real Supabase data (Realtime enabled)
+      // Use real API data by default; mock path remains for emergency fallback.
       const useMockData = false
       
       if (useMockData) {
@@ -213,95 +180,25 @@ export function usePlayerTracking(
         return
       }
       
-      // Real Supabase query (for when table exists)
-      // Use simpler query first - avoid joins that might fail
-      let query = supabase
-        .from('player_locations')
-        .select('*')
-        .order('updated_at', { ascending: false })
-      
-      // Filter by zone if specified
-      if (zoneId) {
-        query = query.eq('current_zone_id', zoneId)
-      }
-      
-      // Filter out old entries unless including offline
-      if (!includeOffline) {
-        const cutoffTime = new Date()
-        cutoffTime.setSeconds(cutoffTime.getSeconds() - PLAYER_ACTIVITY_THRESHOLDS.stale)
-        query = query.gte('updated_at', cutoffTime.toISOString())
-      }
-      
-      // Check auth first
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      console.log('🔐 Auth check:', {
-        authenticated: !!user,
-        email: user?.email,
-        userId: user?.id,
+      const params = new URLSearchParams()
+      if (zoneId) params.set('zoneId', zoneId)
+      if (includeOffline) params.set('includeOffline', 'true')
+      const queryString = params.toString()
+      const url = `/api/v1/player/location${queryString ? `?${queryString}` : ''}`
+
+      const response = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
       })
-      
-      if (authError) {
-        console.error('❌ Auth error:', authError)
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        const message = payload?.error || `Failed to fetch players (${response.status})`
+        throw new Error(message)
       }
-      
-      const { data, error: fetchError } = await query
-      
-      if (fetchError) {
-        console.error('❌ Supabase query error:', fetchError)
-        console.error('Error details:', {
-          message: fetchError.message,
-          details: fetchError.details,
-          hint: fetchError.hint,
-          code: fetchError.code,
-        })
-        
-        // Log full error object for debugging
-        console.error('Full error object:', JSON.stringify(fetchError, null, 2))
-        throw fetchError
-      }
-      
-      // Transform locations to active players
-      let transformed = (data || []).map((location: any) => {
-        // Transform without joins (profiles/zones fetched separately if needed)
-        return {
-          id: location.id,
-          user_id: location.user_id,
-          user_name: null, // Will fetch separately if needed
-          user_email: null,
-          avatar_url: null,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          accuracy_meters: location.accuracy_meters,
-          heading: location.heading,
-          activity_status: getActivityStatus(location.updated_at),
-          is_ar_active: location.is_ar_active,
-          movement_type: location.movement_type,
-          current_zone_id: location.current_zone_id,
-          current_zone_name: null, // Will fetch separately if needed
-          coins_collected_session: 0,
-          time_active_minutes: 0,
-          last_updated: location.updated_at,
-        } as ActivePlayer
-      })
-      
-      // Optionally fetch user names for players (if needed)
-      if (transformed.length > 0) {
-        const userIds = [...new Set(transformed.map(p => p.user_id))]
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('id', userIds)
-        
-        if (profiles) {
-          const profilesMap = new Map(profiles.map(p => [p.id, p]))
-          transformed = transformed.map(p => ({
-            ...p,
-            user_name: profilesMap.get(p.user_id)?.full_name || null,
-            user_email: profilesMap.get(p.user_id)?.email || null,
-            avatar_url: profilesMap.get(p.user_id)?.avatar_url || null,
-          }))
-        }
-      }
+
+      const payload = await response.json()
+      let transformed: ActivePlayer[] = payload?.players || []
       
       if (statusFilter) {
         transformed = transformed.filter((p: ActivePlayer) =>
@@ -332,7 +229,7 @@ export function usePlayerTracking(
       
       setError(errorMessage)
     }
-  }, [supabase, zoneId, statusFilter, includeOffline])
+  }, [zoneId, statusFilter, includeOffline])
   
   /**
    * Set up real-time subscription
@@ -353,29 +250,9 @@ export function usePlayerTracking(
           table: 'player_locations',
           ...(zoneId ? { filter: `current_zone_id=eq.${zoneId}` } : {}),
         } as any,
-        (payload: { eventType: string; new?: PlayerLocation; old?: PlayerLocation }) => {
-          console.log('Player location change:', payload)
-
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const newLocation = payload.new as PlayerLocation
-            const activePlayer = transformToActivePlayer(newLocation)
-
-            setPlayers(prev => {
-              const index = prev.findIndex((p: ActivePlayer) => p.user_id === activePlayer.user_id)
-              const next = index >= 0
-                ? [...prev.slice(0, index), activePlayer, ...prev.slice(index + 1)]
-                : [...prev, activePlayer]
-              setStats(computeStatsFromPlayers(next))
-              return next
-            })
-          } else if (payload.eventType === 'DELETE') {
-            const oldLocation = payload.old as PlayerLocation
-            setPlayers(prev => {
-              const next = prev.filter((p: ActivePlayer) => p.user_id !== oldLocation.user_id)
-              setStats(computeStatsFromPlayers(next))
-              return next
-            })
-          }
+        () => {
+          // Always re-fetch enriched rows so popups have real names/avatars.
+          fetchPlayers()
         }
       )
       .subscribe((status: string) => {
@@ -388,7 +265,7 @@ export function usePlayerTracking(
       })
     
     channelRef.current = channel
-  }, [supabase, enabled, zoneId])
+  }, [supabase, enabled, zoneId, fetchPlayers])
   
   /**
    * Cleanup subscription
