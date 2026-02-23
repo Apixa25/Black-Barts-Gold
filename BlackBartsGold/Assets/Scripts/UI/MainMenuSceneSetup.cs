@@ -44,6 +44,7 @@ namespace BlackBartsGold.UI
             SetupTitle();
             SetupStartHuntButton();
             SetupWalletButton();
+            SetupProfileButton();
             SetupSettingsButton();
             DisableDebugPanels();
             
@@ -166,7 +167,7 @@ namespace BlackBartsGold.UI
                 image.color = GoldColor;
             }
 
-            SetupButtonText(btn, "🏴‍☠️ START HUNTING", 40);
+            SetupButtonText(btn, "START HUNTING", 40);
         }
 
         private void SetupWalletButton()
@@ -218,7 +219,31 @@ namespace BlackBartsGold.UI
                 image.color = Parchment;
             }
 
-            SetupButtonText(btn, "⚙️ SETTINGS", 32);
+            SetupButtonText(btn, "SETTINGS", 32);
+        }
+
+        private void SetupProfileButton()
+        {
+            var btn = transform.Find("ProfileButton");
+            if (btn == null) { Debug.Log("[MainMenuSceneSetup] ⚠️ ProfileButton not found"); return; }
+
+            var rect = btn.GetComponent<RectTransform>();
+            if (rect != null)
+            {
+                rect.anchorMin = new Vector2(0.5f, 0.5f);
+                rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.anchoredPosition = new Vector2(0, -290);
+                rect.sizeDelta = new Vector2(550, 90);
+            }
+
+            var image = btn.GetComponent<Image>();
+            if (image != null)
+            {
+                image.color = Parchment;
+            }
+
+            SetupButtonText(btn, "MY PROFILE", 32);
         }
 
         private void SetupButtonText(Transform button, string label, int fontSize)

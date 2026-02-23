@@ -179,7 +179,7 @@ namespace BlackBartsGold.UI
         {
             // Start Hunt Button - Main button, larger
             SetupButton(startHuntRect, startHuntImage, startHuntButton, 
-                "StartHuntButton", "🏴‍☠️ START HUNTING", 
+                "StartHuntButton", "START HUNTING", 
                 0, -100, 600, 120, GoldColor, DarkBrown, true);
             
             // Wallet Button
@@ -189,7 +189,7 @@ namespace BlackBartsGold.UI
             
             // Settings Button
             SetupButton(settingsRect, settingsImage, settingsButton,
-                "SettingsButton", "⚙️ SETTINGS",
+                "SettingsButton", "SETTINGS",
                 0, -380, 500, 100, Parchment, DarkBrown, false);
         }
         

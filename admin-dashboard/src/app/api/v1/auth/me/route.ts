@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createPublicClient } from '@/lib/supabase/server'
+import { createPublicClient, createServiceRoleClient } from '@/lib/supabase/server'
 
 interface MeResponse {
   success: boolean
@@ -16,6 +16,8 @@ interface MeResponse {
     email: string
     displayName: string | null
     avatarUrl: string | null
+    phoneNumber: string | null
+    age: number | null
     role: string
     createdAt: string
   }
@@ -45,6 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<MeResponse
 
     // Create Supabase client
     const supabase = createPublicClient()
+    const serviceClient = createServiceRoleClient()
 
     // Validate token and get user
     const { data: userData, error: userError } = await supabase.auth.getUser(token)
@@ -71,7 +74,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<MeResponse
     }
 
     // Fetch user profile
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await serviceClient
       .from('profiles')
       .select('*')
       .eq('id', userData.user.id)
@@ -89,6 +92,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<MeResponse
         email: userData.user.email || '',
         displayName: profile?.full_name || userData.user.user_metadata?.full_name || null,
         avatarUrl: profile?.avatar_url || userData.user.user_metadata?.avatar_url || null,
+        phoneNumber: profile?.phone || null,
+        age: profile?.age || null,
         role: profile?.role || 'user',
         createdAt: userData.user.created_at,
       }

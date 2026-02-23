@@ -8,6 +8,7 @@
 // ============================================================================
 
 using System;
+using System.Text.RegularExpressions;
 
 namespace BlackBartsGold.Core.Models
 {
@@ -134,6 +135,11 @@ namespace BlackBartsGold.Core.Models
         /// User's age (for legal compliance)
         /// </summary>
         public int age;
+
+        /// <summary>
+        /// Optional phone number in normalized E.164 format (+15551234567).
+        /// </summary>
+        public string phoneNumber;
 
         /// <summary>
         /// Whether user dismissed first-time profile completion prompt.
@@ -266,7 +272,55 @@ namespace BlackBartsGold.Core.Models
         /// </summary>
         public bool IsProfileComplete()
         {
-            return !string.IsNullOrWhiteSpace(displayName) && age >= 13 && HasAvatar();
+            return !string.IsNullOrWhiteSpace(displayName)
+                && age >= 13
+                && IsEmailValid()
+                && IsPhoneNumberValid()
+                && HasAvatar();
+        }
+
+        /// <summary>
+        /// Validate email with a conservative RFC-like pattern.
+        /// </summary>
+        public bool IsEmailValid()
+        {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+            return Regex.IsMatch(email.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+        }
+
+        /// <summary>
+        /// Validate optional phone number as E.164. Empty is valid (optional field).
+        /// </summary>
+        public bool IsPhoneNumberValid()
+        {
+            if (string.IsNullOrWhiteSpace(phoneNumber)) return true;
+            return Regex.IsMatch(phoneNumber.Trim(), @"^\+[1-9]\d{7,14}$");
+        }
+
+        /// <summary>
+        /// Normalize raw phone input to E.164-ish format.
+        /// </summary>
+        public static string NormalizePhoneNumber(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+
+            string trimmed = raw.Trim();
+            bool hasPlus = trimmed.StartsWith("+");
+            var chars = new char[trimmed.Length];
+            int idx = 0;
+
+            for (int i = 0; i < trimmed.Length; i++)
+            {
+                char c = trimmed[i];
+                if (char.IsDigit(c))
+                {
+                    chars[idx++] = c;
+                }
+            }
+
+            if (idx == 0) return string.Empty;
+            string digits = new string(chars, 0, idx);
+            return hasPlus ? "+" + digits : "+" + digits;
         }
 
         /// <summary>

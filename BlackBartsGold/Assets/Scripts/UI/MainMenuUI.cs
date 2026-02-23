@@ -12,7 +12,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
-using System.Collections.Generic;
+using System.IO;
+using System.Text.RegularExpressions;
 using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 namespace BlackBartsGold.UI
@@ -106,25 +107,19 @@ namespace BlackBartsGold.UI
         private bool canHunt = true;
         private GameObject profilePanel;
         private TMP_InputField profileDisplayNameInput;
-        private TMP_Text profileAgeText;
-        private TMP_Text profileAvatarPresetText;
+        private TMP_InputField profileAgeInput;
+        private TMP_InputField profileEmailInput;
+        private TMP_InputField profilePhoneInput;
+        private Image profilePhotoPreview;
+        private TMP_Text profileValidationText;
+        private TMP_Text profilePhotoStatusText;
         private TMP_Text profileWalletHintText;
-        private Button profilePrevAvatarButton;
-        private Button profileNextAvatarButton;
+        private Button profilePickGalleryButton;
+        private Button profileTakePhotoButton;
         private Button profileSaveButton;
         private Button profileCloseButton;
         private Button profileSkipButton;
-        private int selectedAvatarPresetIndex;
-
-        private static readonly List<string> AvatarPresetIds = new List<string>
-        {
-            "outlaw-hat-01",
-            "outlaw-bandana-02",
-            "stagecoach-scout-03",
-            "desert-ranger-04",
-            "gold-rush-05",
-            "frontier-captain-06"
-        };
+        private Texture2D pendingProfileTexture;
         
         #endregion
         
@@ -333,21 +328,29 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void UpdateHuntButtonState(bool canPlay)
         {
-            canHunt = canPlay;
+            bool profileReady = PlayerData.Exists && PlayerData.Instance.CurrentUser != null && PlayerData.Instance.CurrentUser.IsProfileComplete();
+            canHunt = canPlay && profileReady;
             
             if (startHuntingButton != null)
             {
-                startHuntingButton.interactable = canPlay;
+                startHuntingButton.interactable = canHunt;
             }
             
             if (startHuntingText != null)
             {
-                startHuntingText.text = canPlay ? "Start Hunting" : "Out of Gas";
+                if (!profileReady)
+                {
+                    startHuntingText.text = "Complete Profile";
+                }
+                else
+                {
+                    startHuntingText.text = canPlay ? "Start Hunting" : "Out of Gas";
+                }
             }
             
             if (noGasPanel != null)
             {
-                noGasPanel.SetActive(!canPlay);
+                noGasPanel.SetActive(profileReady && !canPlay);
             }
         }
         
@@ -375,6 +378,16 @@ namespace BlackBartsGold.UI
         {
             Log("Start Hunting clicked");
             
+            if (PlayerData.Exists && PlayerData.Instance.CurrentUser != null && !PlayerData.Instance.CurrentUser.IsProfileComplete())
+            {
+                OpenProfilePanel(true);
+                if (profileValidationText != null)
+                {
+                    profileValidationText.text = "Complete your profile before you can start hunting.";
+                }
+                return;
+            }
+
             if (!canHunt)
             {
                 // Show no gas message
@@ -475,7 +488,7 @@ namespace BlackBartsGold.UI
         {
             if (profileButton == null)
             {
-                profileButton = CreateMainMenuButton("ProfileButton", "\u263a PROFILE", new Vector2(0, -290), new Vector2(550, 90));
+                profileButton = CreateMainMenuButton("ProfileButton", "MY PROFILE", new Vector2(0, -290), new Vector2(550, 90));
             }
 
             if (profilePanel == null)
@@ -530,7 +543,7 @@ namespace BlackBartsGold.UI
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(860, 980);
+            rect.sizeDelta = new Vector2(860, 1220);
 
             var image = panelGo.AddComponent<Image>();
             image.color = new Color(0f, 0f, 0f, 0.9f);
@@ -539,35 +552,43 @@ namespace BlackBartsGold.UI
             CreateLabel(panelGo.transform, "IdentityHeader", "Identity", new Vector2(-300, -130), new Vector2(300, 40), 32, goldColor, TextAlignmentOptions.Left);
 
             CreateLabel(panelGo.transform, "DisplayNameLabel", "Display Name", new Vector2(-300, -190), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
-            profileDisplayNameInput = CreateInputField(panelGo.transform, "DisplayNameInput", new Vector2(0, -245), new Vector2(620, 72));
+            profileDisplayNameInput = CreateInputField(panelGo.transform, "DisplayNameInput", "Enter display name", TMP_InputField.ContentType.Standard, 20, new Vector2(0, -245), new Vector2(620, 72));
 
             CreateLabel(panelGo.transform, "AgeLabel", "Age", new Vector2(-300, -325), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
-            profileAgeText = CreateLabel(panelGo.transform, "AgeValue", "-", new Vector2(0, -325), new Vector2(620, 48), 30, Color.white, TextAlignmentOptions.Left);
+            profileAgeInput = CreateInputField(panelGo.transform, "AgeInput", "Enter age", TMP_InputField.ContentType.IntegerNumber, 3, new Vector2(0, -380), new Vector2(620, 72));
 
-            CreateLabel(panelGo.transform, "AvatarLabel", "Avatar Preset", new Vector2(-300, -390), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
-            profilePrevAvatarButton = CreatePanelButton(panelGo.transform, "AvatarPrevButton", "<", new Vector2(-210, -445), new Vector2(70, 56), 32);
-            profileAvatarPresetText = CreateLabel(panelGo.transform, "AvatarPresetValue", "-", new Vector2(0, -445), new Vector2(420, 56), 28, Color.white, TextAlignmentOptions.Center);
-            profileNextAvatarButton = CreatePanelButton(panelGo.transform, "AvatarNextButton", ">", new Vector2(210, -445), new Vector2(70, 56), 32);
+            CreateLabel(panelGo.transform, "EmailLabel", "Email", new Vector2(-300, -460), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profileEmailInput = CreateInputField(panelGo.transform, "EmailInput", "name@example.com", TMP_InputField.ContentType.EmailAddress, 80, new Vector2(0, -515), new Vector2(620, 72));
+
+            CreateLabel(panelGo.transform, "PhoneLabel", "Phone (Optional, E.164)", new Vector2(-300, -595), new Vector2(520, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profilePhoneInput = CreateInputField(panelGo.transform, "PhoneInput", "+14155552671", TMP_InputField.ContentType.Standard, 20, new Vector2(0, -650), new Vector2(620, 72));
+
+            CreateLabel(panelGo.transform, "PhotoLabel", "Profile Picture", new Vector2(-300, -730), new Vector2(300, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profilePhotoPreview = CreatePhotoPreview(panelGo.transform, "ProfilePhotoPreview", new Vector2(-185, -805), new Vector2(120, 120));
+            profileTakePhotoButton = CreatePanelButton(panelGo.transform, "TakePhotoButton", "Camera", new Vector2(30, -785), new Vector2(200, 64), 24);
+            profilePickGalleryButton = CreatePanelButton(panelGo.transform, "PickGalleryButton", "Gallery", new Vector2(250, -785), new Vector2(200, 64), 24);
+            profilePhotoStatusText = CreateLabel(panelGo.transform, "PhotoStatus", "Upload from camera or gallery.", new Vector2(130, -850), new Vector2(500, 40), 22, new Color(0.9f, 0.9f, 0.9f, 1f), TextAlignmentOptions.Left);
+            profileValidationText = CreateLabel(panelGo.transform, "ProfileValidationText", "", new Vector2(0, -900), new Vector2(700, 48), 24, warningColor, TextAlignmentOptions.Center);
 
             profileWalletHintText = CreateLabel(
                 panelGo.transform,
                 "WalletHint",
                 "Wallet balances and transactions now live in MY WALLET.",
-                new Vector2(0, -585),
+                new Vector2(0, -950),
                 new Vector2(700, 90),
-                24,
+                22,
                 new Color(0.9f, 0.9f, 0.9f, 1f),
                 TextAlignmentOptions.Center
             );
 
-            profileSaveButton = CreatePanelButton(panelGo.transform, "SaveProfileButton", "Save Profile", new Vector2(-180, -840), new Vector2(240, 72), 30);
-            profileCloseButton = CreatePanelButton(panelGo.transform, "CloseProfileButton", "Close", new Vector2(95, -840), new Vector2(180, 72), 30);
-            profileSkipButton = CreatePanelButton(panelGo.transform, "SkipProfileButton", "Skip For Now", new Vector2(320, -840), new Vector2(240, 72), 24);
+            profileSaveButton = CreatePanelButton(panelGo.transform, "SaveProfileButton", "Save Profile", new Vector2(-180, -1060), new Vector2(240, 72), 30);
+            profileCloseButton = CreatePanelButton(panelGo.transform, "CloseProfileButton", "Close", new Vector2(95, -1060), new Vector2(180, 72), 30);
+            profileSkipButton = CreatePanelButton(panelGo.transform, "SkipProfileButton", "Skip For Now", new Vector2(320, -1060), new Vector2(240, 72), 24);
 
-            profilePrevAvatarButton.onClick.RemoveAllListeners();
-            profilePrevAvatarButton.onClick.AddListener(OnAvatarPrevClicked);
-            profileNextAvatarButton.onClick.RemoveAllListeners();
-            profileNextAvatarButton.onClick.AddListener(OnAvatarNextClicked);
+            profileTakePhotoButton.onClick.RemoveAllListeners();
+            profileTakePhotoButton.onClick.AddListener(OnTakePhotoClicked);
+            profilePickGalleryButton.onClick.RemoveAllListeners();
+            profilePickGalleryButton.onClick.AddListener(OnPickGalleryClicked);
             profileSaveButton.onClick.RemoveAllListeners();
             profileSaveButton.onClick.AddListener(OnProfileSaveClicked);
             profileCloseButton.onClick.RemoveAllListeners();
@@ -600,7 +621,15 @@ namespace BlackBartsGold.UI
             return text;
         }
 
-        private TMP_InputField CreateInputField(Transform parent, string name, Vector2 anchoredPosition, Vector2 size)
+        private TMP_InputField CreateInputField(
+            Transform parent,
+            string name,
+            string placeholderValue,
+            TMP_InputField.ContentType contentType,
+            int characterLimit,
+            Vector2 anchoredPosition,
+            Vector2 size
+        )
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -624,7 +653,7 @@ namespace BlackBartsGold.UI
             placeholderRect.offsetMin = new Vector2(16, 10);
             placeholderRect.offsetMax = new Vector2(-16, -10);
             var placeholderText = placeholderGo.AddComponent<TextMeshProUGUI>();
-            placeholderText.text = "Enter display name";
+            placeholderText.text = placeholderValue;
             placeholderText.fontSize = 28;
             placeholderText.color = new Color(0.75f, 0.75f, 0.75f, 0.75f);
             placeholderText.alignment = TextAlignmentOptions.Left;
@@ -645,9 +674,27 @@ namespace BlackBartsGold.UI
             input.textViewport = rect;
             input.textComponent = text;
             input.placeholder = placeholderText;
-            input.characterLimit = 20;
+            input.contentType = contentType;
+            input.characterLimit = characterLimit;
 
             return input;
+        }
+
+        private Image CreatePhotoPreview(Transform parent, string name, Vector2 anchoredPosition, Vector2 size)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            var image = go.AddComponent<Image>();
+            image.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+            image.preserveAspect = true;
+            return image;
         }
 
         private Button CreatePanelButton(Transform parent, string name, string label, Vector2 anchoredPosition, Vector2 size, int fontSize)
@@ -703,12 +750,12 @@ namespace BlackBartsGold.UI
 
             var user = PlayerData.Instance.CurrentUser;
             profileDisplayNameInput.text = user.displayName ?? "";
-            profileAgeText.text = user.age > 0 ? user.age.ToString() : "-";
-
-            var avatarId = !string.IsNullOrWhiteSpace(user.avatarPresetId) ? user.avatarPresetId : AvatarPresetIds[0];
-            selectedAvatarPresetIndex = Mathf.Max(0, AvatarPresetIds.IndexOf(avatarId));
-            if (selectedAvatarPresetIndex < 0) selectedAvatarPresetIndex = 0;
-            RefreshAvatarPresetLabel();
+            profileAgeInput.text = user.age > 0 ? user.age.ToString() : "";
+            profileEmailInput.text = user.email ?? "";
+            profilePhoneInput.text = user.phoneNumber ?? "";
+            profileValidationText.text = "";
+            pendingProfileTexture = null;
+            LoadProfileImagePreview(user);
         }
 
         private void CloseProfilePanel()
@@ -719,43 +766,109 @@ namespace BlackBartsGold.UI
             }
         }
 
-        private void OnAvatarPrevClicked()
+        private void OnTakePhotoClicked()
         {
-            if (AvatarPresetIds.Count == 0) return;
-            selectedAvatarPresetIndex = (selectedAvatarPresetIndex - 1 + AvatarPresetIds.Count) % AvatarPresetIds.Count;
-            RefreshAvatarPresetLabel();
+            ProfileImagePicker.PickFromCamera(HandleImagePicked);
         }
 
-        private void OnAvatarNextClicked()
+        private void OnPickGalleryClicked()
         {
-            if (AvatarPresetIds.Count == 0) return;
-            selectedAvatarPresetIndex = (selectedAvatarPresetIndex + 1) % AvatarPresetIds.Count;
-            RefreshAvatarPresetLabel();
+            ProfileImagePicker.PickFromGallery(HandleImagePicked);
         }
 
-        private void RefreshAvatarPresetLabel()
+        private void HandleImagePicked(Texture2D texture, string error)
         {
-            if (profileAvatarPresetText == null || AvatarPresetIds.Count == 0) return;
-            profileAvatarPresetText.text = AvatarPresetIds[selectedAvatarPresetIndex];
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                if (profilePhotoStatusText != null)
+                {
+                    profilePhotoStatusText.text = error;
+                }
+                return;
+            }
+
+            if (texture == null) return;
+            pendingProfileTexture = texture;
+
+            if (profilePhotoPreview != null)
+            {
+                profilePhotoPreview.sprite = Sprite.Create(
+                    texture,
+                    new Rect(0, 0, texture.width, texture.height),
+                    new Vector2(0.5f, 0.5f)
+                );
+            }
+
+            if (profilePhotoStatusText != null)
+            {
+                profilePhotoStatusText.text = "Photo ready to save.";
+            }
         }
 
-        private void OnProfileSaveClicked()
+        private async void OnProfileSaveClicked()
         {
             if (!PlayerData.Exists || PlayerData.Instance.CurrentUser == null) return;
 
             string displayName = profileDisplayNameInput != null ? profileDisplayNameInput.text.Trim() : "";
+            string ageText = profileAgeInput != null ? profileAgeInput.text.Trim() : "";
+            string email = profileEmailInput != null ? profileEmailInput.text.Trim().ToLowerInvariant() : "";
+            string rawPhone = profilePhoneInput != null ? profilePhoneInput.text : "";
+            string phone = User.NormalizePhoneNumber(rawPhone);
+
             if (displayName.Length < 3 || displayName.Length > 20)
             {
-                Log("Profile save blocked: display name must be 3-20 chars");
+                if (profileValidationText != null) profileValidationText.text = "Display name must be 3-20 characters.";
+                return;
+            }
+
+            if (!int.TryParse(ageText, out int age) || age < 13 || age > 120)
+            {
+                if (profileValidationText != null) profileValidationText.text = "Age must be between 13 and 120.";
+                return;
+            }
+
+            if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            {
+                if (profileValidationText != null) profileValidationText.text = "Enter a valid email address.";
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(phone) && !Regex.IsMatch(phone, @"^\+[1-9]\d{7,14}$"))
+            {
+                if (profileValidationText != null) profileValidationText.text = "Phone must include country code, e.g. +14155552671.";
+                return;
+            }
+
+            string existingAvatar = PlayerData.Instance.CurrentUser.avatarUrl;
+            bool hasExistingPhoto = !string.IsNullOrWhiteSpace(existingAvatar) &&
+                (File.Exists(existingAvatar) || existingAvatar.StartsWith("http", StringComparison.OrdinalIgnoreCase) || existingAvatar.StartsWith("preset://", StringComparison.OrdinalIgnoreCase));
+            if (pendingProfileTexture == null && !hasExistingPhoto)
+            {
+                if (profileValidationText != null) profileValidationText.text = "Add a profile picture from camera or gallery.";
                 return;
             }
 
             var user = PlayerData.Instance.CurrentUser;
             user.displayName = displayName;
-            user.SetAvatarPreset(AvatarPresetIds[selectedAvatarPresetIndex]);
+            user.age = age;
+            user.email = email;
+            user.phoneNumber = phone;
+            user.profileOnboardingDismissed = true;
+
+            if (pendingProfileTexture != null)
+            {
+                string localPath = SaveProfileImageLocally(pendingProfileTexture, user.id);
+                if (!string.IsNullOrWhiteSpace(localPath))
+                {
+                    user.avatarUrl = localPath;
+                    user.avatarPresetId = null;
+                }
+            }
+
             user.profileOnboardingDismissed = true;
 
             PlayerData.Instance.UpdateUser(user);
+            await SyncProfileToServer(user);
             RefreshUI();
             CloseProfilePanel();
         }
@@ -787,8 +900,8 @@ namespace BlackBartsGold.UI
             if (closeRect != null)
             {
                 closeRect.anchoredPosition = onboarding
-                    ? new Vector2(95, -840)
-                    : new Vector2(180, -840);
+                    ? new Vector2(95, -1060)
+                    : new Vector2(180, -1060);
             }
 
             if (profileWalletHintText != null)
@@ -797,7 +910,117 @@ namespace BlackBartsGold.UI
             }
         }
 
+        private void LoadProfileImagePreview(User user)
+        {
+            if (profilePhotoPreview == null || user == null) return;
+
+            if (string.IsNullOrWhiteSpace(user.avatarUrl) || !File.Exists(user.avatarUrl))
+            {
+                if (!string.IsNullOrWhiteSpace(user.avatarUrl) &&
+                    (user.avatarUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) || user.avatarUrl.StartsWith("preset://", StringComparison.OrdinalIgnoreCase)))
+                {
+                    profilePhotoPreview.sprite = null;
+                    profilePhotoPreview.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+                    if (profilePhotoStatusText != null)
+                    {
+                        profilePhotoStatusText.text = "Existing profile photo on account.";
+                    }
+                    return;
+                }
+
+                profilePhotoPreview.sprite = null;
+                profilePhotoPreview.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+                if (profilePhotoStatusText != null)
+                {
+                    profilePhotoStatusText.text = "Upload from camera or gallery.";
+                }
+                return;
+            }
+
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(user.avatarUrl);
+                var texture = new Texture2D(2, 2);
+                if (texture.LoadImage(bytes))
+                {
+                    profilePhotoPreview.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                    profilePhotoPreview.color = Color.white;
+                    if (profilePhotoStatusText != null)
+                    {
+                        profilePhotoStatusText.text = "Current photo loaded.";
+                    }
+                }
+            }
+            catch
+            {
+                profilePhotoPreview.sprite = null;
+                profilePhotoPreview.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+            }
+        }
+
+        private string SaveProfileImageLocally(Texture2D texture, string userId)
+        {
+            if (texture == null) return null;
+
+            try
+            {
+                string safeUserId = string.IsNullOrWhiteSpace(userId) ? "player" : userId.Replace(":", "_");
+                string fileName = $"profile_{safeUserId}.jpg";
+                string path = Path.Combine(Application.persistentDataPath, fileName);
+                byte[] jpg = texture.EncodeToJPG(85);
+                File.WriteAllBytes(path, jpg);
+                return path;
+            }
+            catch (Exception ex)
+            {
+                Log($"Failed to save profile image: {ex.Message}");
+                return null;
+            }
+        }
+
+        private async System.Threading.Tasks.Task SyncProfileToServer(User user)
+        {
+            if (user == null || ApiConfig.UseMockApi) return;
+
+            try
+            {
+                var payload = new ProfileUpdateRequest
+                {
+                    email = user.email,
+                    displayName = user.displayName,
+                    age = user.age,
+                    phoneNumber = string.IsNullOrWhiteSpace(user.phoneNumber) ? null : user.phoneNumber,
+                    avatarUrl = user.avatarUrl,
+                    avatarPresetId = user.avatarPresetId
+                };
+
+                await ApiClient.Instance.Patch<ProfileUpdateResponse>(ApiConfig.User.PROFILE, payload);
+            }
+            catch (Exception ex)
+            {
+                Log($"Profile sync skipped/failed: {ex.Message}");
+            }
+        }
+
         #endregion
+
+        [Serializable]
+        private class ProfileUpdateRequest
+        {
+            public string email;
+            public string displayName;
+            public int age;
+            public string phoneNumber;
+            public string avatarUrl;
+            public string avatarPresetId;
+        }
+
+        [Serializable]
+        private class ProfileUpdateResponse
+        {
+            public bool success;
+            public string error;
+        }
         
         #region Debug
         

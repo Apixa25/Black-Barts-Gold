@@ -18,8 +18,11 @@ interface UserProfile {
   id: string
   email: string
   full_name: string | null
+  age: number | null
+  phone: string | null
   role: string
   avatar_url: string | null
+  avatar_preset_id: string | null
   created_at: string
   updated_at: string
 }
@@ -34,6 +37,8 @@ interface LoginResponse {
     email: string
     displayName: string | null
     avatarUrl: string | null
+    phoneNumber: string | null
+    age: number | null
     role: string
     createdAt: string
   }
@@ -124,6 +129,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
         email: authData.user.email || email,
         displayName: userProfile?.full_name || authData.user.user_metadata?.full_name || null,
         avatarUrl: userProfile?.avatar_url || authData.user.user_metadata?.avatar_url || null,
+        phoneNumber: userProfile?.phone || null,
+        age: userProfile?.age || null,
         role: userProfile?.role || 'user',
         createdAt: authData.user.created_at,
       }

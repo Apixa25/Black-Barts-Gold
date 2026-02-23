@@ -747,6 +747,9 @@ namespace BlackBartsGold.Core
             string existingPreset = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
                 ? PlayerData.Instance.CurrentUser.avatarPresetId
                 : null;
+            string existingPhone = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
+                ? PlayerData.Instance.CurrentUser.phoneNumber
+                : null;
             bool existingDismissed = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
                 ? PlayerData.Instance.CurrentUser.profileOnboardingDismissed
                 : false;
@@ -768,7 +771,8 @@ namespace BlackBartsGold.Core
                 accountStatus = AccountStatus.Active,
                 authMethod = AuthMethod.Email,
                 emailVerified = true,
-                age = existingAge, // Auth payload currently omits age
+                age = userData.age > 0 ? userData.age : existingAge,
+                phoneNumber = !string.IsNullOrWhiteSpace(userData.phoneNumber) ? userData.phoneNumber : existingPhone,
                 avatarPresetId = existingPreset,
                 profileOnboardingDismissed = existingDismissed
             };
@@ -791,6 +795,9 @@ namespace BlackBartsGold.Core
             string existingPreset = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
                 ? PlayerData.Instance.CurrentUser.avatarPresetId
                 : null;
+            string existingPhone = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
+                ? PlayerData.Instance.CurrentUser.phoneNumber
+                : null;
             bool existingDismissed = PlayerData.Exists && PlayerData.Instance.CurrentUser != null
                 ? PlayerData.Instance.CurrentUser.profileOnboardingDismissed
                 : false;
@@ -812,7 +819,8 @@ namespace BlackBartsGold.Core
                 accountStatus = AccountStatus.Active,
                 authMethod = AuthMethod.Email,
                 emailVerified = true,
-                age = existingAge,
+                age = userData.age > 0 ? userData.age : existingAge,
+                phoneNumber = !string.IsNullOrWhiteSpace(userData.phoneNumber) ? userData.phoneNumber : existingPhone,
                 avatarPresetId = existingPreset,
                 profileOnboardingDismissed = existingDismissed
             };
@@ -966,6 +974,8 @@ namespace BlackBartsGold.Core
         public string email;
         public string displayName;
         public string avatarUrl;
+        public string phoneNumber;
+        public int age;
         public string role;
         public string createdAt;
     }

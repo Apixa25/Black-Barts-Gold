@@ -27,6 +27,8 @@ interface RegisterResponse {
     email: string
     displayName: string | null
     avatarUrl: string | null
+    phoneNumber: string | null
+    age: number | null
     role: string
     createdAt: string
   }
@@ -117,7 +119,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<RegisterR
     try {
       await serviceClient
         .from('profiles')
-        .update({ full_name: displayName || null })
+        .update({
+          full_name: displayName || null,
+          age: age || null,
+        })
         .eq('id', createData.user.id)
     } catch (updateError) {
       console.error('[Auth Register] Profile update error:', updateError)
@@ -141,6 +146,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<RegisterR
           email: createData.user.email || email,
           displayName: displayName || null,
           avatarUrl: null,
+          phoneNumber: null,
+          age: age || null,
           role: 'user',
           createdAt: createData.user.created_at,
         }
@@ -159,6 +166,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<RegisterR
         email: signInData.user.email || email,
         displayName: displayName || null,
         avatarUrl: null,
+        phoneNumber: null,
+        age: age || null,
         role: 'user',
         createdAt: signInData.user.created_at,
       }

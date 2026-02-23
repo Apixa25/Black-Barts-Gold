@@ -6,8 +6,11 @@ export interface UserProfile {
   id: string
   email: string
   full_name: string | null
+  age: number | null
+  phone: string | null
   role: UserRole
   avatar_url: string | null
+  avatar_preset_id: string | null
   created_at: string
   updated_at: string
 }
