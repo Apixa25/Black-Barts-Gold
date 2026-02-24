@@ -14,6 +14,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
 using TMPro;
 using System.Collections;
+using System.Text;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core;
 using BlackBartsGold.Utils;
@@ -28,6 +29,7 @@ namespace BlackBartsGold.UI
         private readonly Color SemiTransparentBlack = new Color(0, 0, 0, 0.5f);
 
         private TextMeshProUGUI _debugDiagnosticsText;
+        private TextMeshProUGUI _debugTitleText;
         private RawImage _radarMapTileImage;
         private float _radarMapLastUpdate;
         private double _radarMapLastLat, _radarMapLastLng;
@@ -37,6 +39,7 @@ namespace BlackBartsGold.UI
         private float _lastDiagnosticUpdate;
         private const float _diagnosticUpdateInterval = 0.5f;
         private const float _radarControlsRefreshInterval = 0.25f;
+        private const float _sensorConsoleRefreshInterval = 0.5f;
         private int _radarZoom = 19; // 19 = default (3 levels closer); 21 = zoomed in when hunting
         private Sprite _cachedMapCoinIconSprite;
         private bool _mapCoinIconLoadLogged = false;
@@ -48,6 +51,16 @@ namespace BlackBartsGold.UI
         private Button _radarPlusButton;
         private Button _radarAutoButton;
         private TextMeshProUGUI _radarRangeText;
+        private AttitudeSensor _attitudeSensor;
+        private Accelerometer _accelerometer;
+        private GravitySensor _gravitySensor;
+        private UnityEngine.InputSystem.Gyroscope _gyroscope;
+        private MagneticFieldSensor _magneticFieldSensor;
+        private Vector3 _lastCameraPosition;
+        private float _cameraMovementSinceStart;
+        private string _lastArState;
+        private string _lastArStateChangeInfo;
+        private float _lastSensorConsoleRefresh;
         
         private void Start()
         {
@@ -63,6 +76,7 @@ namespace BlackBartsGold.UI
             }
             
             SetupCanvas();
+            InitializeDevelopmentConsoleSensors();
             CleanupStrayCenteredImages(); // Remove white square from orphan CompassArrowPanel etc.
             SetupBackButton();
             SetupCrosshairs();
@@ -135,7 +149,11 @@ namespace BlackBartsGold.UI
             if (_debugDiagnosticsText != null && Time.time - _lastDiagnosticUpdate >= _diagnosticUpdateInterval)
             {
                 _lastDiagnosticUpdate = Time.time;
-                _debugDiagnosticsText.text = Core.UIManager.GetDiagnosticsString();
+                if (Time.time - _lastSensorConsoleRefresh >= _sensorConsoleRefreshInterval)
+                {
+                    _lastSensorConsoleRefresh = Time.time;
+                    _debugDiagnosticsText.text = BuildDevelopmentConsoleString();
+                }
             }
 
             if (_radarZoomRadarUI != null && Time.time - _lastRadarControlsRefresh >= _radarControlsRefreshInterval)
@@ -143,6 +161,127 @@ namespace BlackBartsGold.UI
                 _lastRadarControlsRefresh = Time.time;
                 RefreshRadarZoomControlsUi();
             }
+        }
+
+        private void InitializeDevelopmentConsoleSensors()
+        {
+            // Ensure all sensor devices used by AR/nav pipelines are enabled for diagnostics and runtime behavior.
+            DeviceCompass.Initialize();
+
+            _attitudeSensor = AttitudeSensor.current;
+            if (_attitudeSensor != null) InputSystem.EnableDevice(_attitudeSensor);
+
+            _accelerometer = Accelerometer.current;
+            if (_accelerometer != null) InputSystem.EnableDevice(_accelerometer);
+
+            _gravitySensor = GravitySensor.current;
+            if (_gravitySensor != null) InputSystem.EnableDevice(_gravitySensor);
+
+            _gyroscope = UnityEngine.InputSystem.Gyroscope.current;
+            if (_gyroscope != null) InputSystem.EnableDevice(_gyroscope);
+
+            _magneticFieldSensor = MagneticFieldSensor.current;
+            if (_magneticFieldSensor != null) InputSystem.EnableDevice(_magneticFieldSensor);
+
+            Input.compass.enabled = true;
+            if (SystemInfo.supportsGyroscope)
+            {
+                Input.gyro.enabled = true;
+            }
+
+            var cam = Camera.main;
+            _lastCameraPosition = cam != null ? cam.transform.position : Vector3.zero;
+            _cameraMovementSinceStart = 0f;
+            _lastArState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
+            _lastArStateChangeInfo = "AR state stable";
+        }
+
+        private string BuildDevelopmentConsoleString()
+        {
+            var sb = new StringBuilder(1200);
+            var now = Time.realtimeSinceStartup;
+
+            var arState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
+            if (_lastArState != arState)
+            {
+                _lastArStateChangeInfo = $"AR state changed: {_lastArState} -> {arState} @T+{now:F1}s";
+                _lastArState = arState;
+            }
+
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                var current = cam.transform.position;
+                _cameraMovementSinceStart += Vector3.Distance(current, _lastCameraPosition);
+                _lastCameraPosition = current;
+            }
+
+            sb.AppendLine($"<b>DEVELOPMENT CONSOLE</b>  T+{now:F1}s");
+            sb.AppendLine("<b>Sensors (ON / Working)</b>");
+
+            bool gpsOn = Input.location.status == LocationServiceStatus.Running;
+            bool gpsWorking = GPSManager.Instance != null && GPSManager.Instance.CurrentLocation != null;
+            if (gpsWorking)
+            {
+                var loc = GPSManager.Instance.CurrentLocation;
+                sb.AppendLine($"GPS: {(gpsOn ? "ON" : "OFF")} / YES  acc={loc.horizontalAccuracy:F1}m lat={loc.latitude:F5} lng={loc.longitude:F5}");
+            }
+            else
+            {
+                sb.AppendLine($"GPS: {(gpsOn ? "ON" : "OFF")} / NO   status={Input.location.status}");
+            }
+
+            bool compassOn = DeviceCompass.IsAvailable || Input.compass.enabled;
+            bool compassWorking = DeviceCompass.IsAvailable && DeviceCompass.ActiveMethod != "none";
+            sb.AppendLine($"Compass: {(compassOn ? "ON" : "OFF")} / {(compassWorking ? "YES" : "NO")}  heading={DeviceCompass.Heading:F1} ({DeviceCompass.ActiveMethod})");
+
+            bool gyroOn = (_gyroscope != null && _gyroscope.enabled) || Input.gyro.enabled;
+            bool gyroWorking = false;
+            Vector3 gyroRate = Vector3.zero;
+            if (_gyroscope != null && _gyroscope.enabled)
+            {
+                gyroRate = _gyroscope.angularVelocity.ReadValue();
+                gyroWorking = gyroRate.sqrMagnitude > 0.0001f;
+            }
+            sb.AppendLine($"Gyro: {(gyroOn ? "ON" : "OFF")} / {(gyroWorking ? "YES" : "NO")}  rate=({gyroRate.x:F2},{gyroRate.y:F2},{gyroRate.z:F2})");
+
+            bool accelOn = _accelerometer != null && _accelerometer.enabled;
+            Vector3 accel = accelOn ? _accelerometer.acceleration.ReadValue() : Input.acceleration;
+            bool accelWorking = accel.sqrMagnitude > 0.01f;
+            sb.AppendLine($"Accel: {(accelOn ? "ON" : "OFF")} / {(accelWorking ? "YES" : "NO")}  xyz=({accel.x:F2},{accel.y:F2},{accel.z:F2})");
+
+            bool gravityOn = _gravitySensor != null && _gravitySensor.enabled;
+            Vector3 grav = gravityOn ? _gravitySensor.gravity.ReadValue() : Vector3.zero;
+            bool gravityWorking = gravityOn && grav.sqrMagnitude > 0.01f;
+            sb.AppendLine($"Gravity: {(gravityOn ? "ON" : "OFF")} / {(gravityWorking ? "YES" : "NO")}  xyz=({grav.x:F2},{grav.y:F2},{grav.z:F2})");
+
+            bool attitudeOn = _attitudeSensor != null && _attitudeSensor.enabled;
+            Quaternion attitude = attitudeOn ? _attitudeSensor.attitude.ReadValue() : Quaternion.identity;
+            bool attitudeWorking = attitudeOn && (attitude.x != 0f || attitude.y != 0f || attitude.z != 0f);
+            Vector3 euler = attitude.eulerAngles;
+            sb.AppendLine($"Attitude: {(attitudeOn ? "ON" : "OFF")} / {(attitudeWorking ? "YES" : "NO")}  euler=({euler.x:F1},{euler.y:F1},{euler.z:F1})");
+
+            bool magOn = _magneticFieldSensor != null && _magneticFieldSensor.enabled;
+            Vector3 mag = magOn ? _magneticFieldSensor.magneticField.ReadValue() : Vector3.zero;
+            bool magWorking = magOn && mag.sqrMagnitude > 1f;
+            sb.AppendLine($"MagField: {(magOn ? "ON" : "OFF")} / {(magWorking ? "YES" : "NO")}  uT=({mag.x:F1},{mag.y:F1},{mag.z:F1})");
+
+            sb.AppendLine();
+            sb.AppendLine("<b>AR Activity</b>");
+            sb.AppendLine($"ARSession: {arState}");
+            sb.AppendLine(_lastArStateChangeInfo);
+            sb.AppendLine($"Camera moved: {_cameraMovementSinceStart:F3}m total");
+
+            if (CoinManager.Exists && CoinManager.Instance != null)
+            {
+                sb.AppendLine($"HuntMode: {CoinManager.Instance.CurrentMode} | Target: {(CoinManager.Instance.HasTarget ? "YES" : "NO")}");
+            }
+            else
+            {
+                sb.AppendLine("HuntMode: CoinManager unavailable");
+            }
+
+            return sb.ToString();
         }
 
         private void SetupCanvas()
@@ -857,6 +996,9 @@ namespace BlackBartsGold.UI
             if (existing != null)
             {
                 _debugDiagnosticsText = existing.GetComponentInChildren<TextMeshProUGUI>();
+                var title = existing.Find("DebugTitle");
+                if (title != null) _debugTitleText = title.GetComponent<TextMeshProUGUI>();
+                if (_debugTitleText != null) _debugTitleText.text = "DEVELOPMENT CONSOLE";
                 return;
             }
 
@@ -867,7 +1009,7 @@ namespace BlackBartsGold.UI
             panelRect.anchorMax = new Vector2(0, 0);
             panelRect.pivot = new Vector2(0, 0);
             panelRect.anchoredPosition = new Vector2(20, 20);
-            panelRect.sizeDelta = new Vector2(800, 640); // 2x larger for easier reading
+            panelRect.sizeDelta = new Vector2(920, 520); // Bottom-left development console
 
             var bgImage = debugPanel.AddComponent<Image>();
             bgImage.color = new Color(0, 0, 0, 0.8f);
@@ -882,10 +1024,11 @@ namespace BlackBartsGold.UI
             titleRect.anchoredPosition = new Vector2(0, -10);
             titleRect.sizeDelta = new Vector2(0, 40);
             var titleText = titleGO.AddComponent<TextMeshProUGUI>();
-            titleText.text = "DEBUG INFO";
-            titleText.fontSize = 28;
+            titleText.text = "DEVELOPMENT CONSOLE";
+            titleText.fontSize = 30;
             titleText.color = GoldColor;
             titleText.alignment = TextAlignmentOptions.Center;
+            _debugTitleText = titleText;
 
             var diagGO = new GameObject("DiagnosticsText");
             diagGO.transform.SetParent(debugPanel.transform, false);
@@ -897,7 +1040,7 @@ namespace BlackBartsGold.UI
             diagRect.sizeDelta = new Vector2(-30, -70);
             _debugDiagnosticsText = diagGO.AddComponent<TextMeshProUGUI>();
             _debugDiagnosticsText.text = "Loading...";
-            _debugDiagnosticsText.fontSize = 40; // 2x larger for easier reading
+            _debugDiagnosticsText.fontSize = 21;
             _debugDiagnosticsText.color = Color.white;
             _debugDiagnosticsText.alignment = TextAlignmentOptions.TopLeft;
             _debugDiagnosticsText.enableWordWrapping = true;
