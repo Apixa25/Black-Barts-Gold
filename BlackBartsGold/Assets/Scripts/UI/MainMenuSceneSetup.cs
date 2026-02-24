@@ -171,8 +171,7 @@ namespace BlackBartsGold.UI
 
         private void SetupWalletButton()
         {
-            var btn = transform.Find("WalletButton");
-            if (btn == null) { Debug.Log("[MainMenuSceneSetup] ⚠️ WalletButton not found"); return; }
+            var btn = EnsureMainMenuButton("WalletButton");
             var btnComp = btn.GetComponent<Button>();
             Debug.Log($"[MainMenuSceneSetup] WalletButton found interactable={btnComp?.interactable}");
 
@@ -197,8 +196,7 @@ namespace BlackBartsGold.UI
 
         private void SetupSettingsButton()
         {
-            var btn = transform.Find("SettingsButton");
-            if (btn == null) { Debug.Log("[MainMenuSceneSetup] ⚠️ SettingsButton not found"); return; }
+            var btn = EnsureMainMenuButton("SettingsButton");
             var btnComp = btn.GetComponent<Button>();
             Debug.Log($"[MainMenuSceneSetup] SettingsButton found interactable={btnComp?.interactable}");
 
@@ -223,8 +221,7 @@ namespace BlackBartsGold.UI
 
         private void SetupProfileButton()
         {
-            var btn = transform.Find("ProfileButton");
-            if (btn == null) { Debug.Log("[MainMenuSceneSetup] ⚠️ ProfileButton not found"); return; }
+            var btn = EnsureMainMenuButton("ProfileButton");
 
             var rect = btn.GetComponent<RectTransform>();
             if (rect != null)
@@ -243,6 +240,31 @@ namespace BlackBartsGold.UI
             }
 
             SetupButtonText(btn, "MY PROFILE", 32);
+        }
+
+        private Transform EnsureMainMenuButton(string buttonName)
+        {
+            var btn = transform.Find(buttonName);
+            if (btn == null)
+            {
+                var buttonGO = new GameObject(buttonName);
+                buttonGO.transform.SetParent(transform, false);
+                btn = buttonGO.transform;
+                buttonGO.AddComponent<RectTransform>();
+                buttonGO.AddComponent<Image>();
+                buttonGO.AddComponent<Button>();
+                Debug.Log($"[MainMenuSceneSetup] Created {buttonName} from code");
+            }
+
+            var rect = btn.GetComponent<RectTransform>();
+            if (rect == null) rect = btn.gameObject.AddComponent<RectTransform>();
+            var image = btn.GetComponent<Image>();
+            if (image == null) image = btn.gameObject.AddComponent<Image>();
+            var button = btn.GetComponent<Button>();
+            if (button == null) button = btn.gameObject.AddComponent<Button>();
+            button.transition = Selectable.Transition.ColorTint;
+
+            return btn;
         }
 
         private void SetupButtonText(Transform button, string label, int fontSize)
