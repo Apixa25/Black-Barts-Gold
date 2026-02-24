@@ -120,7 +120,7 @@ namespace BlackBartsGold.UI
             var allImages = FindObjectsByType<Image>(FindObjectsSortMode.None);
             foreach (var image in allImages)
             {
-                if (image == null || image.sprite != null) continue;
+                if (image == null) continue;
                 var rect = image.rectTransform;
                 if (rect == null) continue;
 
@@ -129,16 +129,47 @@ namespace BlackBartsGold.UI
                     && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
                     && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
                 bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
-                bool modestSize = rect.sizeDelta.x <= 260f && rect.sizeDelta.y <= 260f;
+                bool modestSize = rect.sizeDelta.x <= 640f && rect.sizeDelta.y <= 640f;
                 bool looksLikeWhiteSquare = image.color.a > 0.95f
                     && image.color.r > 0.95f
                     && image.color.g > 0.95f
                     && image.color.b > 0.95f;
+                bool hasNoVisualSource = image.sprite == null;
+                string lowerName = image.gameObject.name.ToLowerInvariant();
+                bool explicitArtifactName = lowerName.Contains("crosshair")
+                    || lowerName.Contains("compassarrow")
+                    || lowerName.Contains("center")
+                    || lowerName.Contains("reticle");
 
-                if (centeredAnchor && centeredPosition && modestSize && looksLikeWhiteSquare)
+                if (centeredAnchor && centeredPosition && modestSize && ((looksLikeWhiteSquare && hasNoVisualSource) || explicitArtifactName))
                 {
                     image.enabled = false;
                     Debug.Log($"[MainMenuSceneSetup] Disabled centered white square artifact on {image.gameObject.name}");
+                }
+            }
+
+            var allRawImages = FindObjectsByType<RawImage>(FindObjectsSortMode.None);
+            foreach (var rawImage in allRawImages)
+            {
+                if (rawImage == null || rawImage.texture != null) continue;
+                var rect = rawImage.rectTransform;
+                if (rect == null) continue;
+
+                bool centeredAnchor = Mathf.Abs(rect.anchorMin.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMin.y - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
+                bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
+                bool modestSize = rect.sizeDelta.x <= 640f && rect.sizeDelta.y <= 640f;
+                bool looksLikeWhiteSquare = rawImage.color.a > 0.95f
+                    && rawImage.color.r > 0.95f
+                    && rawImage.color.g > 0.95f
+                    && rawImage.color.b > 0.95f;
+
+                if (centeredAnchor && centeredPosition && modestSize && looksLikeWhiteSquare)
+                {
+                    rawImage.enabled = false;
+                    Debug.Log($"[MainMenuSceneSetup] Disabled centered white RawImage artifact on {rawImage.gameObject.name}");
                 }
             }
         }

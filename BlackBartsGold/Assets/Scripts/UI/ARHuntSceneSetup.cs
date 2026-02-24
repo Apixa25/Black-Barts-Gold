@@ -63,7 +63,9 @@ namespace BlackBartsGold.UI
         private string _lastArStateChangeInfo;
         private float _lastSensorConsoleRefresh;
         private float _lastVerboseLifecycleLog;
+        private float _lastAdbSensorSnapshotLog;
         private const float _verboseLifecycleInterval = 3f;
+        private const float _adbSensorSnapshotInterval = 2f;
         
         private void Start()
         {
@@ -171,6 +173,12 @@ namespace BlackBartsGold.UI
             {
                 _lastVerboseLifecycleLog = Time.time;
                 DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s debugPanel={(_debugDiagnosticsText != null)} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
+            }
+
+            if (Time.time - _lastAdbSensorSnapshotLog >= _adbSensorSnapshotInterval)
+            {
+                _lastAdbSensorSnapshotLog = Time.time;
+                EmitPeriodicSensorSnapshotLog();
             }
         }
 
@@ -304,6 +312,54 @@ namespace BlackBartsGold.UI
             return sb.ToString();
         }
 
+        private void EmitPeriodicSensorSnapshotLog()
+        {
+            bool gpsOn = Input.location.status == LocationServiceStatus.Running;
+            bool gpsWorking = GPSManager.Instance != null && GPSManager.Instance.CurrentLocation != null;
+            string gpsSummary = gpsWorking
+                ? $"YES acc={GPSManager.Instance.CurrentLocation.horizontalAccuracy:F1}m"
+                : $"NO status={Input.location.status}";
+
+            bool compassOn = DeviceCompass.IsAvailable || Input.compass.enabled;
+            bool compassWorking = DeviceCompass.IsAvailable && DeviceCompass.ActiveMethod != "none";
+
+            bool gyroOn = (_gyroscope != null && _gyroscope.enabled) || Input.gyro.enabled;
+            Vector3 gyroRate = Vector3.zero;
+            bool gyroWorking = false;
+            if (_gyroscope != null && _gyroscope.enabled)
+            {
+                gyroRate = _gyroscope.angularVelocity.ReadValue();
+                gyroWorking = gyroRate.sqrMagnitude > 0.0001f;
+            }
+
+            bool accelOn = _accelerometer != null && _accelerometer.enabled;
+            Vector3 accel = accelOn ? _accelerometer.acceleration.ReadValue() : Input.acceleration;
+            bool accelWorking = accel.sqrMagnitude > 0.01f;
+
+            bool gravityOn = _gravitySensor != null && _gravitySensor.enabled;
+            Vector3 grav = gravityOn ? _gravitySensor.gravity.ReadValue() : Vector3.zero;
+            bool gravityWorking = gravityOn && grav.sqrMagnitude > 0.01f;
+
+            bool attitudeOn = _attitudeSensor != null && _attitudeSensor.enabled;
+            Quaternion attitude = attitudeOn ? _attitudeSensor.attitude.ReadValue() : Quaternion.identity;
+            bool attitudeWorking = attitudeOn && (attitude.x != 0f || attitude.y != 0f || attitude.z != 0f);
+
+            var arState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
+            int trackedPlanes = 0;
+            var planeManager = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARPlaneManager>();
+            if (planeManager != null) trackedPlanes = planeManager.trackables.count;
+
+            DiagnosticLog.Log(
+                "Sensors",
+                $"SNAPSHOT t={Time.realtimeSinceStartup:F1}s | AR={arState} planes={trackedPlanes} | GPS={gpsSummary} | " +
+                $"Compass {(compassOn ? "ON" : "OFF")}/{(compassWorking ? "YES" : "NO")} heading={DeviceCompass.Heading:F1}({DeviceCompass.ActiveMethod}) | " +
+                $"Gyro {(gyroOn ? "ON" : "OFF")}/{(gyroWorking ? "YES" : "NO")} rate=({gyroRate.x:F2},{gyroRate.y:F2},{gyroRate.z:F2}) | " +
+                $"Accel {(accelOn ? "ON" : "OFF")}/{(accelWorking ? "YES" : "NO")} xyz=({accel.x:F2},{accel.y:F2},{accel.z:F2}) | " +
+                $"Gravity {(gravityOn ? "ON" : "OFF")}/{(gravityWorking ? "YES" : "NO")} xyz=({grav.x:F2},{grav.y:F2},{grav.z:F2}) | " +
+                $"Attitude {(attitudeOn ? "ON" : "OFF")}/{(attitudeWorking ? "YES" : "NO")} q=({attitude.x:F2},{attitude.y:F2},{attitude.z:F2},{attitude.w:F2})"
+            );
+        }
+
         private void SetupCanvas()
         {
             var canvas = GetComponent<Canvas>();
@@ -346,7 +402,7 @@ namespace BlackBartsGold.UI
             var images = GetComponentsInChildren<Image>(true);
             foreach (var image in images)
             {
-                if (image == null || image.sprite != null) continue;
+                if (image == null) continue;
                 var rect = image.rectTransform;
                 if (rect == null) continue;
 
@@ -355,16 +411,22 @@ namespace BlackBartsGold.UI
                     && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
                     && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
                 bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
-                bool modestSize = rect.sizeDelta.x <= 260f && rect.sizeDelta.y <= 260f;
+                bool modestSize = rect.sizeDelta.x <= 640f && rect.sizeDelta.y <= 640f;
                 bool looksLikeWhiteSquare = image.color.a > 0.95f
                     && image.color.r > 0.95f
                     && image.color.g > 0.95f
                     && image.color.b > 0.95f;
+                bool hasNoVisualSource = image.sprite == null;
+                string lowerName = image.gameObject.name.ToLowerInvariant();
+                bool explicitArtifactName = lowerName.Contains("crosshair")
+                    || lowerName.Contains("compassarrow")
+                    || lowerName.Contains("center")
+                    || lowerName.Contains("reticle");
 
-                if (centeredAnchor && centeredPosition && modestSize && looksLikeWhiteSquare)
+                if (centeredAnchor && centeredPosition && modestSize && ((looksLikeWhiteSquare && hasNoVisualSource) || explicitArtifactName))
                 {
                     image.enabled = false;
-                    DiagnosticLog.Log("Setup", $"Disabled centered white no-sprite Image artifact: {image.gameObject.name}");
+                    DiagnosticLog.Log("Setup", $"Disabled centered Image artifact: {image.gameObject.name} size={rect.sizeDelta} sprite={(image.sprite != null)}");
                 }
             }
 
@@ -380,7 +442,7 @@ namespace BlackBartsGold.UI
                     && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
                     && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
                 bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
-                bool modestSize = rect.sizeDelta.x <= 260f && rect.sizeDelta.y <= 260f;
+                bool modestSize = rect.sizeDelta.x <= 640f && rect.sizeDelta.y <= 640f;
                 bool looksLikeWhiteSquare = rawImage.color.a > 0.95f
                     && rawImage.color.r > 0.95f
                     && rawImage.color.g > 0.95f
@@ -533,6 +595,18 @@ namespace BlackBartsGold.UI
                 Destroy(image);
                 image = null;
             }
+
+            // Extra cleanup for legacy scene-authored children that can appear as a centered square.
+            var legacyCrosshairImage = crosshairs.Find("CrosshairImage");
+            if (legacyCrosshairImage != null)
+            {
+                var legacyImage = legacyCrosshairImage.GetComponent<Image>();
+                if (legacyImage != null)
+                {
+                    legacyImage.enabled = false;
+                }
+                legacyCrosshairImage.gameObject.SetActive(false);
+            }
             // Don't add Image - we intentionally have no crosshairs visual
 
             // Remove old CrosshairText (font doesn't support ⊕) - we use sprite now
@@ -564,6 +638,11 @@ namespace BlackBartsGold.UI
                 circleImage.color = new Color(1f, 0.84f, 0f, 0.7f);
                 circleImage.raycastTarget = false;
                 circleImage.preserveAspect = true;
+                if (circleImage.sprite == null)
+                {
+                    circleImage.enabled = false;
+                    DiagnosticLog.Warn("Setup", "CollectionSizeCircle sprite missing - disabled to prevent square artifact");
+                }
                 Debug.Log("[ARHuntSceneSetup] Created CollectionSizeCircle from code");
             }
             else
@@ -579,6 +658,11 @@ namespace BlackBartsGold.UI
                         circleImage.sprite = goldRingSprite;
                     }
                     circleImage.raycastTarget = false;
+                    if (circleImage.sprite == null)
+                    {
+                        circleImage.enabled = false;
+                        DiagnosticLog.Warn("Setup", "CollectionSizeCircle sprite still missing - disabled to prevent square artifact");
+                    }
                 }
             }
 
