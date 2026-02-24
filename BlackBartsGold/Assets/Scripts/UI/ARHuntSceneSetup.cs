@@ -581,6 +581,10 @@ namespace BlackBartsGold.UI
             }
 
             var controlsRect = controls.GetComponent<RectTransform>();
+            if (controlsRect == null)
+            {
+                controlsRect = controls.gameObject.AddComponent<RectTransform>();
+            }
             controlsRect.anchorMin = new Vector2(1f, 1f);
             controlsRect.anchorMax = new Vector2(1f, 1f);
             controlsRect.pivot = new Vector2(1f, 1f);
@@ -588,6 +592,10 @@ namespace BlackBartsGold.UI
             controlsRect.sizeDelta = new Vector2(270f, 64f);
 
             var controlsBg = controls.GetComponent<Image>();
+            if (controlsBg == null)
+            {
+                controlsBg = controls.gameObject.AddComponent<Image>();
+            }
             controlsBg.color = new Color(0f, 0f, 0f, 0.45f);
             controlsBg.raycastTarget = true;
 

@@ -11,7 +11,6 @@ using UnityEngine.UI;
 using TMPro;
 namespace BlackBartsGold.UI
 {
-    [ExecuteAlways]
     public class MainMenuSceneSetup : MonoBehaviour
     {
         // Colors from project vision

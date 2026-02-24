@@ -50,19 +50,23 @@ namespace BlackBartsGold.AR
             {
                 if (_instance == null)
                 {
-                    _instance = FindFirstObjectByType<CoinManager>();
-                    
-                    if (_instance == null)
-                    {
-                        GameObject go = new GameObject("CoinManager");
-                        _instance = go.AddComponent<CoinManager>();
-                    }
+                    _instance = FindFirstObjectByType<CoinManager>(FindObjectsInactive.Include);
                 }
                 return _instance;
             }
         }
         
-        public static bool Exists => _instance != null;
+        public static bool Exists
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    _instance = FindFirstObjectByType<CoinManager>(FindObjectsInactive.Include);
+                }
+                return _instance != null;
+            }
+        }
         
         #endregion
         

@@ -240,7 +240,7 @@ namespace BlackBartsGold.UI
             
             // Check if a target already exists (target is set on the map screen BEFORE
             // the AR scene loads, so the OnTargetSet event won't fire again)
-            if (CoinManager.Instance != null && CoinManager.Instance.HasTarget)
+            if (CoinManager.Exists && CoinManager.Instance.HasTarget)
             {
                 Coin existingTarget = CoinManager.Instance.TargetCoinData;
                 if (existingTarget != null)
@@ -290,7 +290,7 @@ namespace BlackBartsGold.UI
             }
             
             // Coin manager events (single-target architecture)
-            if (CoinManager.Instance != null)
+            if (CoinManager.Exists)
             {
                 CoinManager.Instance.OnCoinCollected += OnCoinCollected;
                 CoinManager.Instance.OnCoinSelectionChanged += OnCoinSelectionChanged;
@@ -320,7 +320,7 @@ namespace BlackBartsGold.UI
                 PlayerData.Instance.OnFindLimitChanged -= OnFindLimitChanged;
             }
             
-            if (CoinManager.Instance != null)
+            if (CoinManager.Exists)
             {
                 CoinManager.Instance.OnCoinCollected -= OnCoinCollected;
                 CoinManager.Instance.OnCoinSelectionChanged -= OnCoinSelectionChanged;
@@ -899,7 +899,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         public void ReturnToMapView()
         {
-            if (CoinManager.Instance != null)
+            if (CoinManager.Exists)
             {
                 CoinManager.Instance.EnterMapView();
             }
