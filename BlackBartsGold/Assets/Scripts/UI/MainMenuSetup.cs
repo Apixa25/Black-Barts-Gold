@@ -54,13 +54,10 @@ namespace BlackBartsGold.UI
         
         private void Awake()
         {
-            FindUIElements();
-            SetupCanvas();
-            SetupBackground();
-            SetupTitle();
-            SetupButtons();
-            
-            Debug.Log("[MainMenuSetup] UI setup complete!");
+            // Deprecated setup path: MainMenuSceneSetup is the single MainMenu runtime owner.
+            // Keep this component inert to avoid dual-setup conflicts.
+            enabled = false;
+            Debug.Log("[MainMenuSetup] Deprecated - disabled to prevent duplicate MainMenu setup.");
         }
         
         #endregion

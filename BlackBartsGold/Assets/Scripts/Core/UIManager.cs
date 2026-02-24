@@ -42,6 +42,7 @@ namespace BlackBartsGold.Core
         [SerializeField] private GameObject walletPanel;
         [SerializeField] private GameObject settingsPanel;
         [SerializeField] private GameObject loadingPanel;
+        // Deprecated: AR HUD is now owned by ARHuntSceneSetup (code-built in AR scene).
         [SerializeField] private GameObject arHudPanel;
         
         #endregion
@@ -508,10 +509,9 @@ namespace BlackBartsGold.Core
             {
                 // Mark AR mode so Update() runs UpdateDiagnosticsPanel() and debug panel shows live info
                 isInARMode = true;
-                // Show AR HUD
-                Debug.Log("[UIManager] 🎮 ARHunt scene - showing AR HUD");
+                // AR HUD is now exclusively scene-owned (ARHuntSceneSetup, code-built at runtime).
+                Debug.Log("[UIManager] 🎮 ARHunt scene - using ARHuntSceneSetup-owned HUD");
                 HideAllPanels();
-                if (arHudPanel != null) arHudPanel.SetActive(true);
                 
                 // Fetch real coins from API after AR initializes
                 StartCoroutine(FetchCoinsFromAPI());
@@ -2035,7 +2035,8 @@ namespace BlackBartsGold.Core
             mainMenuPanel = CreateMainMenuPanel(_ourCanvas.transform);
             walletPanel = CreateWalletPanel(_ourCanvas.transform);
             settingsPanel = CreateSettingsPanel(_ourCanvas.transform);
-            arHudPanel = CreateARHudPanel(_ourCanvas.transform);
+            // AR HUD is created and owned by ARHuntSceneSetup in the AR scene.
+            arHudPanel = null;
             
             // Hide all initially
             HideAllPanels();

@@ -76,7 +76,6 @@ namespace BlackBartsGold.UI
             SetupGasMeterPanel();
             SetupFindLimitPanel();
             SetupDirectionIndicatorPanel();
-            VerifyEventSystem();
             SetupLightship(); // Pokemon GO technology!
             
             // Subscribe to hunt mode - zoom radar in when coin selected
@@ -1554,64 +1553,6 @@ namespace BlackBartsGold.UI
             Debug.Log("  - Depth: Better AR placement");
         }
         
-        /// <summary>
-        /// Verify the EventSystem is properly set up for UI input.
-        /// </summary>
-        private void VerifyEventSystem()
-        {
-            Debug.Log("[ARHuntSceneSetup] Verifying EventSystem...");
-            
-            // Check for EventSystem
-            var eventSystem = EventSystem.current;
-            if (eventSystem == null)
-            {
-                eventSystem = FindFirstObjectByType<EventSystem>();
-                if (eventSystem == null)
-                {
-                    Debug.LogError("[ARHuntSceneSetup] NO EventSystem found! Creating one...");
-                    var esGO = new GameObject("EventSystem_Runtime");
-                    eventSystem = esGO.AddComponent<EventSystem>();
-                    esGO.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-                    Debug.Log("[ARHuntSceneSetup] Created EventSystem at runtime");
-                }
-            }
-            Debug.Log($"[ARHuntSceneSetup] EventSystem: {eventSystem.name}, enabled: {eventSystem.enabled}");
-            
-            // Check for InputModule (using new Input System)
-            var inputModule = eventSystem.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-            if (inputModule != null)
-            {
-                Debug.Log($"[ARHuntSceneSetup] InputSystemUIInputModule found, enabled: {inputModule.enabled}");
-            }
-            else
-            {
-                // Check if any BaseInputModule exists
-                var baseInputModule = eventSystem.GetComponent<BaseInputModule>();
-                if (baseInputModule != null)
-                {
-                    Debug.Log($"[ARHuntSceneSetup] BaseInputModule found: {baseInputModule.GetType().Name}");
-                }
-                else
-                {
-                    Debug.LogWarning("[ARHuntSceneSetup] No input module found! Adding InputSystemUIInputModule...");
-                    eventSystem.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-                }
-            }
-            
-            // Check for GraphicRaycaster on this canvas
-            var canvas = GetComponent<Canvas>();
-            if (canvas != null)
-            {
-                Debug.Log($"[ARHuntSceneSetup] Canvas render mode: {canvas.renderMode}");
-                
-                var raycaster = canvas.GetComponent<GraphicRaycaster>();
-                if (raycaster == null)
-                {
-                    raycaster = canvas.gameObject.AddComponent<GraphicRaycaster>();
-                    Debug.LogWarning("[ARHuntSceneSetup] Added GraphicRaycaster to Canvas");
-                }
-                Debug.Log($"[ARHuntSceneSetup] GraphicRaycaster enabled: {raycaster.enabled}");
-            }
-        }
+        // EventSystem ownership is centralized in AppBootstrap.
     }
 }

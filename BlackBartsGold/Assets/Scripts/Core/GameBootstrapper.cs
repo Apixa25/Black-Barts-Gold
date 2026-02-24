@@ -21,35 +21,12 @@ namespace BlackBartsGold.Core
         private static GameBootstrapper _instance;
         public static GameBootstrapper Instance => _instance;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-        private static void Bootstrap()
-        {
-            // Create the bootstrapper if it doesn't exist
-            if (_instance == null)
-            {
-                var go = new GameObject("[GameBootstrapper]");
-                _instance = go.AddComponent<GameBootstrapper>();
-                DontDestroyOnLoad(go);
-                Debug.Log("[GameBootstrapper] Created persistent instance");
-            }
-        }
+        // Deprecated bootstrap path: AppBootstrap is now the single runtime bootstrap owner.
 
         private void Awake()
         {
-            if (_instance != null && _instance != this)
-            {
-                Debug.Log("[GameBootstrapper] Duplicate found, destroying...");
-                Destroy(gameObject);
-                return;
-            }
-
-            _instance = this;
-            DontDestroyOnLoad(gameObject);
-            
-            // Subscribe to scene loaded event
-            SceneManager.sceneLoaded += OnSceneLoaded;
-            
-            Debug.Log("[GameBootstrapper] Initialized");
+            Debug.Log("[GameBootstrapper] Deprecated - disabling component. AppBootstrap owns bootstrap/EventSystem.");
+            enabled = false;
         }
 
         private void OnDestroy()
