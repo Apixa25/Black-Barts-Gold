@@ -127,6 +127,7 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
+            ResolveRuntimeReferences();
             EnsureProfileUi();
 
             // Setup button listeners
@@ -167,6 +168,68 @@ namespace BlackBartsGold.UI
         #endregion
         
         #region Setup
+
+        /// <summary>
+        /// Resolve main menu references from runtime-created hierarchy.
+        /// This keeps MainMenuUI working without inspector wiring.
+        /// </summary>
+        private void ResolveRuntimeReferences()
+        {
+            titleText = ResolveTmpText(titleText, "TitleText");
+            balanceText = ResolveTmpText(balanceText, "BalanceText");
+            gasStatusText = ResolveTmpText(gasStatusText, "GasStatusText");
+            playerNameText = ResolveTmpText(playerNameText, "PlayerNameText");
+            startHuntingText = ResolveTmpText(startHuntingText, "StartHuntButton/ButtonText", "StartHuntButton/Text");
+            coinsFoundText = ResolveTmpText(coinsFoundText, "CoinsFoundText");
+            findLimitText = ResolveTmpText(findLimitText, "FindLimitText");
+            coinsHiddenText = ResolveTmpText(coinsHiddenText, "CoinsHiddenText");
+            tierText = ResolveTmpText(tierText, "TierText");
+
+            startHuntingButton = ResolveButton(startHuntingButton, "StartHuntButton");
+            treasureMapButton = ResolveButton(treasureMapButton, "TreasureMapButton", "MapButton");
+            walletButton = ResolveButton(walletButton, "WalletButton");
+            settingsButton = ResolveButton(settingsButton, "SettingsButton");
+            profileButton = ResolveButton(profileButton, "ProfileButton");
+            buyGasButton = ResolveButton(buyGasButton, "BuyGasButton");
+
+            noGasPanel = ResolveGameObject(noGasPanel, "NoGasPanel");
+            loadingPanel = ResolveGameObject(loadingPanel, "LoadingPanel");
+        }
+
+        private Button ResolveButton(Button current, params string[] paths)
+        {
+            if (current != null) return current;
+            foreach (var path in paths)
+            {
+                var t = transform.Find(path);
+                if (t != null && t.TryGetComponent<Button>(out var button))
+                    return button;
+            }
+            return null;
+        }
+
+        private TMP_Text ResolveTmpText(TMP_Text current, params string[] paths)
+        {
+            if (current != null) return current;
+            foreach (var path in paths)
+            {
+                var t = transform.Find(path);
+                if (t != null && t.TryGetComponent<TMP_Text>(out var text))
+                    return text;
+            }
+            return null;
+        }
+
+        private GameObject ResolveGameObject(GameObject current, params string[] paths)
+        {
+            if (current != null) return current;
+            foreach (var path in paths)
+            {
+                var t = transform.Find(path);
+                if (t != null) return t.gameObject;
+            }
+            return null;
+        }
         
         /// <summary>
         /// Setup button click listeners
@@ -488,7 +551,19 @@ namespace BlackBartsGold.UI
         {
             if (profileButton == null)
             {
-                profileButton = CreateMainMenuButton("ProfileButton", "MY PROFILE", new Vector2(0, -290), new Vector2(550, 90));
+                var existingProfileButton = transform.Find("ProfileButton");
+                if (existingProfileButton != null)
+                {
+                    profileButton = existingProfileButton.GetComponent<Button>();
+                    if (profileButton == null)
+                    {
+                        profileButton = existingProfileButton.gameObject.AddComponent<Button>();
+                    }
+                }
+                else
+                {
+                    profileButton = CreateMainMenuButton("ProfileButton", "MY PROFILE", new Vector2(0, -290), new Vector2(550, 90));
+                }
             }
 
             if (profilePanel == null)

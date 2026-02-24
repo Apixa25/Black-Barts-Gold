@@ -27,8 +27,11 @@ export default async function DashboardLayout({
       id: "demo-user",
       email: "demo@blackbartsgold.com",
       full_name: "Demo Partner",
+      age: null,
+      phone: null,
       role: "super_admin",
       avatar_url: null,
+      avatar_preset_id: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -43,8 +46,11 @@ export default async function DashboardLayout({
       id: user.id,
       email: user.email || "",
       full_name: user.user_metadata?.full_name || null,
+      age: null,
+      phone: null,
       role: "user",
       avatar_url: null,
+      avatar_preset_id: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
