@@ -5,6 +5,7 @@
 // ============================================================================
 
 using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace BlackBartsGold.UI
@@ -19,16 +20,20 @@ namespace BlackBartsGold.UI
         public static void PickFromGallery(Action<Texture2D, string> onComplete)
         {
 #if UNITY_ANDROID || UNITY_IOS
-            var permission = NativeGallery.GetImageFromGallery(
-                path => HandlePickedPath(path, onComplete),
+            NativeGallery.GetImageFromGallery(
+                path =>
+                {
+                    if (string.IsNullOrWhiteSpace(path))
+                    {
+                        onComplete?.Invoke(null, "Gallery access denied or no image selected.");
+                        return;
+                    }
+
+                    HandlePickedPath(path, onComplete);
+                },
                 "Select a profile photo",
                 "image/*"
             );
-
-            if (permission == NativeGallery.Permission.Denied)
-            {
-                onComplete?.Invoke(null, "Gallery permission denied.");
-            }
 #else
             onComplete?.Invoke(null, "Gallery is only available on mobile builds.");
 #endif
@@ -37,17 +42,47 @@ namespace BlackBartsGold.UI
         public static void PickFromCamera(Action<Texture2D, string> onComplete)
         {
 #if UNITY_ANDROID || UNITY_IOS
-            var permission = NativeGallery.GetImageFromCamera(
-                path => HandlePickedPath(path, onComplete),
-                "Take profile photo",
-                "bbg-profile.jpg",
-                MAX_IMAGE_SIZE
-            );
-
-            if (permission == NativeGallery.Permission.Denied)
+            // This NativeGallery version does not expose GetImageFromCamera, so
+            // we safely fall back to image selection from gallery.
+            MethodInfo cameraMethod = typeof(NativeGallery).GetMethod("GetImageFromCamera", BindingFlags.Public | BindingFlags.Static);
+            if (cameraMethod != null)
             {
-                onComplete?.Invoke(null, "Camera permission denied.");
+                try
+                {
+                    NativeGallery.MediaPickCallback callback = path =>
+                    {
+                        if (string.IsNullOrWhiteSpace(path))
+                        {
+                            onComplete?.Invoke(null, "Camera access denied or no image selected.");
+                            return;
+                        }
+
+                        HandlePickedPath(path, onComplete);
+                    };
+
+                    cameraMethod.Invoke(null, new object[] { callback, "Take profile photo", "bbg-profile.jpg", MAX_IMAGE_SIZE });
+                    return;
+                }
+                catch
+                {
+                    // If reflection invocation fails, continue to gallery fallback below.
+                }
             }
+
+            NativeGallery.GetImageFromGallery(
+                path =>
+                {
+                    if (string.IsNullOrWhiteSpace(path))
+                    {
+                        onComplete?.Invoke(null, "Camera mode unavailable in this plugin version and no image was selected.");
+                        return;
+                    }
+
+                    HandlePickedPath(path, onComplete);
+                },
+                "Select profile photo",
+                "image/*"
+            );
 #else
             onComplete?.Invoke(null, "Camera is only available on mobile builds.");
 #endif

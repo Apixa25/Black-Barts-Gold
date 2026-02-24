@@ -275,6 +275,10 @@ When working on this project:
 4. **Explain clearly**: Long explanations with file paths
 5. **Use emojis**: Keep energy high! 🤠
 6. **Test on device**: AR doesn't work in Unity Editor
+7. **Proactive support default**:
+   - Assume the user wants maximum hands-on help by default
+   - Perform end-to-end diagnosis and implementation whenever safe
+   - Prefer additive, low-risk fixes that preserve existing progress
 
 ### File Path Convention
 Always include full paths in code blocks:
