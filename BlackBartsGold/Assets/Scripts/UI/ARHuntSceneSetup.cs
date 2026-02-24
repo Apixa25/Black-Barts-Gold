@@ -43,6 +43,7 @@ namespace BlackBartsGold.UI
         private int _radarZoom = 19; // 19 = default (3 levels closer); 21 = zoomed in when hunting
         private Sprite _cachedMapCoinIconSprite;
         private bool _mapCoinIconLoadLogged = false;
+        private Sprite _directionArrowSprite;
         private const float _miniMapUiScale = 2f; // Single tuning point for AR mini-map sizing
         private const float _radarBaseSize = 360f;
         private float _lastRadarControlsRefresh;
@@ -61,11 +62,14 @@ namespace BlackBartsGold.UI
         private string _lastArState;
         private string _lastArStateChangeInfo;
         private float _lastSensorConsoleRefresh;
+        private float _lastVerboseLifecycleLog;
+        private const float _verboseLifecycleInterval = 3f;
         
         private void Start()
         {
             DiagnosticLog.Log("Setup", $"AR SCENE START T+{Time.realtimeSinceStartup:F2}s");
             DiagnosticLog.Log("Setup", $"GameObject: {gameObject.name}");
+            DiagnosticLog.Log("Setup", $"Scene={UnityEngine.SceneManagement.SceneManager.GetActiveScene().name} children={transform.childCount} screen={Screen.width}x{Screen.height}");
             
             // Single source of truth: remove scene-based FullMapPanel - we use UIManager's code-based map only
             var fullMap = transform.Find("FullMapPanel");
@@ -77,6 +81,7 @@ namespace BlackBartsGold.UI
             
             SetupCanvas();
             InitializeDevelopmentConsoleSensors();
+            DisableForeignDebugPanels();
             CleanupStrayCenteredImages(); // Remove white square from orphan CompassArrowPanel etc.
             SetupBackButton();
             SetupCrosshairs();
@@ -161,39 +166,54 @@ namespace BlackBartsGold.UI
                 _lastRadarControlsRefresh = Time.time;
                 RefreshRadarZoomControlsUi();
             }
+
+            if (Time.time - _lastVerboseLifecycleLog >= _verboseLifecycleInterval)
+            {
+                _lastVerboseLifecycleLog = Time.time;
+                DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s debugPanel={(_debugDiagnosticsText != null)} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
+            }
         }
 
         private void InitializeDevelopmentConsoleSensors()
         {
             // Ensure all sensor devices used by AR/nav pipelines are enabled for diagnostics and runtime behavior.
             DeviceCompass.Initialize();
+            DiagnosticLog.Log("Sensors", $"DeviceCompass available={DeviceCompass.IsAvailable} heading={DeviceCompass.Heading:F1} method={DeviceCompass.ActiveMethod}");
 
             _attitudeSensor = AttitudeSensor.current;
             if (_attitudeSensor != null) InputSystem.EnableDevice(_attitudeSensor);
+            DiagnosticLog.Log("Sensors", $"AttitudeSensor present={_attitudeSensor != null} enabled={(_attitudeSensor != null && _attitudeSensor.enabled)}");
 
             _accelerometer = Accelerometer.current;
             if (_accelerometer != null) InputSystem.EnableDevice(_accelerometer);
+            DiagnosticLog.Log("Sensors", $"Accelerometer present={_accelerometer != null} enabled={(_accelerometer != null && _accelerometer.enabled)}");
 
             _gravitySensor = GravitySensor.current;
             if (_gravitySensor != null) InputSystem.EnableDevice(_gravitySensor);
+            DiagnosticLog.Log("Sensors", $"GravitySensor present={_gravitySensor != null} enabled={(_gravitySensor != null && _gravitySensor.enabled)}");
 
             _gyroscope = UnityEngine.InputSystem.Gyroscope.current;
             if (_gyroscope != null) InputSystem.EnableDevice(_gyroscope);
+            DiagnosticLog.Log("Sensors", $"InputSystem Gyroscope present={_gyroscope != null} enabled={(_gyroscope != null && _gyroscope.enabled)}");
 
             _magneticFieldSensor = MagneticFieldSensor.current;
             if (_magneticFieldSensor != null) InputSystem.EnableDevice(_magneticFieldSensor);
+            DiagnosticLog.Log("Sensors", $"MagneticFieldSensor present={_magneticFieldSensor != null} enabled={(_magneticFieldSensor != null && _magneticFieldSensor.enabled)}");
 
             Input.compass.enabled = true;
+            DiagnosticLog.Log("Sensors", $"Legacy compass enabled={Input.compass.enabled} rawHeading={Input.compass.trueHeading:F1}");
             if (SystemInfo.supportsGyroscope)
             {
                 Input.gyro.enabled = true;
             }
+            DiagnosticLog.Log("Sensors", $"Legacy gyro supported={SystemInfo.supportsGyroscope} enabled={Input.gyro.enabled}");
 
             var cam = Camera.main;
             _lastCameraPosition = cam != null ? cam.transform.position : Vector3.zero;
             _cameraMovementSinceStart = 0f;
             _lastArState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
             _lastArStateChangeInfo = "AR state stable";
+            DiagnosticLog.Log("Sensors", $"Initial AR state={_lastArState} cameraFound={cam != null}");
         }
 
         private string BuildDevelopmentConsoleString()
@@ -320,6 +340,80 @@ namespace BlackBartsGold.UI
                 }
                 // Deactivate entire panel - it's unused (CompassPanel is created in code)
                 compassArrow.gameObject.SetActive(false);
+            }
+
+            // Generic safety net: disable centered, pure-white, no-sprite images that render as opaque squares.
+            var images = GetComponentsInChildren<Image>(true);
+            foreach (var image in images)
+            {
+                if (image == null || image.sprite != null) continue;
+                var rect = image.rectTransform;
+                if (rect == null) continue;
+
+                bool centeredAnchor = Mathf.Abs(rect.anchorMin.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMin.y - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
+                bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
+                bool modestSize = rect.sizeDelta.x <= 260f && rect.sizeDelta.y <= 260f;
+                bool looksLikeWhiteSquare = image.color.a > 0.95f
+                    && image.color.r > 0.95f
+                    && image.color.g > 0.95f
+                    && image.color.b > 0.95f;
+
+                if (centeredAnchor && centeredPosition && modestSize && looksLikeWhiteSquare)
+                {
+                    image.enabled = false;
+                    DiagnosticLog.Log("Setup", $"Disabled centered white no-sprite Image artifact: {image.gameObject.name}");
+                }
+            }
+
+            var rawImages = GetComponentsInChildren<RawImage>(true);
+            foreach (var rawImage in rawImages)
+            {
+                if (rawImage == null || rawImage.texture != null) continue;
+                var rect = rawImage.rectTransform;
+                if (rect == null) continue;
+
+                bool centeredAnchor = Mathf.Abs(rect.anchorMin.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMin.y - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
+                bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
+                bool modestSize = rect.sizeDelta.x <= 260f && rect.sizeDelta.y <= 260f;
+                bool looksLikeWhiteSquare = rawImage.color.a > 0.95f
+                    && rawImage.color.r > 0.95f
+                    && rawImage.color.g > 0.95f
+                    && rawImage.color.b > 0.95f;
+
+                if (centeredAnchor && centeredPosition && modestSize && looksLikeWhiteSquare)
+                {
+                    rawImage.enabled = false;
+                    DiagnosticLog.Log("Setup", $"Disabled centered white no-texture RawImage artifact: {rawImage.gameObject.name}");
+                }
+            }
+        }
+
+        private void DisableForeignDebugPanels()
+        {
+            // Prevent tiny legacy/persistent debug panels from showing in AR instead of this scene's console.
+            var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var obj in allObjects)
+            {
+                if (obj == null || obj.name != "DebugDiagnosticsPanel") continue;
+                if (obj.transform.IsChildOf(transform)) continue;
+                obj.SetActive(false);
+                DiagnosticLog.Log("Setup", $"Disabled foreign DebugDiagnosticsPanel: {obj.name}");
+            }
+
+            // Disable legacy OnGUI emergency overlay if present.
+            var emergencyBtn = FindFirstObjectByType<EmergencyMapButton>();
+            if (emergencyBtn != null)
+            {
+                emergencyBtn.showButton = false;
+                emergencyBtn.showDebugInfo = false;
+                emergencyBtn.enabled = false;
+                DiagnosticLog.Log("Setup", "EmergencyMapButton overlay disabled");
             }
         }
 
@@ -566,10 +660,12 @@ namespace BlackBartsGold.UI
                 radarUI.SetMiniMapScale(_miniMapUiScale);
                 SetupRadarZoomControls(radarUI);
                 Debug.Log("[ARHuntSceneSetup] RadarUI wired with code-based setup");
+                DiagnosticLog.Log("Radar", $"RadarPanel ready size={rect?.sizeDelta} scale={_miniMapUiScale} zoom={_radarZoom}");
             }
             else
             {
                 Debug.LogWarning("[ARHuntSceneSetup] RadarUI component NOT found on RadarPanel!");
+                DiagnosticLog.Warn("Radar", "RadarUI missing on RadarPanel after setup");
             }
         }
 
@@ -707,7 +803,11 @@ namespace BlackBartsGold.UI
 
         private void SetupRadarZoomControls(RadarUI radarUI)
         {
-            if (radarUI == null) return;
+            if (radarUI == null)
+            {
+                DiagnosticLog.Warn("Radar", "SetupRadarZoomControls skipped: radarUI null");
+                return;
+            }
 
             var controls = transform.Find("RadarZoomControls");
             if (controls == null)
@@ -717,6 +817,7 @@ namespace BlackBartsGold.UI
                 controls = controlsGO.transform;
                 controlsGO.AddComponent<RectTransform>();
                 controlsGO.AddComponent<Image>();
+                DiagnosticLog.Log("Radar", "Created RadarZoomControls");
             }
 
             var controlsRect = controls.GetComponent<RectTransform>();
@@ -742,6 +843,13 @@ namespace BlackBartsGold.UI
             var plusButton = EnsureRadarZoomButton(controls, "PlusButton", "+", new Vector2(100f, -32f));
             var rangeText = EnsureRadarZoomLabel(controls, "RangeText", new Vector2(158f, -32f));
             var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(232f, -32f), new Vector2(70f, 56f), 20f);
+            DiagnosticLog.Log("Radar", $"Zoom controls refs: minus={minusButton != null} plus={plusButton != null} range={rangeText != null} auto={autoButton != null}");
+
+            if (minusButton == null || plusButton == null || rangeText == null || autoButton == null)
+            {
+                DiagnosticLog.Warn("Radar", "SetupRadarZoomControls aborted due to missing controls");
+                return;
+            }
 
             _radarZoomRadarUI = radarUI;
             _radarMinusButton = minusButton;
@@ -775,10 +883,17 @@ namespace BlackBartsGold.UI
             });
 
             RefreshRadarZoomControlsUi();
+            DiagnosticLog.Log("Radar", "Zoom controls wired");
         }
 
         private Button EnsureRadarZoomButton(Transform parent, string buttonName, string label, Vector2 anchoredPosition, Vector2? sizeOverride = null, float fontSize = 32f)
         {
+            if (parent == null || !parent)
+            {
+                DiagnosticLog.Warn("Radar", $"EnsureRadarZoomButton failed: parent invalid for {buttonName}");
+                return null;
+            }
+
             var buttonTransform = parent.Find(buttonName);
             if (buttonTransform == null)
             {
@@ -801,6 +916,7 @@ namespace BlackBartsGold.UI
                 tmpText.alignment = TextAlignmentOptions.Center;
                 tmpText.fontSize = fontSize;
                 tmpText.color = Color.white;
+                DiagnosticLog.Log("Radar", $"Created zoom button {buttonName}");
             }
 
             var rect = buttonTransform.GetComponent<RectTransform>();
@@ -856,13 +972,18 @@ namespace BlackBartsGold.UI
             labelText.color = Color.white;
             labelText.text = label;
             labelText.fontSize = fontSize;
+            DiagnosticLog.Log("Radar", $"Prepared zoom button {buttonName} label={label}");
 
             return button;
         }
 
         private TextMeshProUGUI EnsureRadarZoomLabel(Transform parent, string name, Vector2 anchoredPosition)
         {
-            if (parent == null || !parent) return null;
+            if (parent == null || !parent)
+            {
+                DiagnosticLog.Warn("Radar", $"EnsureRadarZoomLabel failed: parent invalid for {name}");
+                return null;
+            }
 
             var textTransform = parent.Find(name);
             if (textTransform == null)
@@ -902,6 +1023,7 @@ namespace BlackBartsGold.UI
             tmpText.color = GoldColor;
             tmpText.alignment = TextAlignmentOptions.Center;
             tmpText.text = "50m";
+            DiagnosticLog.Log("Radar", $"Prepared zoom label {name}");
 
             return tmpText;
         }
@@ -993,60 +1115,80 @@ namespace BlackBartsGold.UI
         private void SetupDebugPanel()
         {
             var existing = transform.Find("DebugDiagnosticsPanel");
-            if (existing != null)
+            Transform panel = existing;
+            if (panel == null)
             {
-                _debugDiagnosticsText = existing.GetComponentInChildren<TextMeshProUGUI>();
-                var title = existing.Find("DebugTitle");
-                if (title != null) _debugTitleText = title.GetComponent<TextMeshProUGUI>();
-                if (_debugTitleText != null) _debugTitleText.text = "DEVELOPMENT CONSOLE";
-                return;
+                var debugPanel = new GameObject("DebugDiagnosticsPanel");
+                debugPanel.transform.SetParent(transform, false);
+                panel = debugPanel.transform;
             }
 
-            var debugPanel = new GameObject("DebugDiagnosticsPanel");
-            debugPanel.transform.SetParent(transform, false);
-            var panelRect = debugPanel.AddComponent<RectTransform>();
+            var panelRect = panel.GetComponent<RectTransform>();
+            if (panelRect == null) panelRect = panel.gameObject.AddComponent<RectTransform>();
             panelRect.anchorMin = new Vector2(0, 0);
             panelRect.anchorMax = new Vector2(0, 0);
             panelRect.pivot = new Vector2(0, 0);
             panelRect.anchoredPosition = new Vector2(20, 20);
-            panelRect.sizeDelta = new Vector2(920, 520); // Bottom-left development console
+            panelRect.sizeDelta = new Vector2(980, 560); // Bottom-left development console
+            panelRect.localScale = Vector3.one;
+            panelRect.localRotation = Quaternion.identity;
 
-            var bgImage = debugPanel.AddComponent<Image>();
+            var bgImage = panel.GetComponent<Image>();
+            if (bgImage == null) bgImage = panel.gameObject.AddComponent<Image>();
             bgImage.color = new Color(0, 0, 0, 0.8f);
             bgImage.raycastTarget = false;
 
-            var titleGO = new GameObject("DebugTitle");
-            titleGO.transform.SetParent(debugPanel.transform, false);
-            var titleRect = titleGO.AddComponent<RectTransform>();
+            var title = panel.Find("DebugTitle");
+            if (title == null)
+            {
+                var titleGO = new GameObject("DebugTitle");
+                titleGO.transform.SetParent(panel, false);
+                title = titleGO.transform;
+            }
+            var titleRect = title.GetComponent<RectTransform>();
+            if (titleRect == null) titleRect = title.gameObject.AddComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0, 1);
             titleRect.anchorMax = new Vector2(1, 1);
             titleRect.pivot = new Vector2(0.5f, 1);
             titleRect.anchoredPosition = new Vector2(0, -10);
             titleRect.sizeDelta = new Vector2(0, 40);
-            var titleText = titleGO.AddComponent<TextMeshProUGUI>();
+            var titleText = title.GetComponent<TextMeshProUGUI>();
+            if (titleText == null) titleText = title.gameObject.AddComponent<TextMeshProUGUI>();
             titleText.text = "DEVELOPMENT CONSOLE";
             titleText.fontSize = 30;
             titleText.color = GoldColor;
             titleText.alignment = TextAlignmentOptions.Center;
             _debugTitleText = titleText;
 
-            var diagGO = new GameObject("DiagnosticsText");
-            diagGO.transform.SetParent(debugPanel.transform, false);
-            var diagRect = diagGO.AddComponent<RectTransform>();
+            var diagnostics = panel.Find("DiagnosticsText");
+            if (diagnostics == null)
+            {
+                var diagGO = new GameObject("DiagnosticsText");
+                diagGO.transform.SetParent(panel, false);
+                diagnostics = diagGO.transform;
+            }
+            var diagRect = diagnostics.GetComponent<RectTransform>();
+            if (diagRect == null) diagRect = diagnostics.gameObject.AddComponent<RectTransform>();
             diagRect.anchorMin = new Vector2(0, 0);
             diagRect.anchorMax = new Vector2(1, 1);
             diagRect.pivot = new Vector2(0, 1);
             diagRect.anchoredPosition = new Vector2(15, -55);
             diagRect.sizeDelta = new Vector2(-30, -70);
-            _debugDiagnosticsText = diagGO.AddComponent<TextMeshProUGUI>();
-            _debugDiagnosticsText.text = "Loading...";
+            _debugDiagnosticsText = diagnostics.GetComponent<TextMeshProUGUI>();
+            if (_debugDiagnosticsText == null) _debugDiagnosticsText = diagnostics.gameObject.AddComponent<TextMeshProUGUI>();
             _debugDiagnosticsText.fontSize = 21;
             _debugDiagnosticsText.color = Color.white;
             _debugDiagnosticsText.alignment = TextAlignmentOptions.TopLeft;
             _debugDiagnosticsText.enableWordWrapping = true;
             _debugDiagnosticsText.richText = true;
+            _debugDiagnosticsText.text = BuildDevelopmentConsoleString();
+
+            panel.gameObject.SetActive(true);
+            panel.SetAsLastSibling();
 
             Debug.Log("[ARHuntSceneSetup] Debug diagnostics panel created");
+            DiagnosticLog.Log("Console", $"DebugDiagnosticsPanel active={panel.gameObject.activeInHierarchy} size={panelRect.sizeDelta} pos={panelRect.anchoredPosition} scale={panelRect.localScale}");
+            DiagnosticLog.Log("Console", $"DiagnosticsText ready={_debugDiagnosticsText != null} titleReady={_debugTitleText != null}");
         }
 
         /// <summary>
@@ -1527,6 +1669,11 @@ namespace BlackBartsGold.UI
                     arrowRectExisting != null && distTextExisting != null &&
                     valTextExisting != null && statTextExisting != null && arrowImgExisting != null)
                 {
+                    if (arrowImgExisting.sprite == null)
+                    {
+                        arrowImgExisting.sprite = GetOrCreateDirectionArrowSprite();
+                        arrowImgExisting.preserveAspect = true;
+                    }
                     // Keep the panel active in hierarchy. CoinDirectionIndicator controls visibility via CanvasGroup.
                     existing.gameObject.SetActive(true);
                     dirIndicatorExisting.SetRuntimeReferences(
@@ -1568,6 +1715,8 @@ namespace BlackBartsGold.UI
             arrowRect.anchoredPosition = Vector2.zero;
             arrowRect.sizeDelta = new Vector2(60, 60);
             var arrowImg = arrowGO.AddComponent<Image>();
+            arrowImg.sprite = GetOrCreateDirectionArrowSprite();
+            arrowImg.preserveAspect = true;
             arrowImg.color = new Color(1f, 0.84f, 0f, 0.9f);
             arrowImg.raycastTarget = false;
 
@@ -1620,6 +1769,40 @@ namespace BlackBartsGold.UI
             panel.SetActive(true);
             dirIndicator.Hide();
             DiagnosticLog.Log("Setup", "DirectionIndicatorPanel created");
+        }
+
+        private Sprite GetOrCreateDirectionArrowSprite()
+        {
+            if (_directionArrowSprite != null)
+                return _directionArrowSprite;
+
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            var clear = new Color32(0, 0, 0, 0);
+            var fill = new Color32(255, 255, 255, 255);
+            var pixels = new Color32[size * size];
+            for (int i = 0; i < pixels.Length; i++) pixels[i] = clear;
+
+            // Draw a simple upward-pointing triangle on transparent background.
+            for (int y = 0; y < size; y++)
+            {
+                float t = y / (float)(size - 1);
+                int halfWidth = Mathf.RoundToInt(Mathf.Lerp(size / 2f, 2f, t));
+                int centerX = size / 2;
+                int minX = Mathf.Clamp(centerX - halfWidth, 0, size - 1);
+                int maxX = Mathf.Clamp(centerX + halfWidth, 0, size - 1);
+                for (int x = minX; x <= maxX; x++)
+                {
+                    pixels[y * size + x] = fill;
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply(false, false);
+            _directionArrowSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.1f), 100f);
+            DiagnosticLog.Log("Setup", "Generated runtime direction arrow sprite");
+            return _directionArrowSprite;
         }
         
         /// <summary>

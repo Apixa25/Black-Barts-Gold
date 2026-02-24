@@ -18,6 +18,8 @@ namespace BlackBartsGold.UI
         private readonly Color DeepSeaBlue = new Color(0.102f, 0.212f, 0.365f);
         private readonly Color Parchment = new Color(0.961f, 0.902f, 0.827f);
         private readonly Color DarkBrown = new Color(0.239f, 0.161f, 0.078f);
+        private bool _isApplyingSetup;
+        private int _lastAppliedFrame = -1;
 
         private void OnEnable()
         {
@@ -32,22 +34,40 @@ namespace BlackBartsGold.UI
         private void ApplySetup()
         {
             if (transform == null) return;
+            if (_isApplyingSetup || _lastAppliedFrame == Time.frameCount) return;
 #if UNITY_EDITOR
             // Skip during player build so we don't hit MissingReferenceException from edit-mode destroy/recreate
             if (UnityEditor.BuildPipeline.isBuildingPlayer) return;
 #endif
+            _isApplyingSetup = true;
             Debug.Log("[MainMenuSceneSetup] Applying MainMenu UI setup...");
-            
-            SetupCanvas();
-            SetupBackground();
-            SetupTitle();
-            SetupStartHuntButton();
-            SetupWalletButton();
-            SetupProfileButton();
-            SetupSettingsButton();
-            DisableDebugPanels();
-            
-            Debug.Log("[MainMenuSceneSetup] MainMenu UI setup complete!");
+            try
+            {
+                Debug.Log($"[MainMenuSceneSetup][Trace] Root='{gameObject.name}' children={transform.childCount} active={gameObject.activeInHierarchy}");
+                SetupCanvas();
+                Debug.Log("[MainMenuSceneSetup][Trace] SetupCanvas complete");
+                SetupBackground();
+                Debug.Log("[MainMenuSceneSetup][Trace] SetupBackground complete");
+                SetupTitle();
+                Debug.Log("[MainMenuSceneSetup][Trace] SetupTitle complete");
+                SetupStartHuntButton();
+                Debug.Log("[MainMenuSceneSetup][Trace] SetupStartHuntButton complete");
+                SetupWalletButton();
+                LogButtonState("WalletButton");
+                SetupProfileButton();
+                LogButtonState("ProfileButton");
+                SetupSettingsButton();
+                LogButtonState("SettingsButton");
+                DisableDebugPanels();
+                CleanupCenteredWhiteSquareArtifacts();
+
+                Debug.Log("[MainMenuSceneSetup] MainMenu UI setup complete!");
+            }
+            finally
+            {
+                _isApplyingSetup = false;
+                _lastAppliedFrame = Time.frameCount;
+            }
         }
         
         /// <summary>
@@ -55,12 +75,16 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void DisableDebugPanels()
         {
-            // 1. Find DebugDiagnosticsPanel in scene (from ARHunt if it persisted, or MainMenu hierarchy)
-            var debugPanel = GameObject.Find("DebugDiagnosticsPanel");
-            if (debugPanel != null)
+            // 1. Disable every DebugDiagnosticsPanel instance in loaded objects.
+            var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var obj in allObjects)
             {
-                debugPanel.SetActive(false);
-                Debug.Log("[MainMenuSceneSetup] Debug panel explicitly disabled.");
+                if (obj == null) continue;
+                if (obj.name == "DebugDiagnosticsPanel")
+                {
+                    obj.SetActive(false);
+                    Debug.Log("[MainMenuSceneSetup] Debug panel explicitly disabled.");
+                }
             }
             
             // 2. Disable EmergencyMapButton overlay (persists with DontDestroyOnLoad)
@@ -69,9 +93,54 @@ namespace BlackBartsGold.UI
             {
                 emergencyBtn.showDebugInfo = false;
                 emergencyBtn.showButton = false;
+                emergencyBtn.enabled = false;
                 Debug.Log("[MainMenuSceneSetup] EmergencyMapButton debug overlay disabled.");
             }
+
+            // 3. Defensive cleanup: disable legacy diagnostic overlays by naming convention.
+            foreach (var obj in allObjects)
+            {
+                if (obj == null) continue;
+                var name = obj.name.ToLowerInvariant();
+                if (name.Contains("debug") || name.Contains("diagnostic") || name.Contains("console"))
+                {
+                    // Keep this setup root active; disable only children/foreign overlays.
+                    if (obj == gameObject) continue;
+                    if (!obj.activeSelf) continue;
+                    obj.SetActive(false);
+                    Debug.Log($"[MainMenuSceneSetup] Disabled legacy debug overlay object: {obj.name}");
+                }
+            }
             
+        }
+
+        private void CleanupCenteredWhiteSquareArtifacts()
+        {
+            // Safety pass for scene-authored leftovers that appear as centered white squares.
+            var allImages = FindObjectsByType<Image>(FindObjectsSortMode.None);
+            foreach (var image in allImages)
+            {
+                if (image == null || image.sprite != null) continue;
+                var rect = image.rectTransform;
+                if (rect == null) continue;
+
+                bool centeredAnchor = Mathf.Abs(rect.anchorMin.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMin.y - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
+                bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
+                bool modestSize = rect.sizeDelta.x <= 260f && rect.sizeDelta.y <= 260f;
+                bool looksLikeWhiteSquare = image.color.a > 0.95f
+                    && image.color.r > 0.95f
+                    && image.color.g > 0.95f
+                    && image.color.b > 0.95f;
+
+                if (centeredAnchor && centeredPosition && modestSize && looksLikeWhiteSquare)
+                {
+                    image.enabled = false;
+                    Debug.Log($"[MainMenuSceneSetup] Disabled centered white square artifact on {image.gameObject.name}");
+                }
+            }
         }
 
         private void SetupCanvas()
@@ -172,6 +241,7 @@ namespace BlackBartsGold.UI
         private void SetupWalletButton()
         {
             var btn = EnsureMainMenuButton("WalletButton");
+            if (btn == null || !btn) return;
             var btnComp = btn.GetComponent<Button>();
             Debug.Log($"[MainMenuSceneSetup] WalletButton found interactable={btnComp?.interactable}");
 
@@ -192,11 +262,13 @@ namespace BlackBartsGold.UI
             }
 
             SetupButtonText(btn, "👛 MY WALLET", 32);
+            Debug.Log("[MainMenuSceneSetup][Trace] WalletButton text+style applied");
         }
 
         private void SetupSettingsButton()
         {
             var btn = EnsureMainMenuButton("SettingsButton");
+            if (btn == null || !btn) return;
             var btnComp = btn.GetComponent<Button>();
             Debug.Log($"[MainMenuSceneSetup] SettingsButton found interactable={btnComp?.interactable}");
 
@@ -217,11 +289,13 @@ namespace BlackBartsGold.UI
             }
 
             SetupButtonText(btn, "SETTINGS", 32);
+            Debug.Log("[MainMenuSceneSetup][Trace] SettingsButton text+style applied");
         }
 
         private void SetupProfileButton()
         {
             var btn = EnsureMainMenuButton("ProfileButton");
+            if (btn == null || !btn) return;
 
             var rect = btn.GetComponent<RectTransform>();
             if (rect != null)
@@ -240,48 +314,85 @@ namespace BlackBartsGold.UI
             }
 
             SetupButtonText(btn, "MY PROFILE", 32);
+            Debug.Log("[MainMenuSceneSetup][Trace] ProfileButton text+style applied");
         }
 
         private Transform EnsureMainMenuButton(string buttonName)
         {
-            var btn = transform.Find(buttonName);
-            if (btn == null)
+            if (transform == null)
             {
-                var buttonGO = new GameObject(buttonName);
-                buttonGO.transform.SetParent(transform, false);
-                btn = buttonGO.transform;
-                buttonGO.AddComponent<RectTransform>();
-                buttonGO.AddComponent<Image>();
-                buttonGO.AddComponent<Button>();
-                Debug.Log($"[MainMenuSceneSetup] Created {buttonName} from code");
+                Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') failed: transform is null");
+                return null;
             }
 
-            var rect = btn.GetComponent<RectTransform>();
-            if (rect == null) rect = btn.gameObject.AddComponent<RectTransform>();
-            var image = btn.GetComponent<Image>();
-            if (image == null) image = btn.gameObject.AddComponent<Image>();
-            var button = btn.GetComponent<Button>();
-            if (button == null) button = btn.gameObject.AddComponent<Button>();
-            button.transition = Selectable.Transition.ColorTint;
-
-            // Self-heal label child so SetupButtonText never receives a malformed node.
-            var labelTransform = btn.Find("ButtonText");
-            if (labelTransform == null)
+            try
             {
-                labelTransform = btn.Find("Text");
-            }
-            if (labelTransform == null)
-            {
-                var textGO = new GameObject("Text");
-                textGO.transform.SetParent(btn, false);
-                labelTransform = textGO.transform;
-            }
-            var labelRect = labelTransform.GetComponent<RectTransform>();
-            if (labelRect == null) labelRect = labelTransform.gameObject.AddComponent<RectTransform>();
-            var labelTmp = labelTransform.GetComponent<TMP_Text>();
-            if (labelTmp == null) labelTmp = labelTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                var btn = transform.Find(buttonName);
+                if (btn != null && !btn)
+                {
+                    btn = null;
+                }
+                if (btn == null)
+                {
+                    var buttonGO = new GameObject(buttonName);
+                    buttonGO.transform.SetParent(transform, false);
+                    btn = buttonGO.transform;
+                    buttonGO.AddComponent<RectTransform>();
+                    buttonGO.AddComponent<Image>();
+                    buttonGO.AddComponent<Button>();
+                    Debug.Log($"[MainMenuSceneSetup] Created {buttonName} from code");
+                }
 
-            return btn;
+                if (btn == null || !btn)
+                {
+                    btn = transform.Find(buttonName);
+                }
+                if (btn == null || !btn)
+                {
+                    Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') failed: button transform unresolved after create/find");
+                    return null;
+                }
+
+                var rect = btn.GetComponent<RectTransform>();
+                if (rect == null) rect = btn.gameObject.AddComponent<RectTransform>();
+                var image = btn.GetComponent<Image>();
+                if (image == null) image = btn.gameObject.AddComponent<Image>();
+                var button = btn.GetComponent<Button>();
+                if (button == null) button = btn.gameObject.AddComponent<Button>();
+                button.transition = Selectable.Transition.ColorTint;
+
+                // Self-heal label child so SetupButtonText never receives a malformed node.
+                var labelTransform = btn.Find("ButtonText");
+                if (labelTransform == null)
+                {
+                    labelTransform = btn.Find("Text");
+                }
+                if (labelTransform == null)
+                {
+                    var textGO = new GameObject("Text");
+                    textGO.transform.SetParent(btn, false);
+                    labelTransform = textGO.transform;
+                }
+
+                if (labelTransform == null || !labelTransform)
+                {
+                    Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') label transform invalid");
+                    return btn;
+                }
+
+                var labelRect = labelTransform.GetComponent<RectTransform>();
+                if (labelRect == null) labelRect = labelTransform.gameObject.AddComponent<RectTransform>();
+                var labelTmp = labelTransform.GetComponent<TMP_Text>();
+                if (labelTmp == null) labelTmp = labelTransform.gameObject.AddComponent<TextMeshProUGUI>();
+
+                Debug.Log($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') ready | label='{labelTransform.name}' hasTMP={labelTmp != null}");
+                return btn;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') exception: {ex}");
+                return null;
+            }
         }
 
         private void SetupButtonText(Transform button, string label, int fontSize)
@@ -339,6 +450,19 @@ namespace BlackBartsGold.UI
             tmpText.alignment = TextAlignmentOptions.Center;
             tmpText.color = DarkBrown;
             tmpText.raycastTarget = false;
+            Debug.Log($"[MainMenuSceneSetup][Trace] SetupButtonText applied label='{label}' font={fontSize} on '{button.name}'");
+        }
+
+        private void LogButtonState(string buttonName)
+        {
+            var btn = transform != null ? transform.Find(buttonName) : null;
+            var exists = btn != null && btn;
+            var active = exists && btn.gameObject.activeInHierarchy;
+            var hasImage = exists && btn.GetComponent<Image>() != null;
+            var hasButton = exists && btn.GetComponent<Button>() != null;
+            var textNode = exists ? btn.Find("Text") : null;
+            var hasTmp = textNode != null && textNode.GetComponent<TMP_Text>() != null;
+            Debug.Log($"[MainMenuSceneSetup][Trace] {buttonName}: exists={exists} active={active} image={hasImage} button={hasButton} textNode={(textNode != null)} tmp={hasTmp}");
         }
     }
 }

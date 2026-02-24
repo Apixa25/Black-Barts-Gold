@@ -38,15 +38,19 @@ namespace BlackBartsGold.Core
             // Create the persistent game root
             var root = new GameObject("[BlackBartsGold]");
             Object.DontDestroyOnLoad(root);
+            Debug.Log($"[AppBootstrap][Trace] Created root object '{root.name}'");
             
             // Add UIManager
             root.AddComponent<UIManager>();
+            Debug.Log("[AppBootstrap][Trace] UIManager component attached");
             
             // Add AuthService (and ApiClient via its usage) - ensures real login/register work from first scene
             root.AddComponent<AuthService>();
+            Debug.Log("[AppBootstrap][Trace] AuthService component attached");
             
             // Add single persistent EventSystem
             CreateEventSystem(root.transform);
+            Debug.Log("[AppBootstrap][Trace] CreateEventSystem completed");
             
             // Subscribe to scene loaded to clean up duplicate EventSystems
             SceneManager.sceneLoaded += OnSceneLoaded;
@@ -64,6 +68,7 @@ namespace BlackBartsGold.Core
             _persistentEventSystem = eventSystemGO.AddComponent<EventSystem>();
             eventSystemGO.AddComponent<EventSystemFixer>(); // Ensures RefreshEventSystem() finds our persistent ES
             var inputSystemModule = eventSystemGO.AddComponent<InputSystemUIInputModule>();
+            Debug.Log($"[AppBootstrap][Trace] Persistent EventSystem created under '{parent.name}'");
             
             // Assign UI Input Actions so the module gets mouse (Editor) and touch (device) input.
             // Asset lives in Resources so it can be loaded at runtime before any scene.
@@ -97,6 +102,7 @@ namespace BlackBartsGold.Core
         {
             var eventSystems = Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
             Debug.Log($"[AppBootstrap] 📍 Scene loaded: {scene.name} | EventSystems found: {eventSystems.Length}");
+            Debug.Log($"[AppBootstrap][Trace] mode={mode} persistentExists={_persistentEventSystem != null} current={EventSystem.current?.name ?? "null"}");
             
             if (SceneHasOwnUI(scene.name))
             {

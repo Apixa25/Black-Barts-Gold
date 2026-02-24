@@ -30,8 +30,8 @@ namespace BlackBartsGold.UI
         private static EmergencyMapButton _instance;
         
         [Header("Button Settings")]
-        public bool showButton = true;
-        public bool showDebugInfo = true;
+        public bool showButton = false;
+        public bool showDebugInfo = false;
         
         private int tapCount = 0;
         private string statusText = "Waiting for tap...";
@@ -51,8 +51,13 @@ namespace BlackBartsGold.UI
             }
             _instance = this;
             DontDestroyOnLoad(gameObject);
+            // Keep this emergency tool disabled by default in production flows.
+            showButton = false;
+            showDebugInfo = false;
+            enabled = false;
             
             DiagnosticLog.Log("EmergencyBtn", "AWAKE - scripts running");
+            DiagnosticLog.Log("EmergencyBtn", "Disabled by default (showButton=false, showDebugInfo=false)");
         }
         
         private void Start()
