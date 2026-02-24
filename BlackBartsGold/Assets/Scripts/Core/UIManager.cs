@@ -42,8 +42,6 @@ namespace BlackBartsGold.Core
         [SerializeField] private GameObject walletPanel;
         [SerializeField] private GameObject settingsPanel;
         [SerializeField] private GameObject loadingPanel;
-        // Deprecated: AR HUD is now owned by ARHuntSceneSetup (code-built in AR scene).
-        [SerializeField] private GameObject arHudPanel;
         
         #endregion
         
@@ -61,7 +59,6 @@ namespace BlackBartsGold.Core
         
         private GameObject currentPanel;
         private bool isInARMode = false;
-        private bool _arHudWasVisibleBeforeFullMap = false;
         private bool _miniMapHiddenForFullMap = false;
         private readonly List<RadarUI> _radarUIsHiddenForFullMap = new List<RadarUI>();
         private readonly List<GameObject> _radarPanelsHiddenForFullMap = new List<GameObject>();
@@ -74,7 +71,6 @@ namespace BlackBartsGold.Core
         #region Debug Diagnostic Panel
         
         // References for the AR diagnostic panel
-        private TextMeshProUGUI _coinCounterText;
         private TextMeshProUGUI _debugDiagnosticsText;
         private float _diagnosticUpdateInterval = 0.5f;
         private float _lastDiagnosticUpdate = 0f;
@@ -227,13 +223,6 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void UpdateDiagnosticsPanel()
         {
-            // Update coin counter
-            if (_coinCounterText != null && CoinManager.Instance != null)
-            {
-                int activeCoins = CoinManager.Instance.ActiveCoinCount;
-                _coinCounterText.text = $"Coins: {activeCoins}";
-            }
-            
             // Update debug diagnostics
             if (_debugDiagnosticsText != null)
             {
@@ -476,7 +465,7 @@ namespace BlackBartsGold.Core
                 return;
             }
             
-            // For scenes without their own UI (like ARHunt), we manage the UI
+            // For scenes without their own UI, UIManager owns panel lifecycle
             Debug.Log($"[UIManager] ⚙️ Scene '{scene.name}' uses UIManager panels");
             EnableUIManagerCanvas();
             
@@ -1876,7 +1865,7 @@ namespace BlackBartsGold.Core
         
         /// <summary>
         /// Hide mini-map visuals while the full map is open.
-        /// Supports both UIManager-built AR HUD and scene-built RadarPanel/RadarUI.
+        /// Supports scene-built RadarPanel/RadarUI owned by ARHuntSceneSetup.
         /// </summary>
         private void HideMiniMapForFullMap()
         {
@@ -1884,23 +1873,15 @@ namespace BlackBartsGold.Core
             // If we clear our tracking lists again, restore has nothing to re-enable.
             if (_miniMapHiddenForFullMap)
             {
-                Debug.Log($"[UIManager][MiniMapState] Duplicate hide ignored | hidden={_miniMapHiddenForFullMap}, arHudWasVisible={_arHudWasVisibleBeforeFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
+                Debug.Log($"[UIManager][MiniMapState] Duplicate hide ignored | hidden={_miniMapHiddenForFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
                 return;
             }
 
-            Debug.Log($"[UIManager][MiniMapState] Hide begin | arHudActive={arHudPanel?.activeSelf}, inAR={isInARMode}, fullMapActive={_simpleFullMapPanel?.activeSelf}");
+            Debug.Log($"[UIManager][MiniMapState] Hide begin | inAR={isInARMode}, fullMapActive={_simpleFullMapPanel?.activeSelf}");
             _miniMapHiddenForFullMap = true;
-            _arHudWasVisibleBeforeFullMap = false;
             _radarUIsHiddenForFullMap.Clear();
             _radarPanelsHiddenForFullMap.Clear();
             _extraMiniMapObjectsHiddenForFullMap.Clear();
-            
-            if (arHudPanel != null && arHudPanel.activeSelf)
-            {
-                _arHudWasVisibleBeforeFullMap = true;
-                arHudPanel.SetActive(false);
-                Debug.Log("[UIManager] Hid arHudPanel for full map");
-            }
             
             var radarUIs = FindObjectsByType<RadarUI>(FindObjectsSortMode.None);
             foreach (var radarUI in radarUIs)
@@ -1935,7 +1916,7 @@ namespace BlackBartsGold.Core
             foreach (var name in extraMiniMapNames)
             {
                 var go = GameObject.Find(name);
-                if (go != null && go.activeSelf && go != arHudPanel && !_radarPanelsHiddenForFullMap.Contains(go))
+                if (go != null && go.activeSelf && !_radarPanelsHiddenForFullMap.Contains(go))
                 {
                     go.SetActive(false);
                     _extraMiniMapObjectsHiddenForFullMap.Add(go);
@@ -1943,7 +1924,7 @@ namespace BlackBartsGold.Core
                 }
             }
 
-            Debug.Log($"[UIManager][MiniMapState] Hide complete | hidden={_miniMapHiddenForFullMap}, arHudWasVisible={_arHudWasVisibleBeforeFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
+            Debug.Log($"[UIManager][MiniMapState] Hide complete | hidden={_miniMapHiddenForFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
         }
         
         /// <summary>
@@ -1952,14 +1933,7 @@ namespace BlackBartsGold.Core
         /// </summary>
         private void RestoreMiniMapAfterFullMap()
         {
-            Debug.Log($"[UIManager][MiniMapState] Restore begin | hidden={_miniMapHiddenForFullMap}, arHudWasVisible={_arHudWasVisibleBeforeFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}, inAR={isInARMode}, fullMapActive={_simpleFullMapPanel?.activeSelf}");
-
-            if (_arHudWasVisibleBeforeFullMap && arHudPanel != null)
-            {
-                arHudPanel.SetActive(true);
-                Debug.Log("[UIManager][MiniMapState] Restored arHudPanel active");
-            }
-            _arHudWasVisibleBeforeFullMap = false;
+            Debug.Log($"[UIManager][MiniMapState] Restore begin | hidden={_miniMapHiddenForFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}, inAR={isInARMode}, fullMapActive={_simpleFullMapPanel?.activeSelf}");
             
             if (_radarUIsHiddenForFullMap.Count > 0)
             {
@@ -2001,7 +1975,7 @@ namespace BlackBartsGold.Core
             }
 
             _miniMapHiddenForFullMap = false;
-            Debug.Log($"[UIManager][MiniMapState] Restore complete | hidden={_miniMapHiddenForFullMap}, arHudActive={arHudPanel?.activeSelf}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
+            Debug.Log($"[UIManager][MiniMapState] Restore complete | hidden={_miniMapHiddenForFullMap}, radarUIsTracked={_radarUIsHiddenForFullMap.Count}, radarPanelsTracked={_radarPanelsHiddenForFullMap.Count}, extrasTracked={_extraMiniMapObjectsHiddenForFullMap.Count}");
         }
         
         private void HideAllPanels()
@@ -2012,7 +1986,6 @@ namespace BlackBartsGold.Core
             if (walletPanel != null) walletPanel.SetActive(false);
             if (settingsPanel != null) settingsPanel.SetActive(false);
             if (loadingPanel != null) loadingPanel.SetActive(false);
-            if (arHudPanel != null) arHudPanel.SetActive(false);
         }
         
         #endregion
@@ -2035,8 +2008,6 @@ namespace BlackBartsGold.Core
             mainMenuPanel = CreateMainMenuPanel(_ourCanvas.transform);
             walletPanel = CreateWalletPanel(_ourCanvas.transform);
             settingsPanel = CreateSettingsPanel(_ourCanvas.transform);
-            // AR HUD is created and owned by ARHuntSceneSetup in the AR scene.
-            arHudPanel = null;
             
             // Hide all initially
             HideAllPanels();
@@ -2176,72 +2147,6 @@ namespace BlackBartsGold.Core
             CreateButton(panel.transform, "LogoutButton", "Logout", 
                 new Vector2(0, -200), new Vector2(300, 60), new Color(0.8f, 0.2f, 0.2f),
                 () => ShowLogin());
-            
-            return panel;
-        }
-        
-        private GameObject CreateARHudPanel(Transform parent)
-        {
-            // AR HUD is transparent - just overlay elements, no background!
-            var panel = new GameObject("ARHudPanel");
-            panel.transform.SetParent(parent, false);
-            
-            var rect = panel.AddComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
-            
-            // Back Button (top-left corner)
-            var backButton = CreateButton(panel.transform, "BackButton", "< Back", 
-                Vector2.zero, new Vector2(150, 60), SemiTransparent,
-                () => ExitARHunt());
-            
-            // Position back button in top-left
-            var backRect = backButton.GetComponent<RectTransform>();
-            backRect.anchorMin = new Vector2(0, 1);
-            backRect.anchorMax = new Vector2(0, 1);
-            backRect.pivot = new Vector2(0, 1);
-            backRect.anchoredPosition = new Vector2(20, -40);
-            
-            // Make button text white for visibility on camera
-            var backText = backButton.GetComponentInChildren<TextMeshProUGUI>();
-            if (backText != null) backText.color = Color.white;
-            
-            // Crosshairs REMOVED - they cover the coin; gold ring (CollectionSizeCircle) shows when in range
-            // CreateCrosshairs(panel.transform);
-            
-            // Coin Counter (top-right) - using text that renders
-            var coinCounter = CreateText(panel.transform, "CoinCounter", "Coins: 0", 
-                Vector2.zero, 28, GoldColor, FontStyles.Bold);
-            var coinRect = coinCounter.GetComponent<RectTransform>();
-            coinRect.anchorMin = new Vector2(1, 1);
-            coinRect.anchorMax = new Vector2(1, 1);
-            coinRect.pivot = new Vector2(1, 1);
-            coinRect.anchoredPosition = new Vector2(-20, -50);
-            coinRect.sizeDelta = new Vector2(200, 50);
-            
-            // Store reference for dynamic updates
-            _coinCounterText = coinCounter.GetComponent<TextMeshProUGUI>();
-            
-            // Debug panel only in AR view (ARHuntSceneSetup) - not needed on main menu
-            
-            // ================================================================
-            // MINI-MAP (top-right corner) - Pokémon GO style radar
-            // Shows nearby coins as dots relative to player position
-            // ================================================================
-            CreateMiniMap(panel.transform);
-            
-            // ================================================================
-            // PLACE COIN BUTTON (bottom center) - Pokémon GO style
-            // Appears when player is close to a coin, places it on AR plane
-            // ================================================================
-            CreatePlaceCoinButton(panel.transform);
-            
-            // Instructions (bottom of screen)
-            var instructions = CreateText(panel.transform, "Instructions", 
-                "Use mini-map to navigate to coins!", 
-                new Vector2(0, -450), 24, Color.white, FontStyles.Normal);
             
             return panel;
         }
@@ -2931,51 +2836,6 @@ namespace BlackBartsGold.Core
                 _placeCoinButton.SetActive(false);
                 _coinToPlace = null;
             }
-        }
-        
-        /// <summary>
-        /// Create proper crosshairs using UI lines instead of text
-        /// </summary>
-        private void CreateCrosshairs(Transform parent)
-        {
-            var crosshairContainer = new GameObject("Crosshairs");
-            crosshairContainer.transform.SetParent(parent, false);
-            
-            var containerRect = crosshairContainer.AddComponent<RectTransform>();
-            containerRect.anchorMin = new Vector2(0.5f, 0.5f);
-            containerRect.anchorMax = new Vector2(0.5f, 0.5f);
-            containerRect.pivot = new Vector2(0.5f, 0.5f);
-            containerRect.anchoredPosition = Vector2.zero;
-            containerRect.sizeDelta = new Vector2(100, 100);
-            
-            // Horizontal line
-            CreateCrosshairLine(crosshairContainer.transform, "HorizontalLine", 
-                new Vector2(60, 4), Vector2.zero);
-            
-            // Vertical line
-            CreateCrosshairLine(crosshairContainer.transform, "VerticalLine", 
-                new Vector2(4, 60), Vector2.zero);
-            
-            // Center dot
-            CreateCrosshairLine(crosshairContainer.transform, "CenterDot", 
-                new Vector2(10, 10), Vector2.zero);
-        }
-        
-        private void CreateCrosshairLine(Transform parent, string name, Vector2 size, Vector2 position)
-        {
-            var line = new GameObject(name);
-            line.transform.SetParent(parent, false);
-            
-            var rect = line.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-            
-            var image = line.AddComponent<Image>();
-            image.color = GoldColor;
-            image.raycastTarget = false;
         }
         
         #endregion
