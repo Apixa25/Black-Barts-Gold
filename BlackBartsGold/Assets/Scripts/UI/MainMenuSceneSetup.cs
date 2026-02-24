@@ -264,11 +264,30 @@ namespace BlackBartsGold.UI
             if (button == null) button = btn.gameObject.AddComponent<Button>();
             button.transition = Selectable.Transition.ColorTint;
 
+            // Self-heal label child so SetupButtonText never receives a malformed node.
+            var labelTransform = btn.Find("ButtonText");
+            if (labelTransform == null)
+            {
+                labelTransform = btn.Find("Text");
+            }
+            if (labelTransform == null)
+            {
+                var textGO = new GameObject("Text");
+                textGO.transform.SetParent(btn, false);
+                labelTransform = textGO.transform;
+            }
+            var labelRect = labelTransform.GetComponent<RectTransform>();
+            if (labelRect == null) labelRect = labelTransform.gameObject.AddComponent<RectTransform>();
+            var labelTmp = labelTransform.GetComponent<TMP_Text>();
+            if (labelTmp == null) labelTmp = labelTransform.gameObject.AddComponent<TextMeshProUGUI>();
+
             return btn;
         }
 
         private void SetupButtonText(Transform button, string label, int fontSize)
         {
+            if (button == null || !button) return;
+
             var textTransform = button.Find("ButtonText");
             if (textTransform == null)
             {
@@ -308,6 +327,10 @@ namespace BlackBartsGold.UI
             if (tmpText == null)
             {
                 tmpText = textTransform.gameObject.AddComponent<TextMeshProUGUI>();
+            }
+            if (tmpText == null)
+            {
+                return;
             }
 
             tmpText.text = label;

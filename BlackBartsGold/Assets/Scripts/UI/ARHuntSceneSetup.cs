@@ -723,6 +723,8 @@ namespace BlackBartsGold.UI
 
         private TextMeshProUGUI EnsureRadarZoomLabel(Transform parent, string name, Vector2 anchoredPosition)
         {
+            if (parent == null || !parent) return null;
+
             var textTransform = parent.Find(name);
             if (textTransform == null)
             {
@@ -731,6 +733,10 @@ namespace BlackBartsGold.UI
                 textTransform = textGO.transform;
                 textGO.AddComponent<RectTransform>();
                 textGO.AddComponent<TextMeshProUGUI>();
+            }
+            if (textTransform == null || !textTransform)
+            {
+                return null;
             }
 
             var rect = textTransform.GetComponent<RectTransform>();
@@ -745,6 +751,14 @@ namespace BlackBartsGold.UI
             rect.sizeDelta = new Vector2(70f, 44f);
 
             var tmpText = textTransform.GetComponent<TextMeshProUGUI>();
+            if (tmpText == null)
+            {
+                tmpText = textTransform.gameObject.AddComponent<TextMeshProUGUI>();
+            }
+            if (tmpText == null)
+            {
+                return null;
+            }
             tmpText.fontSize = 24f;
             tmpText.color = GoldColor;
             tmpText.alignment = TextAlignmentOptions.Center;
