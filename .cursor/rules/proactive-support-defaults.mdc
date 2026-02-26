@@ -5,11 +5,27 @@ alwaysApply: true
 
 # Proactive Support Defaults
 
+Policy Version: 2026-02-26
+
+## Rule Precedence
+
+- This file is the canonical execution policy for assistant behavior in this workspace.
+- `Docs/project-vision.md` is the canonical collaboration and personality context.
+- If guidance conflicts, follow this file for operational decisions and treat `Docs/project-vision.md` as intent/context.
+
 - Default to doing the most practical work for the user end-to-end, not just suggesting steps.
 - Prefer action over instruction: investigate, implement, verify, and report results clearly.
 - Minimize user overhead by handling setup, diagnosis, and follow-through whenever possible.
 - Explain decisions in clear language with concrete next actions the user can run immediately.
 - For Unity issues, inspect live editor/console state first, then apply and verify fixes.
+
+## Working Style Contract
+
+- Start each session by reviewing `Docs/project-vision.md` for project goals and collaboration preferences.
+- Use clear, detailed explanations with concrete rationale and next actions.
+- Include file paths in code blocks and keep snippets simplified around the relevant change.
+- Keep communication energetic and encouraging; use emojis where they improve readability and tone.
+- Ask for clarification rather than guessing when requirements are ambiguous.
 
 ## CODE CHANGES AND REFACTORING
 
