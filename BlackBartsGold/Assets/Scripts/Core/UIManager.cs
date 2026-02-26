@@ -1298,8 +1298,8 @@ namespace BlackBartsGold.Core
             titleRect.anchorMin = new Vector2(0.5f, 0.5f);
             titleRect.anchorMax = new Vector2(0.5f, 0.5f);
             
-            // Close button (X in top right)
-            var closeBtn = CreateButton(titleBar.transform, "CloseButton", "✕", 
+            // Close button (ASCII X avoids missing-glyph white square on some TMP fonts)
+            var closeBtn = CreateButton(titleBar.transform, "CloseButton", "X", 
                 Vector2.zero, new Vector2(96, 96), new Color(0.8f, 0.2f, 0.2f),
                 () => {
                     Debug.Log("[UIManager] Closing full map");

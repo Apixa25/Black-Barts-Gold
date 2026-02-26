@@ -9,6 +9,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
 namespace BlackBartsGold.UI
 {
     public class MainMenuSceneSetup : MonoBehaviour
@@ -20,15 +21,27 @@ namespace BlackBartsGold.UI
         private readonly Color DarkBrown = new Color(0.239f, 0.161f, 0.078f);
         private bool _isApplyingSetup;
         private int _lastAppliedFrame = -1;
+        private Coroutine _debugOverlayCleanupRoutine;
 
         private void OnEnable()
         {
             ApplySetup();
+            StartDebugOverlayCleanupSweep();
         }
 
         private void Start()
         {
             ApplySetup();
+            StartDebugOverlayCleanupSweep();
+        }
+
+        private void OnDisable()
+        {
+            if (_debugOverlayCleanupRoutine != null)
+            {
+                StopCoroutine(_debugOverlayCleanupRoutine);
+                _debugOverlayCleanupRoutine = null;
+            }
         }
 
         private void ApplySetup()
@@ -59,6 +72,7 @@ namespace BlackBartsGold.UI
                 SetupSettingsButton();
                 LogButtonState("SettingsButton");
                 DisableDebugPanels();
+                DisableDiagnosticsLikeTextOverlays();
                 CleanupCenteredWhiteSquareArtifacts();
 
                 Debug.Log("[MainMenuSceneSetup] MainMenu UI setup complete!");
@@ -80,7 +94,8 @@ namespace BlackBartsGold.UI
             foreach (var obj in allObjects)
             {
                 if (obj == null) continue;
-                if (obj.name == "DebugDiagnosticsPanel")
+                var lower = obj.name.ToLowerInvariant();
+                if (obj.name == "DebugDiagnosticsPanel" || lower == "diagnosticstext")
                 {
                     obj.SetActive(false);
                     Debug.Log("[MainMenuSceneSetup] Debug panel explicitly disabled.");
@@ -112,6 +127,83 @@ namespace BlackBartsGold.UI
                 }
             }
             
+        }
+
+        private void DisableDiagnosticsLikeTextOverlays()
+        {
+            var texts = FindObjectsByType<TMP_Text>(FindObjectsSortMode.None);
+            foreach (var text in texts)
+            {
+                if (text == null || !text.gameObject.activeInHierarchy) continue;
+                string content = text.text ?? string.Empty;
+                string name = text.gameObject.name.ToLowerInvariant();
+
+                bool looksLikeDiagnosticsName = name.Contains("diagnostic") || name.Contains("debug") || name.Contains("console");
+                bool looksLikeDiagnosticsContent = content.Contains("DEVELOPMENT CONSOLE")
+                    || content.Contains("DEBUG INFO")
+                    || content.Contains("<b>AR:</b>")
+                    || content.Contains("<b>GPS:</b>")
+                    || content.Contains("Tracking:");
+
+                if (!looksLikeDiagnosticsName && !looksLikeDiagnosticsContent) continue;
+
+                var root = FindDebugOverlayRoot(text.transform);
+                if (root != null)
+                {
+                    root.gameObject.SetActive(false);
+                    Debug.Log($"[MainMenuSceneSetup] Disabled diagnostics overlay root: {root.name}");
+                }
+                else
+                {
+                    text.gameObject.SetActive(false);
+                    Debug.Log($"[MainMenuSceneSetup] Disabled diagnostics text: {text.gameObject.name}");
+                }
+            }
+        }
+
+        private static Transform FindDebugOverlayRoot(Transform leaf)
+        {
+            if (leaf == null) return null;
+
+            Transform current = leaf;
+            for (int i = 0; i < 8 && current != null; i++)
+            {
+                string lower = current.name.ToLowerInvariant();
+                if (lower.Contains("debug") || lower.Contains("diagnostic") || lower.Contains("console"))
+                {
+                    return current;
+                }
+                current = current.parent;
+            }
+
+            return null;
+        }
+
+        private void StartDebugOverlayCleanupSweep()
+        {
+            if (!isActiveAndEnabled) return;
+            if (_debugOverlayCleanupRoutine != null)
+            {
+                StopCoroutine(_debugOverlayCleanupRoutine);
+            }
+            _debugOverlayCleanupRoutine = StartCoroutine(DebugOverlayCleanupSweep());
+        }
+
+        private IEnumerator DebugOverlayCleanupSweep()
+        {
+            // Some persistent overlays re-enable a frame after scene load; sweep for a few seconds.
+            const float duration = 6f;
+            const float interval = 0.25f;
+            float endTime = Time.realtimeSinceStartup + duration;
+
+            while (Time.realtimeSinceStartup < endTime && isActiveAndEnabled)
+            {
+                DisableDebugPanels();
+                DisableDiagnosticsLikeTextOverlays();
+                yield return new WaitForSeconds(interval);
+            }
+
+            _debugOverlayCleanupRoutine = null;
         }
 
         private void CleanupCenteredWhiteSquareArtifacts()

@@ -36,8 +36,6 @@ namespace BlackBartsGold.UI
         private bool _radarMapUpdatePending;
         private Texture2D _radarMapCurrentTile;
         private bool _radarMapTileIsOurCopy;
-        private float _lastDiagnosticUpdate;
-        private const float _diagnosticUpdateInterval = 0.5f;
         private const float _radarControlsRefreshInterval = 0.25f;
         private const float _sensorConsoleRefreshInterval = 0.5f;
         private int _radarZoom = 19; // 19 = default (3 levels closer); 21 = zoomed in when hunting
@@ -88,7 +86,7 @@ namespace BlackBartsGold.UI
             SetupBackButton();
             SetupCrosshairs();
             SetupRadarPanel();
-            SetupDebugPanel();
+            RemoveDevelopmentConsolePanel();
             SetupMessagePanel();
             SetupLockedPopup();
             SetupCollectionPopup();
@@ -152,40 +150,6 @@ namespace BlackBartsGold.UI
             // Update radar map tile from Mapbox
             UpdateRadarMapTile();
 
-            // Safety: if the debug diagnostics text was not wired at Start, try to bind it here.
-            if (_debugDiagnosticsText == null)
-            {
-                var panel = transform.Find("DebugDiagnosticsPanel");
-                if (panel != null)
-                {
-                    var diagnostics = panel.Find("DiagnosticsText");
-                    if (diagnostics != null)
-                    {
-                        var diagText = diagnostics.GetComponent<TextMeshProUGUI>() 
-                                       ?? diagnostics.gameObject.AddComponent<TextMeshProUGUI>();
-                        _debugDiagnosticsText = diagText;
-                        _debugDiagnosticsText.fontSize = 21;
-                        _debugDiagnosticsText.color = Color.white;
-                        _debugDiagnosticsText.alignment = TextAlignmentOptions.TopLeft;
-                        _debugDiagnosticsText.enableWordWrapping = true;
-                        _debugDiagnosticsText.richText = true;
-                        _debugDiagnosticsText.text = BuildDevelopmentConsoleString();
-                        DiagnosticLog.Log("Console", "Rebound _debugDiagnosticsText in Update()");
-                    }
-                }
-            }
-
-            // Update debug diagnostics panel
-            if (_debugDiagnosticsText != null && Time.time - _lastDiagnosticUpdate >= _diagnosticUpdateInterval)
-            {
-                _lastDiagnosticUpdate = Time.time;
-                if (Time.time - _lastSensorConsoleRefresh >= _sensorConsoleRefreshInterval)
-                {
-                    _lastSensorConsoleRefresh = Time.time;
-                    _debugDiagnosticsText.text = BuildDevelopmentConsoleString();
-                }
-            }
-
             if (_radarZoomRadarUI != null && Time.time - _lastRadarControlsRefresh >= _radarControlsRefreshInterval)
             {
                 _lastRadarControlsRefresh = Time.time;
@@ -195,7 +159,8 @@ namespace BlackBartsGold.UI
             if (Time.time - _lastVerboseLifecycleLog >= _verboseLifecycleInterval)
             {
                 _lastVerboseLifecycleLog = Time.time;
-                DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s debugPanel={(_debugDiagnosticsText != null)} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
+                bool debugPanelPresent = transform.Find("DebugDiagnosticsPanel") != null;
+                DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s devConsole={debugPanelPresent} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
             }
 
             if (Time.time - _lastAdbSensorSnapshotLog >= _adbSensorSnapshotInterval)
@@ -321,15 +286,29 @@ namespace BlackBartsGold.UI
             sb.AppendLine("<b>AR Activity</b>");
             sb.AppendLine($"ARSession: {arState}");
             sb.AppendLine(_lastArStateChangeInfo);
+            sb.AppendLine($"Compass heading: {DeviceCompass.Heading:F1}° ({DeviceCompass.ActiveMethod})");
             sb.AppendLine($"Camera moved: {_cameraMovementSinceStart:F3}m total");
 
             if (CoinManager.Exists && CoinManager.Instance != null)
             {
                 sb.AppendLine($"HuntMode: {CoinManager.Instance.CurrentMode} | Target: {(CoinManager.Instance.HasTarget ? "YES" : "NO")}");
+                float metersToCoin = -1f;
+                if (CoinManager.Instance.HasTarget && CoinManager.Instance.TargetCoin != null)
+                {
+                    var renderer = CoinManager.Instance.TargetCoin.GetComponent<ARCoinRenderer>();
+                    if (renderer != null)
+                    {
+                        metersToCoin = renderer.GPSDistance;
+                    }
+                }
+                sb.AppendLine(metersToCoin >= 0f
+                    ? $"Meters to coin: {metersToCoin:F1}m"
+                    : "Meters to coin: n/a");
             }
             else
             {
                 sb.AppendLine("HuntMode: CoinManager unavailable");
+                sb.AppendLine("Meters to coin: n/a");
             }
 
             return sb.ToString();
@@ -372,6 +351,20 @@ namespace BlackBartsGold.UI
             var planeManager = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARPlaneManager>();
             if (planeManager != null) trackedPlanes = planeManager.trackables.count;
 
+            string targetSummary = "target=n/a";
+            if (CoinManager.Exists && CoinManager.Instance != null && CoinManager.Instance.HasTarget && CoinManager.Instance.TargetCoin != null)
+            {
+                var targetRenderer = CoinManager.Instance.TargetCoin.GetComponent<ARCoinRenderer>();
+                if (targetRenderer != null)
+                {
+                    targetSummary = $"targetDist={targetRenderer.GPSDistance:F1}m mode={CoinManager.Instance.CurrentMode}";
+                }
+                else
+                {
+                    targetSummary = $"target=YES mode={CoinManager.Instance.CurrentMode}";
+                }
+            }
+
             DiagnosticLog.Log(
                 "Sensors",
                 $"SNAPSHOT t={Time.realtimeSinceStartup:F1}s | AR={arState} planes={trackedPlanes} | GPS={gpsSummary} | " +
@@ -379,7 +372,8 @@ namespace BlackBartsGold.UI
                 $"Gyro {(gyroOn ? "ON" : "OFF")}/{(gyroWorking ? "YES" : "NO")} rate=({gyroRate.x:F2},{gyroRate.y:F2},{gyroRate.z:F2}) | " +
                 $"Accel {(accelOn ? "ON" : "OFF")}/{(accelWorking ? "YES" : "NO")} xyz=({accel.x:F2},{accel.y:F2},{accel.z:F2}) | " +
                 $"Gravity {(gravityOn ? "ON" : "OFF")}/{(gravityWorking ? "YES" : "NO")} xyz=({grav.x:F2},{grav.y:F2},{grav.z:F2}) | " +
-                $"Attitude {(attitudeOn ? "ON" : "OFF")}/{(attitudeWorking ? "YES" : "NO")} q=({attitude.x:F2},{attitude.y:F2},{attitude.z:F2},{attitude.w:F2})"
+                $"Attitude {(attitudeOn ? "ON" : "OFF")}/{(attitudeWorking ? "YES" : "NO")} q=({attitude.x:F2},{attitude.y:F2},{attitude.z:F2},{attitude.w:F2}) | " +
+                targetSummary
             );
         }
 
@@ -482,12 +476,13 @@ namespace BlackBartsGold.UI
 
         private void DisableForeignDebugPanels()
         {
+            RemoveDevelopmentConsolePanel();
+
             // Prevent tiny legacy/persistent debug panels from showing in AR instead of this scene's console.
             var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
             foreach (var obj in allObjects)
             {
                 if (obj == null || obj.name != "DebugDiagnosticsPanel") continue;
-                if (obj.transform.IsChildOf(transform)) continue;
                 obj.SetActive(false);
                 DiagnosticLog.Log("Setup", $"Disabled foreign DebugDiagnosticsPanel: {obj.name}");
             }
@@ -500,6 +495,17 @@ namespace BlackBartsGold.UI
                 emergencyBtn.showDebugInfo = false;
                 emergencyBtn.enabled = false;
                 DiagnosticLog.Log("Setup", "EmergencyMapButton overlay disabled");
+            }
+        }
+
+        private void RemoveDevelopmentConsolePanel()
+        {
+            var debugPanel = transform.Find("DebugDiagnosticsPanel");
+            if (debugPanel != null)
+            {
+                debugPanel.gameObject.SetActive(false);
+                Destroy(debugPanel.gameObject);
+                DiagnosticLog.Log("Setup", "Removed DebugDiagnosticsPanel (development console disabled)");
             }
         }
 
@@ -911,87 +917,100 @@ namespace BlackBartsGold.UI
 
         private void SetupRadarZoomControls(RadarUI radarUI)
         {
-            if (radarUI == null)
+            try
             {
-                DiagnosticLog.Warn("Radar", "SetupRadarZoomControls skipped: radarUI null");
-                return;
-            }
+                if (radarUI == null)
+                {
+                    DiagnosticLog.Warn("Radar", "SetupRadarZoomControls skipped: radarUI null");
+                    return;
+                }
 
-            var controls = transform.Find("RadarZoomControls");
-            if (controls == null)
-            {
-                var controlsGO = new GameObject("RadarZoomControls");
-                controlsGO.transform.SetParent(transform, false);
-                controls = controlsGO.transform;
-                controlsGO.AddComponent<RectTransform>();
-                controlsGO.AddComponent<Image>();
-                DiagnosticLog.Log("Radar", "Created RadarZoomControls");
-            }
+                var controls = transform.Find("RadarZoomControls");
+                if (controls == null)
+                {
+                    var controlsGO = new GameObject("RadarZoomControls");
+                    controlsGO.transform.SetParent(transform, false);
+                    controls = controlsGO.transform;
+                    controlsGO.AddComponent<RectTransform>();
+                    controlsGO.AddComponent<Image>();
+                    DiagnosticLog.Log("Radar", "Created RadarZoomControls");
+                }
 
-            var controlsRect = controls.GetComponent<RectTransform>();
-            if (controlsRect == null)
-            {
-                controlsRect = controls.gameObject.AddComponent<RectTransform>();
-            }
-            controlsRect.anchorMin = new Vector2(1f, 1f);
-            controlsRect.anchorMax = new Vector2(1f, 1f);
-            controlsRect.pivot = new Vector2(1f, 1f);
-            controlsRect.anchoredPosition = new Vector2(-20f, -(_radarBaseSize * _miniMapUiScale + 28f));
-            controlsRect.sizeDelta = new Vector2(270f, 64f);
+                if (controls == null || controls.gameObject == null)
+                {
+                    DiagnosticLog.Warn("Radar", "SetupRadarZoomControls aborted: controls transform invalid");
+                    return;
+                }
 
-            var controlsBg = controls.GetComponent<Image>();
-            if (controlsBg == null)
-            {
-                controlsBg = controls.gameObject.AddComponent<Image>();
-            }
-            controlsBg.color = new Color(0f, 0f, 0f, 0.45f);
-            controlsBg.raycastTarget = true;
+                var controlsRect = controls.GetComponent<RectTransform>();
+                if (controlsRect == null)
+                {
+                    controlsRect = controls.gameObject.AddComponent<RectTransform>();
+                }
+                controlsRect.anchorMin = new Vector2(1f, 1f);
+                controlsRect.anchorMax = new Vector2(1f, 1f);
+                controlsRect.pivot = new Vector2(1f, 1f);
+                controlsRect.anchoredPosition = new Vector2(-20f, -(_radarBaseSize * _miniMapUiScale + 28f));
+                controlsRect.sizeDelta = new Vector2(270f, 64f);
 
-            var minusButton = EnsureRadarZoomButton(controls, "MinusButton", "-", new Vector2(36f, -32f));
-            var plusButton = EnsureRadarZoomButton(controls, "PlusButton", "+", new Vector2(100f, -32f));
-            var rangeText = EnsureRadarZoomLabel(controls, "RangeText", new Vector2(158f, -32f));
-            var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(232f, -32f), new Vector2(70f, 56f), 20f);
-            DiagnosticLog.Log("Radar", $"Zoom controls refs: minus={minusButton != null} plus={plusButton != null} range={rangeText != null} auto={autoButton != null}");
+                var controlsBg = controls.GetComponent<Image>();
+                if (controlsBg == null)
+                {
+                    controlsBg = controls.gameObject.AddComponent<Image>();
+                }
+                controlsBg.color = new Color(0f, 0f, 0f, 0.45f);
+                controlsBg.raycastTarget = true;
 
-            if (minusButton == null || plusButton == null || rangeText == null || autoButton == null)
-            {
-                DiagnosticLog.Warn("Radar", "SetupRadarZoomControls aborted due to missing controls");
-                return;
-            }
+                var minusButton = EnsureRadarZoomButton(controls, "MinusButton", "-", new Vector2(36f, -32f));
+                var plusButton = EnsureRadarZoomButton(controls, "PlusButton", "+", new Vector2(100f, -32f));
+                var rangeText = EnsureRadarZoomLabel(controls, "RangeText", new Vector2(158f, -32f));
+                var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(232f, -32f), new Vector2(70f, 56f), 20f);
+                DiagnosticLog.Log("Radar", $"Zoom controls refs: minus={minusButton != null} plus={plusButton != null} range={rangeText != null} auto={autoButton != null}");
 
-            _radarZoomRadarUI = radarUI;
-            _radarMinusButton = minusButton;
-            _radarPlusButton = plusButton;
-            _radarAutoButton = autoButton;
-            _radarRangeText = rangeText;
-            _lastRadarControlsRefresh = -999f;
+                if (minusButton == null || plusButton == null || rangeText == null || autoButton == null)
+                {
+                    DiagnosticLog.Warn("Radar", "SetupRadarZoomControls aborted due to missing controls");
+                    return;
+                }
 
-            minusButton.onClick.RemoveAllListeners();
-            minusButton.onClick.AddListener(() =>
-            {
-                radarUI.ZoomOut();
-                TriggerZoomHaptic();
+                _radarZoomRadarUI = radarUI;
+                _radarMinusButton = minusButton;
+                _radarPlusButton = plusButton;
+                _radarAutoButton = autoButton;
+                _radarRangeText = rangeText;
+                _lastRadarControlsRefresh = -999f;
+
+                minusButton.onClick.RemoveAllListeners();
+                minusButton.onClick.AddListener(() =>
+                {
+                    radarUI.ZoomOut();
+                    TriggerZoomHaptic();
+                    RefreshRadarZoomControlsUi();
+                });
+
+                plusButton.onClick.RemoveAllListeners();
+                plusButton.onClick.AddListener(() =>
+                {
+                    radarUI.ZoomIn();
+                    TriggerZoomHaptic();
+                    RefreshRadarZoomControlsUi();
+                });
+
+                autoButton.onClick.RemoveAllListeners();
+                autoButton.onClick.AddListener(() =>
+                {
+                    radarUI.ToggleAutoZoom();
+                    TriggerZoomHaptic();
+                    RefreshRadarZoomControlsUi();
+                });
+
                 RefreshRadarZoomControlsUi();
-            });
-
-            plusButton.onClick.RemoveAllListeners();
-            plusButton.onClick.AddListener(() =>
+                DiagnosticLog.Log("Radar", "Zoom controls wired");
+            }
+            catch (System.Exception ex)
             {
-                radarUI.ZoomIn();
-                TriggerZoomHaptic();
-                RefreshRadarZoomControlsUi();
-            });
-
-            autoButton.onClick.RemoveAllListeners();
-            autoButton.onClick.AddListener(() =>
-            {
-                radarUI.ToggleAutoZoom();
-                TriggerZoomHaptic();
-                RefreshRadarZoomControlsUi();
-            });
-
-            RefreshRadarZoomControlsUi();
-            DiagnosticLog.Log("Radar", "Zoom controls wired");
+                DiagnosticLog.Error("Radar", $"SetupRadarZoomControls exception: {ex.GetType().Name}: {ex.Message}");
+            }
         }
 
         private Button EnsureRadarZoomButton(Transform parent, string buttonName, string label, Vector2 anchoredPosition, Vector2? sizeOverride = null, float fontSize = 32f)
