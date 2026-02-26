@@ -10,7 +10,7 @@ description: Diagnose and fix Vercel deployment failures for the Black Bart's Go
 - **Project**: Black Bart's Gold admin dashboard (`admin-dashboard/`)
 - **Framework**: Next.js (`next build`)
 - **Primary goal**: explain why deployment failed and provide a safe fix path
-- **Change style**: use best engineering judgment; choose additive updates, targeted refactors, replacements, or deletions as appropriate
+- **Change style**: Canonical operational policy: `.cursor/rules/proactive-support-defaults.mdc`. This skill adds incident-specific triage constraints below.
 
 Run commands from `admin-dashboard/` with `npx vercel ...` (global install optional).
 

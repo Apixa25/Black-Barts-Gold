@@ -15,7 +15,7 @@ Use this skill when the user asks to:
 ---
 
 ## Project Context Guardrails (Black Bart's Gold)
-- Use best engineering judgment for workflow changes; allow additive updates, targeted refactors, replacements, or deletions when they improve reliability and clarity.
+- Canonical operational policy: `.cursor/rules/proactive-support-defaults.mdc`.
 - Do not clear logs unless the user wants a fresh run.
 - Prioritize AR hunt signals tied to product vision:
   - AR HUD/hunt flow stability

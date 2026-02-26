@@ -44,7 +44,7 @@ Add a new SQL file in `admin-dashboard/supabase/migrations/` with an incremental
 
 Guidelines:
 - Prefer `IF NOT EXISTS` for additive safety.
-- Use best engineering judgment: choose additive updates, targeted refactors, replacements, or deletions based on reliability, simplicity, and migration safety.
+- Canonical operational policy: `.cursor/rules/proactive-support-defaults.mdc`. For migrations specifically, prioritize reliability, simplicity, and rollback safety.
 - Add clear comments at the top.
 
 ### 2) Update app/API types and routes

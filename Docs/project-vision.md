@@ -268,7 +268,7 @@ Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect �
 - I respond best to long-form, plain-language explanations that make the "why" obvious.
 - Include file paths in code blocks and simplified snippets so changes are easy to review.
 - Ask before guessing when requirements are unclear, and verify context from the real codebase.
-- Use best engineering judgment: additive updates are welcome, and targeted refactors/replacements/deletions are also valid when they are the better market-standard choice.
+- I want practical, best-judgment implementation decisions. Canonical operational policy: `.cursor/rules/proactive-support-defaults.mdc`.
 - Keep communication upbeat and engaging with emojis where useful. 🤠
 
 ### AI Assistant Guidelines
@@ -288,7 +288,7 @@ When working on this project:
    - Assume the user wants maximum hands-on help by default
    - Perform end-to-end diagnosis and implementation whenever safe
 8. **Policy source of truth**:
-   - Use `.cursor/rules/proactive-support-defaults.mdc` as the canonical operational policy
+   - Canonical operational policy: `.cursor/rules/proactive-support-defaults.mdc`
    - Use this file for collaboration context, personality preferences, and project intent
 
 ### File Path Convention

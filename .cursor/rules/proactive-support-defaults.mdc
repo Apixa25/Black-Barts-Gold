@@ -9,7 +9,7 @@ Policy Version: 2026-02-26
 
 ## Rule Precedence
 
-- This file is the canonical execution policy for assistant behavior in this workspace.
+- Canonical operational policy: `.cursor/rules/proactive-support-defaults.mdc`.
 - `Docs/project-vision.md` is the canonical collaboration and personality context.
 - If guidance conflicts, follow this file for operational decisions and treat `Docs/project-vision.md` as intent/context.
 
