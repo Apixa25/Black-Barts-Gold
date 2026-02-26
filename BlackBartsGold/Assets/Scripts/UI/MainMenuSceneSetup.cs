@@ -444,7 +444,8 @@ namespace BlackBartsGold.UI
 
         private Transform EnsureMainMenuButton(string buttonName)
         {
-            if (transform == null)
+            var root = transform;
+            if (root == null)
             {
                 Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') failed: transform is null");
                 return null;
@@ -452,7 +453,7 @@ namespace BlackBartsGold.UI
 
             try
             {
-                var btn = transform.Find(buttonName);
+                var btn = root.Find(buttonName);
                 if (btn != null && !btn)
                 {
                     btn = null;
@@ -460,7 +461,7 @@ namespace BlackBartsGold.UI
                 if (btn == null)
                 {
                     var buttonGO = new GameObject(buttonName);
-                    buttonGO.transform.SetParent(transform, false);
+                    buttonGO.transform.SetParent(root, false);
                     btn = buttonGO.transform;
                     buttonGO.AddComponent<RectTransform>();
                     buttonGO.AddComponent<Image>();
@@ -470,7 +471,7 @@ namespace BlackBartsGold.UI
 
                 if (btn == null || !btn)
                 {
-                    btn = transform.Find(buttonName);
+                    btn = root.Find(buttonName);
                 }
                 if (btn == null || !btn)
                 {
@@ -478,12 +479,20 @@ namespace BlackBartsGold.UI
                     return null;
                 }
 
-                var rect = btn.GetComponent<RectTransform>();
-                if (rect == null) rect = btn.gameObject.AddComponent<RectTransform>();
-                var image = btn.GetComponent<Image>();
-                if (image == null) image = btn.gameObject.AddComponent<Image>();
-                var button = btn.GetComponent<Button>();
-                if (button == null) button = btn.gameObject.AddComponent<Button>();
+                if (btn.gameObject == null)
+                {
+                    Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') failed: button gameObject is null");
+                    return null;
+                }
+
+                var rect = btn.GetComponent<RectTransform>() ?? btn.gameObject.AddComponent<RectTransform>();
+                var image = btn.GetComponent<Image>() ?? btn.gameObject.AddComponent<Image>();
+                var button = btn.GetComponent<Button>() ?? btn.gameObject.AddComponent<Button>();
+                if (rect == null || image == null || button == null)
+                {
+                    Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') failed: required components missing after add");
+                    return null;
+                }
                 button.transition = Selectable.Transition.ColorTint;
 
                 // Self-heal label child so SetupButtonText never receives a malformed node.
@@ -509,6 +518,11 @@ namespace BlackBartsGold.UI
                 if (labelRect == null) labelRect = labelTransform.gameObject.AddComponent<RectTransform>();
                 var labelTmp = labelTransform.GetComponent<TMP_Text>();
                 if (labelTmp == null) labelTmp = labelTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                if (labelRect == null || labelTmp == null)
+                {
+                    Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') failed: label components unresolved");
+                    return null;
+                }
 
                 Debug.Log($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') ready | label='{labelTransform.name}' hasTMP={labelTmp != null}");
                 return btn;

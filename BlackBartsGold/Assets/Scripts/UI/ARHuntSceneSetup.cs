@@ -223,180 +223,88 @@ namespace BlackBartsGold.UI
 
         private string BuildSensorStatusString()
         {
-            var sb = new StringBuilder(700);
-            string arState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
-
-            bool gpsOn = Input.location.status == LocationServiceStatus.Running;
-            bool gpsWorking = GPSManager.Instance != null && GPSManager.Instance.CurrentLocation != null;
-            float gpsAcc = gpsWorking ? GPSManager.Instance.CurrentLocation.horizontalAccuracy : -1f;
-
-            bool compassOn = DeviceCompass.IsAvailable || Input.compass.enabled;
-            bool compassWorking = DeviceCompass.IsAvailable && DeviceCompass.ActiveMethod != "none";
-
-            bool gyroOn = (_gyroscope != null && _gyroscope.enabled) || Input.gyro.enabled;
-            bool gyroWorking = false;
-            if (_gyroscope != null && _gyroscope.enabled)
+            try
             {
-                Vector3 rate = _gyroscope.angularVelocity.ReadValue();
-                gyroWorking = rate.sqrMagnitude > 0.0001f;
-            }
+                var sb = new StringBuilder(700);
+                string arState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
+                var gpsManager = GPSManager.Instance;
+                var coinManager = CoinManager.Exists ? CoinManager.Instance : null;
 
-            bool accelOn = _accelerometer != null && _accelerometer.enabled;
-            bool accelWorking = false;
-            if (accelOn)
-            {
-                Vector3 accel = _accelerometer.acceleration.ReadValue();
-                accelWorking = accel.sqrMagnitude > 0.01f;
-            }
+                bool gpsOn = Input.location.status == LocationServiceStatus.Running;
+                bool gpsWorking = gpsManager != null && gpsManager.CurrentLocation != null;
+                float gpsAcc = gpsWorking ? gpsManager.CurrentLocation.horizontalAccuracy : -1f;
 
-            bool gravityOn = _gravitySensor != null && _gravitySensor.enabled;
-            bool gravityWorking = false;
-            if (gravityOn)
-            {
-                Vector3 grav = _gravitySensor.gravity.ReadValue();
-                gravityWorking = grav.sqrMagnitude > 0.01f;
-            }
+                bool compassOn = DeviceCompass.IsAvailable || Input.compass.enabled;
+                bool compassWorking = DeviceCompass.IsAvailable && DeviceCompass.ActiveMethod != "none";
 
-            bool attitudeOn = _attitudeSensor != null && _attitudeSensor.enabled;
-            bool attitudeWorking = false;
-            if (attitudeOn)
-            {
-                Quaternion att = _attitudeSensor.attitude.ReadValue();
-                attitudeWorking = att.x != 0f || att.y != 0f || att.z != 0f;
-            }
-
-            bool magOn = _magneticFieldSensor != null && _magneticFieldSensor.enabled;
-            bool magWorking = false;
-            if (magOn)
-            {
-                Vector3 mag = _magneticFieldSensor.magneticField.ReadValue();
-                magWorking = mag.sqrMagnitude > 1f;
-            }
-
-            string metersToCoin = "n/a";
-            if (CoinManager.Exists && CoinManager.Instance != null && CoinManager.Instance.HasTarget && CoinManager.Instance.TargetCoin != null)
-            {
-                var renderer = CoinManager.Instance.TargetCoin.GetComponent<ARCoinRenderer>();
-                if (renderer != null)
+                bool gyroOn = (_gyroscope != null && _gyroscope.enabled) || Input.gyro.enabled;
+                bool gyroWorking = false;
+                if (_gyroscope != null && _gyroscope.enabled)
                 {
-                    metersToCoin = $"{renderer.GPSDistance:F1}m";
+                    Vector3 rate = _gyroscope.angularVelocity.ReadValue();
+                    gyroWorking = rate.sqrMagnitude > 0.0001f;
                 }
-            }
 
-            sb.AppendLine("<b>SENSOR STATUS</b>");
-            sb.AppendLine($"AR: {arState}");
-            sb.AppendLine($"Compass: {(compassOn ? "ON" : "OFF")}/{(compassWorking ? "YES" : "NO")}  {DeviceCompass.Heading:F1}°");
-            sb.AppendLine($"Coin distance: {metersToCoin}");
-            sb.AppendLine($"GPS: {(gpsOn ? "ON" : "OFF")}/{(gpsWorking ? "YES" : "NO")}  acc={(gpsAcc >= 0f ? $"{gpsAcc:F1}m" : "n/a")}");
-            sb.AppendLine($"Gyro: {(gyroOn ? "ON" : "OFF")}/{(gyroWorking ? "YES" : "NO")}");
-            sb.AppendLine($"Accel: {(accelOn ? "ON" : "OFF")}/{(accelWorking ? "YES" : "NO")}");
-            sb.AppendLine($"Gravity: {(gravityOn ? "ON" : "OFF")}/{(gravityWorking ? "YES" : "NO")}");
-            sb.AppendLine($"Attitude: {(attitudeOn ? "ON" : "OFF")}/{(attitudeWorking ? "YES" : "NO")}");
-            sb.AppendLine($"MagField: {(magOn ? "ON" : "OFF")}/{(magWorking ? "YES" : "NO")}");
-
-            return sb.ToString();
-        }
-
-        private string BuildDevelopmentConsoleString()
-        {
-            var sb = new StringBuilder(1200);
-            var now = Time.realtimeSinceStartup;
-
-            var arState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
-            if (_lastArState != arState)
-            {
-                _lastArStateChangeInfo = $"AR state changed: {_lastArState} -> {arState} @T+{now:F1}s";
-                _lastArState = arState;
-            }
-
-            var cam = Camera.main;
-            if (cam != null)
-            {
-                var current = cam.transform.position;
-                _cameraMovementSinceStart += Vector3.Distance(current, _lastCameraPosition);
-                _lastCameraPosition = current;
-            }
-
-            sb.AppendLine($"<b>DEVELOPMENT CONSOLE</b>  T+{now:F1}s");
-            sb.AppendLine("<b>Sensors (ON / Working)</b>");
-
-            bool gpsOn = Input.location.status == LocationServiceStatus.Running;
-            bool gpsWorking = GPSManager.Instance != null && GPSManager.Instance.CurrentLocation != null;
-            if (gpsWorking)
-            {
-                var loc = GPSManager.Instance.CurrentLocation;
-                sb.AppendLine($"GPS: {(gpsOn ? "ON" : "OFF")} / YES  acc={loc.horizontalAccuracy:F1}m lat={loc.latitude:F5} lng={loc.longitude:F5}");
-            }
-            else
-            {
-                sb.AppendLine($"GPS: {(gpsOn ? "ON" : "OFF")} / NO   status={Input.location.status}");
-            }
-
-            bool compassOn = DeviceCompass.IsAvailable || Input.compass.enabled;
-            bool compassWorking = DeviceCompass.IsAvailable && DeviceCompass.ActiveMethod != "none";
-            sb.AppendLine($"Compass: {(compassOn ? "ON" : "OFF")} / {(compassWorking ? "YES" : "NO")}  heading={DeviceCompass.Heading:F1} ({DeviceCompass.ActiveMethod})");
-
-            bool gyroOn = (_gyroscope != null && _gyroscope.enabled) || Input.gyro.enabled;
-            bool gyroWorking = false;
-            Vector3 gyroRate = Vector3.zero;
-            if (_gyroscope != null && _gyroscope.enabled)
-            {
-                gyroRate = _gyroscope.angularVelocity.ReadValue();
-                gyroWorking = gyroRate.sqrMagnitude > 0.0001f;
-            }
-            sb.AppendLine($"Gyro: {(gyroOn ? "ON" : "OFF")} / {(gyroWorking ? "YES" : "NO")}  rate=({gyroRate.x:F2},{gyroRate.y:F2},{gyroRate.z:F2})");
-
-            bool accelOn = _accelerometer != null && _accelerometer.enabled;
-            Vector3 accel = accelOn ? _accelerometer.acceleration.ReadValue() : Input.acceleration;
-            bool accelWorking = accel.sqrMagnitude > 0.01f;
-            sb.AppendLine($"Accel: {(accelOn ? "ON" : "OFF")} / {(accelWorking ? "YES" : "NO")}  xyz=({accel.x:F2},{accel.y:F2},{accel.z:F2})");
-
-            bool gravityOn = _gravitySensor != null && _gravitySensor.enabled;
-            Vector3 grav = gravityOn ? _gravitySensor.gravity.ReadValue() : Vector3.zero;
-            bool gravityWorking = gravityOn && grav.sqrMagnitude > 0.01f;
-            sb.AppendLine($"Gravity: {(gravityOn ? "ON" : "OFF")} / {(gravityWorking ? "YES" : "NO")}  xyz=({grav.x:F2},{grav.y:F2},{grav.z:F2})");
-
-            bool attitudeOn = _attitudeSensor != null && _attitudeSensor.enabled;
-            Quaternion attitude = attitudeOn ? _attitudeSensor.attitude.ReadValue() : Quaternion.identity;
-            bool attitudeWorking = attitudeOn && (attitude.x != 0f || attitude.y != 0f || attitude.z != 0f);
-            Vector3 euler = attitude.eulerAngles;
-            sb.AppendLine($"Attitude: {(attitudeOn ? "ON" : "OFF")} / {(attitudeWorking ? "YES" : "NO")}  euler=({euler.x:F1},{euler.y:F1},{euler.z:F1})");
-
-            bool magOn = _magneticFieldSensor != null && _magneticFieldSensor.enabled;
-            Vector3 mag = magOn ? _magneticFieldSensor.magneticField.ReadValue() : Vector3.zero;
-            bool magWorking = magOn && mag.sqrMagnitude > 1f;
-            sb.AppendLine($"MagField: {(magOn ? "ON" : "OFF")} / {(magWorking ? "YES" : "NO")}  uT=({mag.x:F1},{mag.y:F1},{mag.z:F1})");
-
-            sb.AppendLine();
-            sb.AppendLine("<b>AR Activity</b>");
-            sb.AppendLine($"ARSession: {arState}");
-            sb.AppendLine(_lastArStateChangeInfo);
-            sb.AppendLine($"Compass heading: {DeviceCompass.Heading:F1}° ({DeviceCompass.ActiveMethod})");
-            sb.AppendLine($"Camera moved: {_cameraMovementSinceStart:F3}m total");
-
-            if (CoinManager.Exists && CoinManager.Instance != null)
-            {
-                sb.AppendLine($"HuntMode: {CoinManager.Instance.CurrentMode} | Target: {(CoinManager.Instance.HasTarget ? "YES" : "NO")}");
-                float metersToCoin = -1f;
-                if (CoinManager.Instance.HasTarget && CoinManager.Instance.TargetCoin != null)
+                bool accelOn = _accelerometer != null && _accelerometer.enabled;
+                bool accelWorking = false;
+                if (accelOn)
                 {
-                    var renderer = CoinManager.Instance.TargetCoin.GetComponent<ARCoinRenderer>();
+                    Vector3 accel = _accelerometer.acceleration.ReadValue();
+                    accelWorking = accel.sqrMagnitude > 0.01f;
+                }
+
+                bool gravityOn = _gravitySensor != null && _gravitySensor.enabled;
+                bool gravityWorking = false;
+                if (gravityOn)
+                {
+                    Vector3 grav = _gravitySensor.gravity.ReadValue();
+                    gravityWorking = grav.sqrMagnitude > 0.01f;
+                }
+
+                bool attitudeOn = _attitudeSensor != null && _attitudeSensor.enabled;
+                bool attitudeWorking = false;
+                if (attitudeOn)
+                {
+                    Quaternion att = _attitudeSensor.attitude.ReadValue();
+                    attitudeWorking = att.x != 0f || att.y != 0f || att.z != 0f;
+                }
+
+                bool magOn = _magneticFieldSensor != null && _magneticFieldSensor.enabled;
+                bool magWorking = false;
+                if (magOn)
+                {
+                    Vector3 mag = _magneticFieldSensor.magneticField.ReadValue();
+                    magWorking = mag.sqrMagnitude > 1f;
+                }
+
+                string metersToCoin = "n/a";
+                if (coinManager != null && coinManager.HasTarget && coinManager.TargetCoin != null)
+                {
+                    var renderer = coinManager.TargetCoin.GetComponent<ARCoinRenderer>();
                     if (renderer != null)
                     {
-                        metersToCoin = renderer.GPSDistance;
+                        metersToCoin = $"{renderer.GPSDistance:F1}m";
                     }
                 }
-                sb.AppendLine(metersToCoin >= 0f
-                    ? $"Meters to coin: {metersToCoin:F1}m"
-                    : "Meters to coin: n/a");
-            }
-            else
-            {
-                sb.AppendLine("HuntMode: CoinManager unavailable");
-                sb.AppendLine("Meters to coin: n/a");
-            }
 
-            return sb.ToString();
+                sb.AppendLine("<b>SENSOR STATUS</b>");
+                sb.AppendLine($"AR: {arState}");
+                sb.AppendLine($"Compass: {(compassOn ? "ON" : "OFF")}/{(compassWorking ? "YES" : "NO")}  {DeviceCompass.Heading:F1} deg");
+                sb.AppendLine($"Coin distance: {metersToCoin}");
+                sb.AppendLine($"GPS: {(gpsOn ? "ON" : "OFF")}/{(gpsWorking ? "YES" : "NO")}  acc={(gpsAcc >= 0f ? $"{gpsAcc:F1}m" : "n/a")}");
+                sb.AppendLine($"Gyro: {(gyroOn ? "ON" : "OFF")}/{(gyroWorking ? "YES" : "NO")}");
+                sb.AppendLine($"Accel: {(accelOn ? "ON" : "OFF")}/{(accelWorking ? "YES" : "NO")}");
+                sb.AppendLine($"Gravity: {(gravityOn ? "ON" : "OFF")}/{(gravityWorking ? "YES" : "NO")}");
+                sb.AppendLine($"Attitude: {(attitudeOn ? "ON" : "OFF")}/{(attitudeWorking ? "YES" : "NO")}");
+                sb.AppendLine($"MagField: {(magOn ? "ON" : "OFF")}/{(magWorking ? "YES" : "NO")}");
+
+                return sb.ToString();
+            }
+            catch (System.Exception ex)
+            {
+                DiagnosticLog.Error("Setup", $"BuildSensorStatusString exception: {ex.GetType().Name}: {ex.Message}");
+                return "<b>SENSOR STATUS</b>\nUnavailable (build error)";
+            }
         }
 
         private void EmitPeriodicSensorSnapshotLog()
@@ -639,7 +547,7 @@ namespace BlackBartsGold.UI
                 textRect.offsetMax = Vector2.zero;
                 
                 var tmpText = textGO.AddComponent<TextMeshProUGUI>();
-                tmpText.text = "← Back";
+                tmpText.text = "< Back";
                 tmpText.fontSize = 24;
                 tmpText.alignment = TextAlignmentOptions.Center;
                 tmpText.color = Color.white;

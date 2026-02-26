@@ -308,7 +308,7 @@ namespace BlackBartsGold.Core
             // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
             if (DeviceCompass.IsAvailable)
             {
-                sb.AppendLine($"<b>Compass:</b> {DeviceCompass.Heading:F0}° ({DeviceCompass.ActiveMethod})");
+                sb.AppendLine($"<b>Compass:</b> {DeviceCompass.Heading:F0} deg ({DeviceCompass.ActiveMethod})");
             }
             
             // Camera reference (needed for direction calculations)
@@ -366,7 +366,7 @@ namespace BlackBartsGold.Core
                                 direction = "LEFT";
                             
                             sb.AppendLine($"<b>Look:</b> {direction}");
-                            sb.AppendLine($"<b>Bearing:</b> {relativeBearing:F0}°");
+                            sb.AppendLine($"<b>Bearing:</b> {relativeBearing:F0} deg");
                         }
                     }
                 }
@@ -379,7 +379,7 @@ namespace BlackBartsGold.Core
                 Vector3 camRot = cam.transform.eulerAngles;
                 sb.AppendLine($"<b>Cam:</b> {cam.name}"); // WHICH camera are we using?
                 sb.AppendLine($"<b>Cam Pos:</b> ({camPos.x:F1}, {camPos.y:F1}, {camPos.z:F1})");
-                sb.AppendLine($"<b>Cam RotY:</b> {camRot.y:F0}°"); // Just Y rotation (should change when turning!)
+                sb.AppendLine($"<b>Cam RotY:</b> {camRot.y:F0} deg"); // Just Y rotation (should change when turning!)
             }
             else
             {
@@ -1331,7 +1331,7 @@ namespace BlackBartsGold.Core
             
             // Instructions (left side)
             var instructions = CreateText(bottomBar.transform, "Instructions", 
-                "TAP COIN TO SELECT  •  PINCH TO ZOOM", 
+                "TAP COIN TO SELECT | PINCH TO ZOOM", 
                 Vector2.zero, 14, Color.white, FontStyles.Normal);
             var instrRect = instructions.GetComponent<RectTransform>();
             instrRect.anchorMin = new Vector2(0, 0.5f);
@@ -1362,7 +1362,7 @@ namespace BlackBartsGold.Core
             var uiMgr = this;
             
             // Zoom OUT button (-)
-            var zoomOutBtn = CreateButton(zoomControls.transform, "ZoomOut", "−", 
+            var zoomOutBtn = CreateButton(zoomControls.transform, "ZoomOut", "-", 
                 Vector2.zero, new Vector2(55, 55), new Color(0.3f, 0.4f, 0.5f),
                 () => {
                     uiMgr._fullMapZoom = Mathf.Clamp(uiMgr._fullMapZoom - 1, MIN_ZOOM, MAX_ZOOM);
@@ -2077,7 +2077,7 @@ namespace BlackBartsGold.Core
                 () => ShowMainMenu());
             
             // Back Button
-            CreateButton(panel.transform, "BackButton", "← Back to Login", 
+            CreateButton(panel.transform, "BackButton", "< Back to Login", 
                 new Vector2(0, -200), new Vector2(300, 50), Parchment,
                 () => ShowLogin());
             
@@ -2123,7 +2123,7 @@ namespace BlackBartsGold.Core
                 new Vector2(0, 200), 36, Parchment, FontStyles.Bold);
             
             // Back Button
-            CreateButton(panel.transform, "BackButton", "← Back", 
+            CreateButton(panel.transform, "BackButton", "< Back", 
                 new Vector2(0, -300), new Vector2(300, 60), Parchment,
                 () => ShowMainMenu());
             
@@ -2135,11 +2135,11 @@ namespace BlackBartsGold.Core
             var panel = CreatePanel(parent, "SettingsPanel", DeepSeaBlue);
             
             // Title
-            CreateText(panel.transform, "Title", "⚙️ Settings", 
+            CreateText(panel.transform, "Title", "Settings", 
                 new Vector2(0, 350), 48, GoldColor, FontStyles.Bold);
             
             // Back Button
-            CreateButton(panel.transform, "BackButton", "← Back", 
+            CreateButton(panel.transform, "BackButton", "< Back", 
                 new Vector2(0, -300), new Vector2(300, 60), Parchment,
                 () => ShowMainMenu());
             
@@ -2149,60 +2149,6 @@ namespace BlackBartsGold.Core
                 () => ShowLogin());
             
             return panel;
-        }
-        
-        /// <summary>
-        /// Create debug diagnostics panel showing GPS, API, and coin status
-        /// </summary>
-        private void CreateDebugDiagnosticsPanel(Transform parent)
-        {
-            // Container panel with semi-transparent background
-            var debugPanel = new GameObject("DebugDiagnosticsPanel");
-            debugPanel.transform.SetParent(parent, false);
-            
-            var panelRect = debugPanel.AddComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0, 0);
-            panelRect.anchorMax = new Vector2(0, 0);
-            panelRect.pivot = new Vector2(0, 0);
-            panelRect.anchoredPosition = new Vector2(20, 20);
-            panelRect.sizeDelta = new Vector2(560, 450); // DOUBLED SIZE for readability
-            
-            // Semi-transparent black background
-            var bgImage = debugPanel.AddComponent<Image>();
-            bgImage.color = new Color(0, 0, 0, 0.8f); // Slightly more opaque
-            bgImage.raycastTarget = false;
-            
-            // Title - DOUBLED font size
-            var title = CreateText(debugPanel.transform, "DebugTitle", "DEBUG INFO", 
-                Vector2.zero, 32, GoldColor, FontStyles.Bold);
-            var titleRect = title.GetComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0, 1);
-            titleRect.anchorMax = new Vector2(1, 1);
-            titleRect.pivot = new Vector2(0.5f, 1);
-            titleRect.anchoredPosition = new Vector2(0, -10);
-            titleRect.sizeDelta = new Vector2(0, 45);
-            
-            // Diagnostic text (dynamically updated) - DOUBLED font size
-            var diagText = CreateText(debugPanel.transform, "DiagnosticsText", 
-                "Loading...", Vector2.zero, 26, Color.white, FontStyles.Normal);
-            var diagRect = diagText.GetComponent<RectTransform>();
-            diagRect.anchorMin = new Vector2(0, 0);
-            diagRect.anchorMax = new Vector2(1, 1);
-            diagRect.pivot = new Vector2(0, 1);
-            diagRect.anchoredPosition = new Vector2(15, -55);
-            diagRect.sizeDelta = new Vector2(-30, -70);
-            
-            // Configure text settings
-            var tmpText = diagText.GetComponent<TextMeshProUGUI>();
-            if (tmpText != null)
-            {
-                tmpText.alignment = TextAlignmentOptions.TopLeft;
-                tmpText.enableWordWrapping = true;
-                tmpText.richText = true;
-            }
-            
-            // Store reference for updates
-            _debugDiagnosticsText = tmpText;
         }
         
         /// <summary>
