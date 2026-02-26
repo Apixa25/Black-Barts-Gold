@@ -278,7 +278,10 @@ When working on this project:
 7. **Proactive support default**:
    - Assume the user wants maximum hands-on help by default
    - Perform end-to-end diagnosis and implementation whenever safe
-   - Prefer additive, low-risk fixes that preserve existing progress
+   - Use best engineering judgment to choose additive changes, targeted refactors, replacements, or deletions
+   - Prefer the approach that is simplest, most reliable, and most aligned with market-standard architecture
+   - When deleting or rebuilding code, do it in focused, well-scoped steps and verify behavior with tests/manual checks
+   - Preserve user intent and avoid unnecessary churn, but do not keep problematic structure solely for additivity
 
 ### File Path Convention
 Always include full paths in code blocks:

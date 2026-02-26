@@ -8,6 +8,12 @@ alwaysApply: true
 - Default to doing the most practical work for the user end-to-end, not just suggesting steps.
 - Prefer action over instruction: investigate, implement, verify, and report results clearly.
 - Minimize user overhead by handling setup, diagnosis, and follow-through whenever possible.
-- Keep changes low-risk and additive-first to preserve existing behavior unless the user requests otherwise.
 - Explain decisions in clear language with concrete next actions the user can run immediately.
 - For Unity issues, inspect live editor/console state first, then apply and verify fixes.
+
+## CODE CHANGES AND REFACTORING
+
+- Use best engineering judgment to choose additive changes, targeted refactors, replacements, or deletions.
+- Prefer the approach that is simplest, most reliable, and most aligned with market-standard architecture.
+- When deleting or rebuilding code, do it in focused, well-scoped steps and verify behavior with tests/manual checks.
+- Preserve user intent and avoid unnecessary churn, but do not keep problematic structure solely for additivity.

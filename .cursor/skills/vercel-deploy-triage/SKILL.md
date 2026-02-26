@@ -10,7 +10,7 @@ description: Diagnose and fix Vercel deployment failures for the Black Bart's Go
 - **Project**: Black Bart's Gold admin dashboard (`admin-dashboard/`)
 - **Framework**: Next.js (`next build`)
 - **Primary goal**: explain why deployment failed and provide a safe fix path
-- **Change style**: additive-first, low risk, preserve existing behavior unless requested
+- **Change style**: use best engineering judgment; choose additive updates, targeted refactors, replacements, or deletions as appropriate
 
 Run commands from `admin-dashboard/` with `npx vercel ...` (global install optional).
 
@@ -57,7 +57,7 @@ Run commands from `admin-dashboard/` with `npx vercel ...` (global install optio
    - If local build passes but Vercel fails, prioritize env/config differences.
 
 6. **Apply minimal safe fix**
-   - Prefer additive updates (guards, defaults, config alignment, explicit env validation).
+   - Prefer the simplest reliable fix path (guards, defaults, config alignment, explicit env validation, or scoped refactors/deletions when clearly better).
    - Avoid broad refactors while triaging production incidents.
 
 7. **Verify**
