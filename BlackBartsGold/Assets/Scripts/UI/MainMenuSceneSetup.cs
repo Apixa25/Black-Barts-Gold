@@ -129,7 +129,6 @@ namespace BlackBartsGold.UI
                     && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
                     && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
                 bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
-                bool modestSize = rect.sizeDelta.x <= 640f && rect.sizeDelta.y <= 640f;
                 bool looksLikeWhiteSquare = image.color.a > 0.95f
                     && image.color.r > 0.95f
                     && image.color.g > 0.95f
@@ -141,7 +140,9 @@ namespace BlackBartsGold.UI
                     || lowerName.Contains("center")
                     || lowerName.Contains("reticle");
 
-                if (centeredAnchor && centeredPosition && modestSize && ((looksLikeWhiteSquare && hasNoVisualSource) || explicitArtifactName))
+                // Be intentionally aggressive (same policy as ARHunt): any centered, pure-white, sprite-less image
+                // (or explicitly named artifact) is treated as a stray artifact and disabled, regardless of size.
+                if (centeredAnchor && centeredPosition && ((looksLikeWhiteSquare && hasNoVisualSource) || explicitArtifactName))
                 {
                     image.enabled = false;
                     Debug.Log($"[MainMenuSceneSetup] Disabled centered white square artifact on {image.gameObject.name}");
@@ -160,13 +161,13 @@ namespace BlackBartsGold.UI
                     && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
                     && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
                 bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
-                bool modestSize = rect.sizeDelta.x <= 640f && rect.sizeDelta.y <= 640f;
                 bool looksLikeWhiteSquare = rawImage.color.a > 0.95f
                     && rawImage.color.r > 0.95f
                     && rawImage.color.g > 0.95f
                     && rawImage.color.b > 0.95f;
 
-                if (centeredAnchor && centeredPosition && modestSize && looksLikeWhiteSquare)
+                // RawImage artifacts: if they're centered, pure white, and have no texture, they are almost certainly the white box.
+                if (centeredAnchor && centeredPosition && looksLikeWhiteSquare)
                 {
                     rawImage.enabled = false;
                     Debug.Log($"[MainMenuSceneSetup] Disabled centered white RawImage artifact on {rawImage.gameObject.name}");

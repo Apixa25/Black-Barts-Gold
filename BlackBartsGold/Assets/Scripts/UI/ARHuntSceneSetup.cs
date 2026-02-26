@@ -152,6 +152,29 @@ namespace BlackBartsGold.UI
             // Update radar map tile from Mapbox
             UpdateRadarMapTile();
 
+            // Safety: if the debug diagnostics text was not wired at Start, try to bind it here.
+            if (_debugDiagnosticsText == null)
+            {
+                var panel = transform.Find("DebugDiagnosticsPanel");
+                if (panel != null)
+                {
+                    var diagnostics = panel.Find("DiagnosticsText");
+                    if (diagnostics != null)
+                    {
+                        var diagText = diagnostics.GetComponent<TextMeshProUGUI>() 
+                                       ?? diagnostics.gameObject.AddComponent<TextMeshProUGUI>();
+                        _debugDiagnosticsText = diagText;
+                        _debugDiagnosticsText.fontSize = 21;
+                        _debugDiagnosticsText.color = Color.white;
+                        _debugDiagnosticsText.alignment = TextAlignmentOptions.TopLeft;
+                        _debugDiagnosticsText.enableWordWrapping = true;
+                        _debugDiagnosticsText.richText = true;
+                        _debugDiagnosticsText.text = BuildDevelopmentConsoleString();
+                        DiagnosticLog.Log("Console", "Rebound _debugDiagnosticsText in Update()");
+                    }
+                }
+            }
+
             // Update debug diagnostics panel
             if (_debugDiagnosticsText != null && Time.time - _lastDiagnosticUpdate >= _diagnosticUpdateInterval)
             {
@@ -411,7 +434,6 @@ namespace BlackBartsGold.UI
                     && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
                     && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
                 bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
-                bool modestSize = rect.sizeDelta.x <= 640f && rect.sizeDelta.y <= 640f;
                 bool looksLikeWhiteSquare = image.color.a > 0.95f
                     && image.color.r > 0.95f
                     && image.color.g > 0.95f
@@ -423,7 +445,9 @@ namespace BlackBartsGold.UI
                     || lowerName.Contains("center")
                     || lowerName.Contains("reticle");
 
-                if (centeredAnchor && centeredPosition && modestSize && ((looksLikeWhiteSquare && hasNoVisualSource) || explicitArtifactName))
+                // Be intentionally aggressive: any centered, pure-white, sprite-less image (or explicitly named artifact)
+                // is treated as a stray artifact and disabled, regardless of its exact size.
+                if (centeredAnchor && centeredPosition && ((looksLikeWhiteSquare && hasNoVisualSource) || explicitArtifactName))
                 {
                     image.enabled = false;
                     DiagnosticLog.Log("Setup", $"Disabled centered Image artifact: {image.gameObject.name} size={rect.sizeDelta} sprite={(image.sprite != null)}");
@@ -442,13 +466,13 @@ namespace BlackBartsGold.UI
                     && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
                     && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
                 bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
-                bool modestSize = rect.sizeDelta.x <= 640f && rect.sizeDelta.y <= 640f;
                 bool looksLikeWhiteSquare = rawImage.color.a > 0.95f
                     && rawImage.color.r > 0.95f
                     && rawImage.color.g > 0.95f
                     && rawImage.color.b > 0.95f;
 
-                if (centeredAnchor && centeredPosition && modestSize && looksLikeWhiteSquare)
+                // RawImage artifacts: if they're centered, pure white, and have no texture, they are almost certainly the white box.
+                if (centeredAnchor && centeredPosition && looksLikeWhiteSquare)
                 {
                     rawImage.enabled = false;
                     DiagnosticLog.Log("Setup", $"Disabled centered white no-texture RawImage artifact: {rawImage.gameObject.name}");
