@@ -385,7 +385,8 @@ namespace BlackBartsGold.UI
                 image.color = Parchment;
             }
 
-            SetupButtonText(btn, "👛 MY WALLET", 32);
+            // Avoid emoji glyph fallback squares on device TMP font asset.
+            SetupButtonText(btn, "MY WALLET", 32);
             Debug.Log("[MainMenuSceneSetup][Trace] WalletButton text+style applied");
         }
 

@@ -64,6 +64,7 @@ namespace BlackBartsGold.UI
         private float _lastAdbSensorSnapshotLog;
         private const float _verboseLifecycleInterval = 3f;
         private const float _adbSensorSnapshotInterval = 2f;
+        private TextMeshProUGUI _sensorStatusText;
         
         private void Start()
         {
@@ -87,6 +88,7 @@ namespace BlackBartsGold.UI
             SetupCrosshairs();
             SetupRadarPanel();
             RemoveDevelopmentConsolePanel();
+            SetupSensorStatusPanel();
             SetupMessagePanel();
             SetupLockedPopup();
             SetupCollectionPopup();
@@ -150,6 +152,12 @@ namespace BlackBartsGold.UI
             // Update radar map tile from Mapbox
             UpdateRadarMapTile();
 
+            if (_sensorStatusText != null && Time.time - _lastSensorConsoleRefresh >= _sensorConsoleRefreshInterval)
+            {
+                _lastSensorConsoleRefresh = Time.time;
+                _sensorStatusText.text = BuildSensorStatusString();
+            }
+
             if (_radarZoomRadarUI != null && Time.time - _lastRadarControlsRefresh >= _radarControlsRefreshInterval)
             {
                 _lastRadarControlsRefresh = Time.time;
@@ -159,6 +167,7 @@ namespace BlackBartsGold.UI
             if (Time.time - _lastVerboseLifecycleLog >= _verboseLifecycleInterval)
             {
                 _lastVerboseLifecycleLog = Time.time;
+                RemoveDevelopmentConsolePanel();
                 bool debugPanelPresent = transform.Find("DebugDiagnosticsPanel") != null;
                 DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s devConsole={debugPanelPresent} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
             }
@@ -210,6 +219,82 @@ namespace BlackBartsGold.UI
             _lastArState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
             _lastArStateChangeInfo = "AR state stable";
             DiagnosticLog.Log("Sensors", $"Initial AR state={_lastArState} cameraFound={cam != null}");
+        }
+
+        private string BuildSensorStatusString()
+        {
+            var sb = new StringBuilder(700);
+            string arState = UnityEngine.XR.ARFoundation.ARSession.state.ToString();
+
+            bool gpsOn = Input.location.status == LocationServiceStatus.Running;
+            bool gpsWorking = GPSManager.Instance != null && GPSManager.Instance.CurrentLocation != null;
+            float gpsAcc = gpsWorking ? GPSManager.Instance.CurrentLocation.horizontalAccuracy : -1f;
+
+            bool compassOn = DeviceCompass.IsAvailable || Input.compass.enabled;
+            bool compassWorking = DeviceCompass.IsAvailable && DeviceCompass.ActiveMethod != "none";
+
+            bool gyroOn = (_gyroscope != null && _gyroscope.enabled) || Input.gyro.enabled;
+            bool gyroWorking = false;
+            if (_gyroscope != null && _gyroscope.enabled)
+            {
+                Vector3 rate = _gyroscope.angularVelocity.ReadValue();
+                gyroWorking = rate.sqrMagnitude > 0.0001f;
+            }
+
+            bool accelOn = _accelerometer != null && _accelerometer.enabled;
+            bool accelWorking = false;
+            if (accelOn)
+            {
+                Vector3 accel = _accelerometer.acceleration.ReadValue();
+                accelWorking = accel.sqrMagnitude > 0.01f;
+            }
+
+            bool gravityOn = _gravitySensor != null && _gravitySensor.enabled;
+            bool gravityWorking = false;
+            if (gravityOn)
+            {
+                Vector3 grav = _gravitySensor.gravity.ReadValue();
+                gravityWorking = grav.sqrMagnitude > 0.01f;
+            }
+
+            bool attitudeOn = _attitudeSensor != null && _attitudeSensor.enabled;
+            bool attitudeWorking = false;
+            if (attitudeOn)
+            {
+                Quaternion att = _attitudeSensor.attitude.ReadValue();
+                attitudeWorking = att.x != 0f || att.y != 0f || att.z != 0f;
+            }
+
+            bool magOn = _magneticFieldSensor != null && _magneticFieldSensor.enabled;
+            bool magWorking = false;
+            if (magOn)
+            {
+                Vector3 mag = _magneticFieldSensor.magneticField.ReadValue();
+                magWorking = mag.sqrMagnitude > 1f;
+            }
+
+            string metersToCoin = "n/a";
+            if (CoinManager.Exists && CoinManager.Instance != null && CoinManager.Instance.HasTarget && CoinManager.Instance.TargetCoin != null)
+            {
+                var renderer = CoinManager.Instance.TargetCoin.GetComponent<ARCoinRenderer>();
+                if (renderer != null)
+                {
+                    metersToCoin = $"{renderer.GPSDistance:F1}m";
+                }
+            }
+
+            sb.AppendLine("<b>SENSOR STATUS</b>");
+            sb.AppendLine($"AR: {arState}");
+            sb.AppendLine($"Compass: {(compassOn ? "ON" : "OFF")}/{(compassWorking ? "YES" : "NO")}  {DeviceCompass.Heading:F1}°");
+            sb.AppendLine($"Coin distance: {metersToCoin}");
+            sb.AppendLine($"GPS: {(gpsOn ? "ON" : "OFF")}/{(gpsWorking ? "YES" : "NO")}  acc={(gpsAcc >= 0f ? $"{gpsAcc:F1}m" : "n/a")}");
+            sb.AppendLine($"Gyro: {(gyroOn ? "ON" : "OFF")}/{(gyroWorking ? "YES" : "NO")}");
+            sb.AppendLine($"Accel: {(accelOn ? "ON" : "OFF")}/{(accelWorking ? "YES" : "NO")}");
+            sb.AppendLine($"Gravity: {(gravityOn ? "ON" : "OFF")}/{(gravityWorking ? "YES" : "NO")}");
+            sb.AppendLine($"Attitude: {(attitudeOn ? "ON" : "OFF")}/{(attitudeWorking ? "YES" : "NO")}");
+            sb.AppendLine($"MagField: {(magOn ? "ON" : "OFF")}/{(magWorking ? "YES" : "NO")}");
+
+            return sb.ToString();
         }
 
         private string BuildDevelopmentConsoleString()
@@ -1236,86 +1321,75 @@ namespace BlackBartsGold.UI
         }
 
         /// <summary>
-        /// Create debug diagnostics panel (bottom-left) - same as UIManager's AR overlay.
-        /// Shows AR status, GPS, planes, coins. Code-only, no Editor wiring.
+        /// Create a compact AR-only sensor panel in the bottom-left.
+        /// This replaces the old development console.
         /// </summary>
-        private void SetupDebugPanel()
+        private void SetupSensorStatusPanel()
         {
-            var existing = transform.Find("DebugDiagnosticsPanel");
-            Transform panel = existing;
-            if (panel == null)
+            try
             {
-                var debugPanel = new GameObject("DebugDiagnosticsPanel");
-                debugPanel.transform.SetParent(transform, false);
-                panel = debugPanel.transform;
+                Transform panel = transform.Find("SensorStatusPanel");
+                if (panel == null || !panel)
+                {
+                    var panelGO = new GameObject("SensorStatusPanel");
+                    panelGO.transform.SetParent(transform, false);
+                    panel = panelGO.transform;
+                }
+
+                if (panel == null || panel.gameObject == null)
+                {
+                    DiagnosticLog.Warn("Setup", "SensorStatusPanel setup aborted: panel transform invalid");
+                    return;
+                }
+
+                var panelRect = panel.GetComponent<RectTransform>() ?? panel.gameObject.AddComponent<RectTransform>();
+                panelRect.anchorMin = new Vector2(0, 0);
+                panelRect.anchorMax = new Vector2(0, 0);
+                panelRect.pivot = new Vector2(0, 0);
+                panelRect.anchoredPosition = new Vector2(20, 20);
+                panelRect.sizeDelta = new Vector2(520, 320);
+
+                var bgImage = panel.GetComponent<Image>() ?? panel.gameObject.AddComponent<Image>();
+                bgImage.color = new Color(0, 0, 0, 0.7f);
+                bgImage.raycastTarget = false;
+
+                Transform textTransform = panel.Find("SensorText");
+                if (textTransform == null || !textTransform)
+                {
+                    var textGO = new GameObject("SensorText");
+                    textGO.transform.SetParent(panel, false);
+                    textTransform = textGO.transform;
+                }
+
+                if (textTransform == null || textTransform.gameObject == null)
+                {
+                    DiagnosticLog.Warn("Setup", "SensorStatusPanel setup aborted: SensorText invalid");
+                    return;
+                }
+
+                var textRect = textTransform.GetComponent<RectTransform>() ?? textTransform.gameObject.AddComponent<RectTransform>();
+                textRect.anchorMin = new Vector2(0, 0);
+                textRect.anchorMax = new Vector2(1, 1);
+                textRect.offsetMin = new Vector2(12, 12);
+                textRect.offsetMax = new Vector2(-12, -12);
+
+                _sensorStatusText = textTransform.GetComponent<TextMeshProUGUI>() ?? textTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                _sensorStatusText.fontSize = 18;
+                _sensorStatusText.color = Color.white;
+                _sensorStatusText.alignment = TextAlignmentOptions.TopLeft;
+                _sensorStatusText.enableWordWrapping = true;
+                _sensorStatusText.richText = true;
+                _sensorStatusText.raycastTarget = false;
+                _sensorStatusText.text = BuildSensorStatusString();
+
+                panel.gameObject.SetActive(true);
+                panel.SetAsLastSibling();
+                DiagnosticLog.Log("Setup", "SensorStatusPanel created");
             }
-
-            var panelRect = panel.GetComponent<RectTransform>();
-            if (panelRect == null) panelRect = panel.gameObject.AddComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0, 0);
-            panelRect.anchorMax = new Vector2(0, 0);
-            panelRect.pivot = new Vector2(0, 0);
-            panelRect.anchoredPosition = new Vector2(20, 20);
-            panelRect.sizeDelta = new Vector2(980, 560); // Bottom-left development console
-            panelRect.localScale = Vector3.one;
-            panelRect.localRotation = Quaternion.identity;
-
-            var bgImage = panel.GetComponent<Image>();
-            if (bgImage == null) bgImage = panel.gameObject.AddComponent<Image>();
-            bgImage.color = new Color(0, 0, 0, 0.8f);
-            bgImage.raycastTarget = false;
-
-            var title = panel.Find("DebugTitle");
-            if (title == null)
+            catch (System.Exception ex)
             {
-                var titleGO = new GameObject("DebugTitle");
-                titleGO.transform.SetParent(panel, false);
-                title = titleGO.transform;
+                DiagnosticLog.Error("Setup", $"SetupSensorStatusPanel exception: {ex.GetType().Name}: {ex.Message}");
             }
-            var titleRect = title.GetComponent<RectTransform>();
-            if (titleRect == null) titleRect = title.gameObject.AddComponent<RectTransform>();
-            titleRect.anchorMin = new Vector2(0, 1);
-            titleRect.anchorMax = new Vector2(1, 1);
-            titleRect.pivot = new Vector2(0.5f, 1);
-            titleRect.anchoredPosition = new Vector2(0, -10);
-            titleRect.sizeDelta = new Vector2(0, 40);
-            var titleText = title.GetComponent<TextMeshProUGUI>();
-            if (titleText == null) titleText = title.gameObject.AddComponent<TextMeshProUGUI>();
-            titleText.text = "DEVELOPMENT CONSOLE";
-            titleText.fontSize = 30;
-            titleText.color = GoldColor;
-            titleText.alignment = TextAlignmentOptions.Center;
-            _debugTitleText = titleText;
-
-            var diagnostics = panel.Find("DiagnosticsText");
-            if (diagnostics == null)
-            {
-                var diagGO = new GameObject("DiagnosticsText");
-                diagGO.transform.SetParent(panel, false);
-                diagnostics = diagGO.transform;
-            }
-            var diagRect = diagnostics.GetComponent<RectTransform>();
-            if (diagRect == null) diagRect = diagnostics.gameObject.AddComponent<RectTransform>();
-            diagRect.anchorMin = new Vector2(0, 0);
-            diagRect.anchorMax = new Vector2(1, 1);
-            diagRect.pivot = new Vector2(0, 1);
-            diagRect.anchoredPosition = new Vector2(15, -55);
-            diagRect.sizeDelta = new Vector2(-30, -70);
-            _debugDiagnosticsText = diagnostics.GetComponent<TextMeshProUGUI>();
-            if (_debugDiagnosticsText == null) _debugDiagnosticsText = diagnostics.gameObject.AddComponent<TextMeshProUGUI>();
-            _debugDiagnosticsText.fontSize = 21;
-            _debugDiagnosticsText.color = Color.white;
-            _debugDiagnosticsText.alignment = TextAlignmentOptions.TopLeft;
-            _debugDiagnosticsText.enableWordWrapping = true;
-            _debugDiagnosticsText.richText = true;
-            _debugDiagnosticsText.text = BuildDevelopmentConsoleString();
-
-            panel.gameObject.SetActive(true);
-            panel.SetAsLastSibling();
-
-            Debug.Log("[ARHuntSceneSetup] Debug diagnostics panel created");
-            DiagnosticLog.Log("Console", $"DebugDiagnosticsPanel active={panel.gameObject.activeInHierarchy} size={panelRect.sizeDelta} pos={panelRect.anchoredPosition} scale={panelRect.localScale}");
-            DiagnosticLog.Log("Console", $"DiagnosticsText ready={_debugDiagnosticsText != null} titleReady={_debugTitleText != null}");
         }
 
         /// <summary>
