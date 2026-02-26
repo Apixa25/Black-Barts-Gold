@@ -454,18 +454,27 @@ namespace BlackBartsGold.UI
             try
             {
                 var btn = root.Find(buttonName);
-                if (btn != null && !btn)
+                if (btn != null && !btn) btn = null;
+
+                // Standardize malformed scene leftovers: UI buttons must have RectTransform.
+                if (btn != null && btn.GetComponent<RectTransform>() == null)
                 {
+                    Debug.LogWarning($"[MainMenuSceneSetup][Trace] Rebuilding malformed {buttonName} (missing RectTransform)");
+                    if (Application.isPlaying) Destroy(btn.gameObject); else DestroyImmediate(btn.gameObject);
                     btn = null;
                 }
+
                 if (btn == null)
                 {
-                    var buttonGO = new GameObject(buttonName);
+                    var buttonGO = new GameObject(
+                        buttonName,
+                        typeof(RectTransform),
+                        typeof(CanvasRenderer),
+                        typeof(Image),
+                        typeof(Button)
+                    );
                     buttonGO.transform.SetParent(root, false);
                     btn = buttonGO.transform;
-                    buttonGO.AddComponent<RectTransform>();
-                    buttonGO.AddComponent<Image>();
-                    buttonGO.AddComponent<Button>();
                     Debug.Log($"[MainMenuSceneSetup] Created {buttonName} from code");
                 }
 
@@ -485,7 +494,12 @@ namespace BlackBartsGold.UI
                     return null;
                 }
 
-                var rect = btn.GetComponent<RectTransform>() ?? btn.gameObject.AddComponent<RectTransform>();
+                var rect = btn.GetComponent<RectTransform>();
+                if (rect == null)
+                {
+                    Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') failed: RectTransform unresolved");
+                    return null;
+                }
                 var image = btn.GetComponent<Image>() ?? btn.gameObject.AddComponent<Image>();
                 var button = btn.GetComponent<Button>() ?? btn.gameObject.AddComponent<Button>();
                 if (rect == null || image == null || button == null)
@@ -503,7 +517,7 @@ namespace BlackBartsGold.UI
                 }
                 if (labelTransform == null)
                 {
-                    var textGO = new GameObject("Text");
+                    var textGO = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
                     textGO.transform.SetParent(btn, false);
                     labelTransform = textGO.transform;
                 }
@@ -515,9 +529,17 @@ namespace BlackBartsGold.UI
                 }
 
                 var labelRect = labelTransform.GetComponent<RectTransform>();
-                if (labelRect == null) labelRect = labelTransform.gameObject.AddComponent<RectTransform>();
                 var labelTmp = labelTransform.GetComponent<TMP_Text>();
-                if (labelTmp == null) labelTmp = labelTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                if (labelRect == null || labelTmp == null)
+                {
+                    // Recreate malformed labels instead of layering components onto invalid nodes.
+                    if (Application.isPlaying) Destroy(labelTransform.gameObject); else DestroyImmediate(labelTransform.gameObject);
+                    var textGO = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+                    textGO.transform.SetParent(btn, false);
+                    labelTransform = textGO.transform;
+                    labelRect = labelTransform.GetComponent<RectTransform>();
+                    labelTmp = labelTransform.GetComponent<TMP_Text>();
+                }
                 if (labelRect == null || labelTmp == null)
                 {
                     Debug.LogError($"[MainMenuSceneSetup][Trace] EnsureMainMenuButton('{buttonName}') failed: label components unresolved");

@@ -505,20 +505,37 @@ namespace BlackBartsGold.UI
         private void SetupBackButton()
         {
             var btn = transform.Find("BackButton");
+            if (btn != null && !btn) btn = null;
+
+            // Rebuild malformed scene leftovers: UI button roots must be RectTransform-based.
+            if (btn != null && btn.GetComponent<RectTransform>() == null)
+            {
+                DiagnosticLog.Warn("Setup", "BackButton exists without RectTransform - rebuilding");
+                Destroy(btn.gameObject);
+                btn = null;
+            }
+
             if (btn == null)
             {
-                // Create BackButton from code for fully code-based setup
-                var btnGO = new GameObject("BackButton");
+                // Create BackButton from code for fully code-based setup.
+                var btnGO = new GameObject(
+                    "BackButton",
+                    typeof(RectTransform),
+                    typeof(CanvasRenderer),
+                    typeof(Image),
+                    typeof(Button)
+                );
                 btnGO.transform.SetParent(transform, false);
                 btn = btnGO.transform;
-                btnGO.AddComponent<RectTransform>();
-                btnGO.AddComponent<Image>();
-                btnGO.AddComponent<Button>();
                 DiagnosticLog.Log("Setup", "Created BackButton from code");
             }
 
             var rect = btn.GetComponent<RectTransform>();
-            if (rect == null) rect = btn.gameObject.AddComponent<RectTransform>();
+            if (rect == null)
+            {
+                DiagnosticLog.Error("Setup", "SetupBackButton aborted: RectTransform missing after create");
+                return;
+            }
             rect.anchorMin = new Vector2(0, 1);
             rect.anchorMax = new Vector2(0, 1);
             rect.pivot = new Vector2(0, 1);
@@ -536,22 +553,41 @@ namespace BlackBartsGold.UI
             var textTransform = btn.Find("Text");
             if (textTransform == null)
             {
-                var textGO = new GameObject("Text");
+                var textGO = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
                 textGO.transform.SetParent(btn, false);
                 textTransform = textGO.transform;
-                
-                var textRect = textGO.AddComponent<RectTransform>();
-                textRect.anchorMin = Vector2.zero;
-                textRect.anchorMax = Vector2.one;
-                textRect.offsetMin = Vector2.zero;
-                textRect.offsetMax = Vector2.zero;
-                
-                var tmpText = textGO.AddComponent<TextMeshProUGUI>();
-                tmpText.text = "< Back";
-                tmpText.fontSize = 24;
-                tmpText.alignment = TextAlignmentOptions.Center;
-                tmpText.color = Color.white;
             }
+            else if (textTransform.GetComponent<RectTransform>() == null)
+            {
+                // Replace malformed text child rather than mutating non-UI transforms.
+                Destroy(textTransform.gameObject);
+                var textGO = new GameObject("Text", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+                textGO.transform.SetParent(btn, false);
+                textTransform = textGO.transform;
+            }
+
+            var textRect = textTransform.GetComponent<RectTransform>();
+            if (textRect == null)
+            {
+                DiagnosticLog.Error("Setup", "SetupBackButton aborted: BackButton text RectTransform missing");
+                return;
+            }
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+
+            var tmpText = textTransform.GetComponent<TextMeshProUGUI>();
+            if (tmpText == null) tmpText = textTransform.gameObject.AddComponent<TextMeshProUGUI>();
+            if (tmpText == null)
+            {
+                DiagnosticLog.Error("Setup", "SetupBackButton aborted: TextMeshProUGUI missing on BackButton text");
+                return;
+            }
+            tmpText.text = "< Back";
+            tmpText.fontSize = 24;
+            tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.color = Color.white;
 
             // Wire Back button to exit AR and return to MainMenu
             var button = btn.GetComponent<Button>();
