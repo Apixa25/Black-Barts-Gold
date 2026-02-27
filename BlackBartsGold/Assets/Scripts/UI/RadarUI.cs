@@ -17,6 +17,7 @@ using BlackBartsGold.Core.Models;
 using UIManager = BlackBartsGold.Core.UIManager;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
+using UnityEngine.InputSystem;
 
 namespace BlackBartsGold.UI
 {
@@ -412,19 +413,24 @@ namespace BlackBartsGold.UI
             Vector2 tapPos;
             bool tapped = false;
 
-            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+            var touch = Touchscreen.current;
+            if (touch != null && touch.primaryTouch.press.wasPressedThisFrame)
             {
-                tapPos = Input.GetTouch(0).position;
-                tapped = true;
-            }
-            else if (Input.GetMouseButtonDown(0))
-            {
-                tapPos = Input.mousePosition;
+                tapPos = touch.primaryTouch.position.ReadValue();
                 tapped = true;
             }
             else
             {
-                return;
+                var mouse = Mouse.current;
+                if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+                {
+                    tapPos = mouse.position.ReadValue();
+                    tapped = true;
+                }
+                else
+                {
+                    return;
+                }
             }
 
             if (!tapped) return;

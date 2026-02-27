@@ -66,6 +66,7 @@ namespace BlackBartsGold.UI
         private const float _adbSensorSnapshotInterval = 2f;
         private TextMeshProUGUI _sensorStatusText;
         private Transform _sensorStatusPanel;
+        private const bool EnableRuntimeDevConsole = false;
         
         private void Start()
         {
@@ -82,14 +83,21 @@ namespace BlackBartsGold.UI
             }
             
             SetupCanvas();
-            InitializeDevelopmentConsoleSensors();
+            DisableRuntimeDiagnosticsForProduction();
+            if (EnableRuntimeDevConsole)
+            {
+                InitializeDevelopmentConsoleSensors();
+            }
             DisableForeignDebugPanels();
             CleanupStrayCenteredImages(); // Remove white square from orphan CompassArrowPanel etc.
             SetupBackButton();
             SetupCrosshairs();
             SetupRadarPanel();
             RemoveDevelopmentConsolePanel();
-            SetupSensorStatusPanel();
+            if (EnableRuntimeDevConsole)
+            {
+                SetupSensorStatusPanel();
+            }
             SetupMessagePanel();
             SetupLockedPopup();
             SetupCollectionPopup();
@@ -153,7 +161,7 @@ namespace BlackBartsGold.UI
             // Update radar map tile from Mapbox
             UpdateRadarMapTile();
 
-            if (_sensorStatusText != null && Time.time - _lastSensorConsoleRefresh >= _sensorConsoleRefreshInterval)
+            if (EnableRuntimeDevConsole && _sensorStatusText != null && Time.time - _lastSensorConsoleRefresh >= _sensorConsoleRefreshInterval)
             {
                 _lastSensorConsoleRefresh = Time.time;
                 _sensorStatusText.text = BuildSensorStatusString();
@@ -176,7 +184,7 @@ namespace BlackBartsGold.UI
                 DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s devConsole={debugPanelPresent} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
             }
 
-            if (Time.time - _lastAdbSensorSnapshotLog >= _adbSensorSnapshotInterval)
+            if (EnableRuntimeDevConsole && Time.time - _lastAdbSensorSnapshotLog >= _adbSensorSnapshotInterval)
             {
                 _lastAdbSensorSnapshotLog = Time.time;
                 EmitPeriodicSensorSnapshotLog();
@@ -550,6 +558,34 @@ namespace BlackBartsGold.UI
             }
         }
 
+        private void DisableRuntimeDiagnosticsForProduction()
+        {
+            // Keep AR HUD production-clean: disable debug scripts that consume cycles and render diagnostics.
+            var startupLoggers = FindObjectsByType<BlackBartsGold.Diagnostics.StartupLogger>(FindObjectsSortMode.None);
+            foreach (var logger in startupLoggers)
+            {
+                if (logger == null) continue;
+                logger.enabled = false;
+                Destroy(logger);
+            }
+
+            var sensorDiagnostics = FindObjectsByType<BlackBartsGold.Diagnostics.SensorDiagnostics>(FindObjectsSortMode.None);
+            foreach (var diag in sensorDiagnostics)
+            {
+                if (diag == null) continue;
+                diag.enabled = false;
+                Destroy(diag);
+            }
+
+            var arTrackingDebug = FindObjectsByType<BlackBartsGold.AR.ARTrackingDebug>(FindObjectsSortMode.None);
+            foreach (var debug in arTrackingDebug)
+            {
+                if (debug == null) continue;
+                debug.enabled = false;
+                Destroy(debug);
+            }
+        }
+
         private void RemoveDevelopmentConsolePanel()
         {
             // Remove legacy diagnostics overlays globally, not just this canvas hierarchy.
@@ -558,7 +594,9 @@ namespace BlackBartsGold.UI
                 "DebugDiagnosticsPanel",
                 "DiagnosticsText",
                 "DiagnosticsTitle",
-                "DevelopmentConsolePanel"
+                "DevelopmentConsolePanel",
+                "SensorStatusPanel",
+                "SensorText"
             };
 
             var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
@@ -595,7 +633,6 @@ namespace BlackBartsGold.UI
             foreach (var tmp in tmpTexts)
             {
                 if (tmp == null) continue;
-                if (tmp.name == "SensorText") continue; // Keep the intended AR sensor panel.
 
                 string text = tmp.text ?? string.Empty;
                 bool looksLikeLegacyDiagnostics =
@@ -607,8 +644,6 @@ namespace BlackBartsGold.UI
                 if (!looksLikeLegacyDiagnostics) continue;
 
                 var owner = GetDirectCanvasChild(tmp.transform);
-                if (owner != null && owner.name == "SensorStatusPanel") continue;
-
                 if (owner != null)
                 {
                     owner.gameObject.SetActive(false);
@@ -635,7 +670,6 @@ namespace BlackBartsGold.UI
                 if (!looksLikeLegacyDiagnostics) continue;
 
                 var owner = GetDirectCanvasChild(txt.transform);
-                if (owner != null && owner.name == "SensorStatusPanel") continue;
                 if (owner != null)
                 {
                     owner.gameObject.SetActive(false);
@@ -678,7 +712,6 @@ namespace BlackBartsGold.UI
             foreach (var tmp in tmpTexts)
             {
                 if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
-                if (tmp.name == "SensorText") continue;
                 string text = tmp.text ?? string.Empty;
                 if (text.Contains("<b>Planes:</b>") || text.Contains("<b>API:</b>") || text.Contains("<b>AR:</b> <color="))
                 {
@@ -2048,6 +2081,7 @@ namespace BlackBartsGold.UI
                 var legacyArrow = existing.GetComponent<SimpleDirectionArrow>();
                 if (legacyArrow != null)
                 {
+                    legacyArrow.enabled = false;
                     Destroy(legacyArrow);
                     DiagnosticLog.Log("Setup", "Removed legacy SimpleDirectionArrow from DirectionIndicatorPanel");
                 }
@@ -2070,6 +2104,11 @@ namespace BlackBartsGold.UI
                     arrowRectExisting != null && distTextExisting != null &&
                     valTextExisting != null && statTextExisting != null && arrowImgExisting != null)
                 {
+                    if (bgPanelExisting.sprite == null)
+                    {
+                        bgPanelExisting.enabled = false;
+                        bgPanelExisting.raycastTarget = false;
+                    }
                     if (arrowImgExisting.sprite == null)
                     {
                         arrowImgExisting.sprite = GetOrCreateDirectionArrowSprite();
