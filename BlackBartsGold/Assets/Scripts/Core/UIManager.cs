@@ -74,6 +74,8 @@ namespace BlackBartsGold.Core
         private TextMeshProUGUI _debugDiagnosticsText;
         private float _diagnosticUpdateInterval = 0.5f;
         private float _lastDiagnosticUpdate = 0f;
+        // Legacy AR diagnostics/minimap overlay path is disabled to prevent conflicts with ARHuntSceneSetup.
+        private const bool EnableLegacyArDiagnosticsOverlay = false;
         
         // Mini-map references
         private RectTransform _miniMapContainer;
@@ -210,6 +212,8 @@ namespace BlackBartsGold.Core
         
         private void Update()
         {
+            if (!EnableLegacyArDiagnosticsOverlay) return;
+
             // Update diagnostic panel when in AR mode
             if (isInARMode && Time.time - _lastDiagnosticUpdate >= _diagnosticUpdateInterval)
             {
@@ -496,9 +500,9 @@ namespace BlackBartsGold.Core
             // Show appropriate UI based on which scene loaded
             if (scene.name == "ARHunt")
             {
-                // Mark AR mode so Update() runs UpdateDiagnosticsPanel() and debug panel shows live info
+                // AR scene owns HUD exclusively (ARHuntSceneSetup). Keep UIManager legacy AR overlays off.
                 isInARMode = true;
-                // AR HUD is now exclusively scene-owned (ARHuntSceneSetup, code-built at runtime).
+                DisableLegacyArOverlayObjects();
                 Debug.Log("[UIManager] 🎮 ARHunt scene - using ARHuntSceneSetup-owned HUD");
                 HideAllPanels();
                 
@@ -948,6 +952,36 @@ namespace BlackBartsGold.Core
         {
             yield return null; // Wait one frame
             ShowMainMenu();
+        }
+
+        private void DisableLegacyArOverlayObjects()
+        {
+            string[] legacyOverlayNames =
+            {
+                "DebugDiagnosticsPanel",
+                "DiagnosticsText",
+                "MiniMapContainer",
+                "PlaceCoinButton"
+            };
+
+            var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var obj in allObjects)
+            {
+                if (obj == null) continue;
+
+                for (int i = 0; i < legacyOverlayNames.Length; i++)
+                {
+                    if (obj.name != legacyOverlayNames[i]) continue;
+                    obj.SetActive(false);
+                    Debug.Log($"[UIManager] Disabled legacy AR overlay object: {obj.name}");
+                    break;
+                }
+            }
+
+            _debugDiagnosticsText = null;
+            _miniMapContainer = null;
+            _miniMapImage = null;
+            _placeCoinButton = null;
         }
         
         /// <summary>

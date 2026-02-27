@@ -28,6 +28,7 @@ namespace BlackBartsGold.UI
     public class EmergencyMapButton : MonoBehaviour
     {
         private static EmergencyMapButton _instance;
+        private const bool EmergencyOverlayEnabled = false;
         
         [Header("Button Settings")]
         public bool showButton = false;
@@ -43,6 +44,14 @@ namespace BlackBartsGold.UI
         
         private void Awake()
         {
+            if (!EmergencyOverlayEnabled)
+            {
+                enabled = false;
+                showButton = false;
+                showDebugInfo = false;
+                return;
+            }
+
             // Singleton - persist across scenes
             if (_instance != null && _instance != this)
             {
@@ -72,6 +81,8 @@ namespace BlackBartsGold.UI
         
         private void OnGUI()
         {
+            if (!EmergencyOverlayEnabled) return;
+
             // Initialize styles if needed
             if (buttonStyle == null)
             {
@@ -186,6 +197,8 @@ namespace BlackBartsGold.UI
         /// </summary>
         public static void EnsureExists()
         {
+            if (!EmergencyOverlayEnabled) return;
+
             if (_instance == null)
             {
                 var go = new GameObject("EmergencyMapButton");

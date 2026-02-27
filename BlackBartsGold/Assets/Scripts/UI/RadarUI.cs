@@ -181,6 +181,8 @@ namespace BlackBartsGold.UI
         private Queue<RectTransform> dotPool = new Queue<RectTransform>();
         private float lastUpdateTime = 0f;
         private float currentHeading = 0f;
+        private float _lastTapHealthCheckTime = 0f;
+        private const float TapHealthCheckInterval = 1f;
         
         #endregion
         
@@ -343,6 +345,7 @@ namespace BlackBartsGold.UI
             
             if (radarButton != null)
             {
+                EnsureTapReadiness();
                 radarButton.onClick.RemoveAllListeners(); // Clear any existing
                 radarButton.onClick.AddListener(OnRadarTapped);
                 Debug.Log("[RadarUI] Radar tap handler configured successfully");
@@ -359,7 +362,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void OnRadarTapped()
         {
-            Debug.Log("[RadarUI] RADAR TAPPED! Opening full map...");
+            Debug.Log($"[RadarUI][TAP] Radar tapped at t={Time.time:F2}s; opening full map...");
             
             if (Core.UIManager.Instance != null)
             {
@@ -369,6 +372,34 @@ namespace BlackBartsGold.UI
             {
                 Debug.LogWarning("[RadarUI] UIManager not found!");
             }
+        }
+
+        private void EnsureTapReadiness()
+        {
+            // Keep radar panel at top to reduce click interception by overlapping overlays.
+            transform.SetAsLastSibling();
+
+            Image radarImage = GetComponent<Image>();
+            if (radarImage == null)
+            {
+                radarImage = gameObject.AddComponent<Image>();
+                radarImage.color = new Color(0, 0, 0, 0.01f);
+            }
+            radarImage.raycastTarget = true;
+
+            if (radarButton == null)
+            {
+                radarButton = GetComponent<Button>();
+                if (radarButton == null)
+                {
+                    radarButton = gameObject.AddComponent<Button>();
+                    radarButton.transition = Selectable.Transition.None;
+                }
+            }
+
+            radarButton.enabled = true;
+            radarButton.interactable = true;
+            radarButton.targetGraphic = radarImage;
         }
         
         private void OnDestroy()
@@ -388,6 +419,12 @@ namespace BlackBartsGold.UI
         
         private void Update()
         {
+            if (Time.time - _lastTapHealthCheckTime >= TapHealthCheckInterval)
+            {
+                _lastTapHealthCheckTime = Time.time;
+                EnsureTapReadiness();
+            }
+
             // Update heading
             UpdateHeading();
             

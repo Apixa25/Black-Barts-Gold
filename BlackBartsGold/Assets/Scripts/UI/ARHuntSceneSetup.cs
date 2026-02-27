@@ -65,6 +65,7 @@ namespace BlackBartsGold.UI
         private const float _verboseLifecycleInterval = 3f;
         private const float _adbSensorSnapshotInterval = 2f;
         private TextMeshProUGUI _sensorStatusText;
+        private Transform _sensorStatusPanel;
         
         private void Start()
         {
@@ -156,6 +157,7 @@ namespace BlackBartsGold.UI
             {
                 _lastSensorConsoleRefresh = Time.time;
                 _sensorStatusText.text = BuildSensorStatusString();
+                EnsureSensorStatusPanelVisible();
             }
 
             if (_radarZoomRadarUI != null && Time.time - _lastRadarControlsRefresh >= _radarControlsRefreshInterval)
@@ -168,7 +170,8 @@ namespace BlackBartsGold.UI
             {
                 _lastVerboseLifecycleLog = Time.time;
                 RemoveDevelopmentConsolePanel();
-                bool debugPanelPresent = transform.Find("DebugDiagnosticsPanel") != null;
+                EnsureRadarPanelOperational();
+                bool debugPanelPresent = HasDevelopmentOverlayVisible();
                 DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s devConsole={debugPanelPresent} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
             }
 
@@ -493,13 +496,152 @@ namespace BlackBartsGold.UI
 
         private void RemoveDevelopmentConsolePanel()
         {
-            var debugPanel = transform.Find("DebugDiagnosticsPanel");
-            if (debugPanel != null)
+            // Remove legacy diagnostics overlays globally, not just this canvas hierarchy.
+            string[] debugOverlayNames =
             {
-                debugPanel.gameObject.SetActive(false);
-                Destroy(debugPanel.gameObject);
-                DiagnosticLog.Log("Setup", "Removed DebugDiagnosticsPanel (development console disabled)");
+                "DebugDiagnosticsPanel",
+                "DiagnosticsText",
+                "DiagnosticsTitle",
+                "DevelopmentConsolePanel"
+            };
+
+            var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            int removedCount = 0;
+
+            foreach (var obj in allObjects)
+            {
+                if (obj == null) continue;
+
+                bool isDebugOverlay = false;
+                for (int i = 0; i < debugOverlayNames.Length; i++)
+                {
+                    if (obj.name == debugOverlayNames[i])
+                    {
+                        isDebugOverlay = true;
+                        break;
+                    }
+                }
+
+                if (!isDebugOverlay) continue;
+
+                obj.SetActive(false);
+                Destroy(obj);
+                removedCount++;
             }
+
+            if (removedCount > 0)
+            {
+                DiagnosticLog.Log("Setup", $"Removed development overlays: {removedCount}");
+            }
+
+            // Some legacy diagnostics are text-driven and may not use known object names.
+            var tmpTexts = FindObjectsByType<TextMeshProUGUI>(FindObjectsSortMode.None);
+            foreach (var tmp in tmpTexts)
+            {
+                if (tmp == null) continue;
+                if (tmp.name == "SensorText") continue; // Keep the intended AR sensor panel.
+
+                string text = tmp.text ?? string.Empty;
+                bool looksLikeLegacyDiagnostics =
+                    text.Contains("<b>Planes:</b>") ||
+                    text.Contains("<b>API:</b>") ||
+                    text.Contains("<b>AR:</b> <color=") ||
+                    text.Contains("Mock: ");
+
+                if (!looksLikeLegacyDiagnostics) continue;
+
+                var owner = GetDirectCanvasChild(tmp.transform);
+                if (owner != null && owner.name == "SensorStatusPanel") continue;
+
+                if (owner != null)
+                {
+                    owner.gameObject.SetActive(false);
+                    Destroy(owner.gameObject);
+                }
+                else
+                {
+                    tmp.gameObject.SetActive(false);
+                    Destroy(tmp.gameObject);
+                }
+            }
+
+            // Legacy overlays may use UnityEngine.UI.Text instead of TMP.
+            var legacyTexts = FindObjectsByType<Text>(FindObjectsSortMode.None);
+            foreach (var txt in legacyTexts)
+            {
+                if (txt == null) continue;
+                string text = txt.text ?? string.Empty;
+                bool looksLikeLegacyDiagnostics =
+                    text.Contains("AR:") ||
+                    text.Contains("Planes:") ||
+                    text.Contains("API:") ||
+                    text.Contains("Mock:");
+                if (!looksLikeLegacyDiagnostics) continue;
+
+                var owner = GetDirectCanvasChild(txt.transform);
+                if (owner != null && owner.name == "SensorStatusPanel") continue;
+                if (owner != null)
+                {
+                    owner.gameObject.SetActive(false);
+                    Destroy(owner.gameObject);
+                }
+                else
+                {
+                    txt.gameObject.SetActive(false);
+                    Destroy(txt.gameObject);
+                }
+            }
+        }
+
+        private Transform GetDirectCanvasChild(Transform t)
+        {
+            if (t == null) return null;
+            Transform current = t;
+            while (current != null && current.parent != null)
+            {
+                if (current.parent == transform) return current;
+                current = current.parent;
+            }
+            return null;
+        }
+
+        private bool HasDevelopmentOverlayVisible()
+        {
+            var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var obj in allObjects)
+            {
+                if (obj == null || !obj.activeInHierarchy) continue;
+                string n = obj.name.ToLowerInvariant();
+                if (n.Contains("debugdiagnosticspanel") || n.Contains("developmentconsole") || n == "diagnosticstext")
+                {
+                    return true;
+                }
+            }
+
+            var tmpTexts = FindObjectsByType<TextMeshProUGUI>(FindObjectsSortMode.None);
+            foreach (var tmp in tmpTexts)
+            {
+                if (tmp == null || !tmp.gameObject.activeInHierarchy) continue;
+                if (tmp.name == "SensorText") continue;
+                string text = tmp.text ?? string.Empty;
+                if (text.Contains("<b>Planes:</b>") || text.Contains("<b>API:</b>") || text.Contains("<b>AR:</b> <color="))
+                {
+                    return true;
+                }
+            }
+
+            var legacyTexts = FindObjectsByType<Text>(FindObjectsSortMode.None);
+            foreach (var txt in legacyTexts)
+            {
+                if (txt == null || !txt.gameObject.activeInHierarchy) continue;
+                string text = txt.text ?? string.Empty;
+                if (text.Contains("AR:") || text.Contains("Planes:") || text.Contains("API:") || text.Contains("Mock:"))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void SetupBackButton()
@@ -799,9 +941,13 @@ namespace BlackBartsGold.UI
             var radarUI = radar.GetComponent<RadarUI>();
             if (radarUI != null)
             {
+                // Keep the primary radar reference even if optional zoom controls fail.
+                _radarZoomRadarUI = radarUI;
                 SetupRadarContent(radar, radarUI);
                 radarUI.SetMiniMapScale(_miniMapUiScale);
                 SetupRadarZoomControls(radarUI);
+                radar.gameObject.SetActive(true);
+                radarUI.Show();
                 Debug.Log("[ARHuntSceneSetup] RadarUI wired with code-based setup");
                 DiagnosticLog.Log("Radar", $"RadarPanel ready size={rect?.sizeDelta} scale={_miniMapUiScale} zoom={_radarZoom}");
             }
@@ -1327,12 +1473,66 @@ namespace BlackBartsGold.UI
                 _sensorStatusText.text = BuildSensorStatusString();
 
                 panel.gameObject.SetActive(true);
+                _sensorStatusPanel = panel;
                 panel.SetAsLastSibling();
                 DiagnosticLog.Log("Setup", "SensorStatusPanel created");
             }
             catch (System.Exception ex)
             {
                 DiagnosticLog.Error("Setup", $"SetupSensorStatusPanel exception: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        private void EnsureSensorStatusPanelVisible()
+        {
+            if (_sensorStatusPanel == null || !_sensorStatusPanel)
+            {
+                _sensorStatusPanel = transform.Find("SensorStatusPanel");
+            }
+
+            if (_sensorStatusPanel == null || !_sensorStatusPanel) return;
+
+            if (!_sensorStatusPanel.gameObject.activeSelf)
+            {
+                _sensorStatusPanel.gameObject.SetActive(true);
+                DiagnosticLog.Warn("Setup", "SensorStatusPanel was hidden and has been re-enabled");
+            }
+        }
+
+        private void EnsureRadarPanelOperational()
+        {
+            if (_radarZoomRadarUI == null || !_radarZoomRadarUI)
+            {
+                var radarPanel = transform.Find("RadarPanel");
+                if (radarPanel != null)
+                {
+                    _radarZoomRadarUI = radarPanel.GetComponent<RadarUI>();
+                }
+            }
+
+            if (_radarZoomRadarUI != null)
+            {
+                if (!_radarZoomRadarUI.gameObject.activeSelf)
+                {
+                    _radarZoomRadarUI.gameObject.SetActive(true);
+                }
+                _radarZoomRadarUI.Show();
+                _radarZoomRadarUI.transform.SetAsLastSibling();
+            }
+
+            if (_radarMapTileImage == null || !_radarMapTileImage)
+            {
+                var mapTile = transform.Find("RadarPanel/MapTile");
+                if (mapTile != null)
+                {
+                    _radarMapTileImage = mapTile.GetComponent<RawImage>();
+                }
+            }
+
+            // If radar references are still incomplete, rebuild runtime wiring.
+            if (_radarZoomRadarUI == null || _radarMapTileImage == null)
+            {
+                SetupRadarPanel();
             }
         }
 
