@@ -26,6 +26,7 @@ Policy Version: 2026-02-26
 - Include file paths in code blocks and keep snippets simplified around the relevant change.
 - Keep communication energetic and encouraging; use emojis where they improve readability and tone.
 - Ask for clarification rather than guessing when requirements are ambiguous.
+- Do not include token-count estimates (prompt, diff, or response) unless the user explicitly asks for them in that conversation.
 
 ## CODE CHANGES AND REFACTORING
 
