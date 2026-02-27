@@ -170,6 +170,7 @@ namespace BlackBartsGold.UI
             {
                 _lastVerboseLifecycleLog = Time.time;
                 RemoveDevelopmentConsolePanel();
+                CleanupDirectionIndicatorArtifacts();
                 EnsureRadarPanelOperational();
                 bool debugPanelPresent = HasDevelopmentOverlayVisible();
                 DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s devConsole={debugPanelPresent} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
@@ -466,6 +467,61 @@ namespace BlackBartsGold.UI
                 {
                     rawImage.enabled = false;
                     DiagnosticLog.Log("Setup", $"Disabled centered white no-texture RawImage artifact: {rawImage.gameObject.name}");
+                }
+            }
+        }
+
+        private void CleanupDirectionIndicatorArtifacts()
+        {
+            var panel = transform.Find("DirectionIndicatorPanel");
+            if (panel == null) return;
+
+            var images = panel.GetComponentsInChildren<Image>(true);
+            foreach (var image in images)
+            {
+                if (image == null) continue;
+                var rect = image.rectTransform;
+                if (rect == null) continue;
+
+                bool centeredAnchor = Mathf.Abs(rect.anchorMin.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMin.y - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
+                bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
+                bool hasNoSprite = image.sprite == null;
+                bool opaqueWhite = image.color.a > 0.95f
+                    && image.color.r > 0.95f
+                    && image.color.g > 0.95f
+                    && image.color.b > 0.95f;
+
+                if (centeredAnchor && centeredPosition && hasNoSprite && opaqueWhite)
+                {
+                    image.enabled = false;
+                    DiagnosticLog.Log("Setup", $"Disabled DirectionIndicatorPanel white-square Image artifact: {image.gameObject.name}");
+                }
+            }
+
+            var rawImages = panel.GetComponentsInChildren<RawImage>(true);
+            foreach (var rawImage in rawImages)
+            {
+                if (rawImage == null || rawImage.texture != null) continue;
+                var rect = rawImage.rectTransform;
+                if (rect == null) continue;
+
+                bool centeredAnchor = Mathf.Abs(rect.anchorMin.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMin.y - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.01f
+                    && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.01f;
+                bool centeredPosition = rect.anchoredPosition.sqrMagnitude < 9f;
+                bool opaqueWhite = rawImage.color.a > 0.95f
+                    && rawImage.color.r > 0.95f
+                    && rawImage.color.g > 0.95f
+                    && rawImage.color.b > 0.95f;
+
+                if (centeredAnchor && centeredPosition && opaqueWhite)
+                {
+                    rawImage.enabled = false;
+                    DiagnosticLog.Log("Setup", $"Disabled DirectionIndicatorPanel white-square RawImage artifact: {rawImage.gameObject.name}");
                 }
             }
         }

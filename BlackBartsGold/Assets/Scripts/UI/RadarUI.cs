@@ -183,6 +183,8 @@ namespace BlackBartsGold.UI
         private float currentHeading = 0f;
         private float _lastTapHealthCheckTime = 0f;
         private const float TapHealthCheckInterval = 1f;
+        private float _lastFallbackTapTime = -10f;
+        private const float FallbackTapCooldownSeconds = 0.35f;
         
         #endregion
         
@@ -401,6 +403,42 @@ namespace BlackBartsGold.UI
             radarButton.interactable = true;
             radarButton.targetGraphic = radarImage;
         }
+
+        private void HandleFallbackTap()
+        {
+            if (!IsVisible) return;
+            if (Time.time - _lastFallbackTapTime < FallbackTapCooldownSeconds) return;
+
+            Vector2 tapPos;
+            bool tapped = false;
+
+            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+            {
+                tapPos = Input.GetTouch(0).position;
+                tapped = true;
+            }
+            else if (Input.GetMouseButtonDown(0))
+            {
+                tapPos = Input.mousePosition;
+                tapped = true;
+            }
+            else
+            {
+                return;
+            }
+
+            if (!tapped) return;
+
+            RectTransform tapRect = radarContainer != null ? radarContainer : GetComponent<RectTransform>();
+            if (tapRect == null) return;
+
+            if (RectTransformUtility.RectangleContainsScreenPoint(tapRect, tapPos, null))
+            {
+                _lastFallbackTapTime = Time.time;
+                Debug.Log($"[RadarUI][FALLBACK_TAP] Radar area hit at t={Time.time:F2}s");
+                OnRadarTapped();
+            }
+        }
         
         private void OnDestroy()
         {
@@ -424,6 +462,8 @@ namespace BlackBartsGold.UI
                 _lastTapHealthCheckTime = Time.time;
                 EnsureTapReadiness();
             }
+
+            HandleFallbackTap();
 
             // Update heading
             UpdateHeading();
