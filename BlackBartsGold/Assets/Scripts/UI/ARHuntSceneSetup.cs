@@ -62,8 +62,15 @@ namespace BlackBartsGold.UI
         private float _lastSensorConsoleRefresh;
         private float _lastVerboseLifecycleLog;
         private float _lastAdbSensorSnapshotLog;
+        private float _lastHardKillPassTime;
+        private int _hardKillPassIteration;
+        private float _lastUiTracerLogTime;
+        private int _uiTracerSamplesTaken;
         private const float _verboseLifecycleInterval = 3f;
         private const float _adbSensorSnapshotInterval = 2f;
+        private const float _hardKillPassInterval = 1f;
+        private const float _uiTracerInterval = 2f;
+        private const int _uiTracerMaxSamples = 8;
         private TextMeshProUGUI _sensorStatusText;
         private Transform _sensorStatusPanel;
         private const bool EnableRuntimeDevConsole = false;
@@ -83,7 +90,7 @@ namespace BlackBartsGold.UI
             }
             
             SetupCanvas();
-            DisableRuntimeDiagnosticsForProduction();
+            HardGlobalKillPass("start");
             if (EnableRuntimeDevConsole)
             {
                 InitializeDevelopmentConsoleSensors();
@@ -107,6 +114,7 @@ namespace BlackBartsGold.UI
             SetupFindLimitPanel();
             SetupDirectionIndicatorPanel();
             SetupLightship(); // Pokemon GO technology!
+            HardGlobalKillPass("post-setup");
             
             // Subscribe to hunt mode - zoom radar in when coin selected
             if (CoinManager.Exists)
@@ -172,6 +180,19 @@ namespace BlackBartsGold.UI
             {
                 _lastRadarControlsRefresh = Time.time;
                 RefreshRadarZoomControlsUi();
+            }
+
+            if (Time.time - _lastHardKillPassTime >= _hardKillPassInterval)
+            {
+                _lastHardKillPassTime = Time.time;
+                HardGlobalKillPass("heartbeat");
+            }
+
+            if (_uiTracerSamplesTaken < _uiTracerMaxSamples && Time.time - _lastUiTracerLogTime >= _uiTracerInterval)
+            {
+                _lastUiTracerLogTime = Time.time;
+                _uiTracerSamplesTaken++;
+                TraceHudArtifactCandidates();
             }
 
             if (Time.time - _lastVerboseLifecycleLog >= _verboseLifecycleInterval)
@@ -583,6 +604,155 @@ namespace BlackBartsGold.UI
                 if (debug == null) continue;
                 debug.enabled = false;
                 Destroy(debug);
+            }
+        }
+
+        private void HardGlobalKillPass(string reason)
+        {
+            _hardKillPassIteration++;
+            int removedComponents = 0;
+            int removedObjects = 0;
+
+            // Kill known legacy debug MonoBehaviours that continue logging/updating every frame.
+            var startupLoggers = FindObjectsByType<BlackBartsGold.Diagnostics.StartupLogger>(FindObjectsSortMode.None);
+            foreach (var logger in startupLoggers)
+            {
+                if (logger == null) continue;
+                logger.enabled = false;
+                Destroy(logger);
+                removedComponents++;
+            }
+
+            var sensorDiagnostics = FindObjectsByType<BlackBartsGold.Diagnostics.SensorDiagnostics>(FindObjectsSortMode.None);
+            foreach (var diag in sensorDiagnostics)
+            {
+                if (diag == null) continue;
+                diag.enabled = false;
+                Destroy(diag);
+                removedComponents++;
+            }
+
+            var arTrackingDebug = FindObjectsByType<BlackBartsGold.AR.ARTrackingDebug>(FindObjectsSortMode.None);
+            foreach (var debug in arTrackingDebug)
+            {
+                if (debug == null) continue;
+                debug.enabled = false;
+                Destroy(debug);
+                removedComponents++;
+            }
+
+            var simpleArrows = FindObjectsByType<SimpleDirectionArrow>(FindObjectsSortMode.None);
+            foreach (var arrow in simpleArrows)
+            {
+                if (arrow == null) continue;
+                arrow.enabled = false;
+                Destroy(arrow);
+                removedComponents++;
+            }
+
+            // Remove common debug overlay roots by name regardless of source scene/prefab.
+            string[] bannedNames =
+            {
+                "DebugDiagnosticsPanel",
+                "DiagnosticsText",
+                "DiagnosticsTitle",
+                "DevelopmentConsolePanel",
+                "SensorStatusPanel",
+                "SensorText"
+            };
+
+            var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var obj in allObjects)
+            {
+                if (obj == null) continue;
+                if (obj == gameObject) continue;
+                if (obj.name == "RadarPanel" || obj.name == "MapTile" || obj.name == "Crosshairs" || obj.name == "BackButton") continue;
+
+                bool isBanned = false;
+                for (int i = 0; i < bannedNames.Length; i++)
+                {
+                    if (obj.name == bannedNames[i])
+                    {
+                        isBanned = true;
+                        break;
+                    }
+                }
+                if (!isBanned) continue;
+
+                obj.SetActive(false);
+                Destroy(obj);
+                removedObjects++;
+            }
+
+            // Keep existing broad text-pattern cleanup too.
+            RemoveDevelopmentConsolePanel();
+
+            if (removedComponents > 0 || removedObjects > 0 || _hardKillPassIteration <= 3)
+            {
+                DiagnosticLog.Log("KillPass", $"reason={reason} iteration={_hardKillPassIteration} removedComponents={removedComponents} removedObjects={removedObjects}");
+            }
+        }
+
+        private void TraceHudArtifactCandidates()
+        {
+            int logged = 0;
+            const int maxLogged = 14;
+
+            var rects = GetComponentsInChildren<RectTransform>(true);
+            foreach (var rect in rects)
+            {
+                if (rect == null || rect == transform) continue;
+                var go = rect.gameObject;
+                if (go == null || !go.activeInHierarchy) continue;
+
+                bool anchorCenter = Mathf.Abs(rect.anchorMin.x - 0.5f) < 0.02f
+                    && Mathf.Abs(rect.anchorMin.y - 0.5f) < 0.02f
+                    && Mathf.Abs(rect.anchorMax.x - 0.5f) < 0.02f
+                    && Mathf.Abs(rect.anchorMax.y - 0.5f) < 0.02f;
+                bool anchorBottomLeft = rect.anchorMin.x < 0.05f && rect.anchorMin.y < 0.05f
+                    && rect.anchorMax.x < 0.05f && rect.anchorMax.y < 0.05f;
+                bool centerByPosition = rect.anchoredPosition.sqrMagnitude < 400f; // ~20px radius
+                bool bottomLeftByPosition = rect.anchoredPosition.x < 260f && rect.anchoredPosition.y < 260f;
+
+                bool candidate = (anchorCenter && centerByPosition) || (anchorBottomLeft && bottomLeftByPosition);
+                if (!candidate) continue;
+
+                var img = go.GetComponent<Image>();
+                var raw = go.GetComponent<RawImage>();
+                var tmp = go.GetComponent<TextMeshProUGUI>();
+
+                string textPreview = string.Empty;
+                if (tmp != null && !string.IsNullOrEmpty(tmp.text))
+                {
+                    string compact = tmp.text.Replace('\n', ' ').Replace('\r', ' ');
+                    textPreview = compact.Length > 80 ? compact.Substring(0, 80) : compact;
+                }
+
+                var monoBehaviours = go.GetComponents<MonoBehaviour>();
+                var sb = new StringBuilder(200);
+                for (int i = 0; i < monoBehaviours.Length; i++)
+                {
+                    var mb = monoBehaviours[i];
+                    if (mb == null) continue;
+                    if (sb.Length > 0) sb.Append(",");
+                    sb.Append(mb.GetType().Name);
+                }
+
+                DiagnosticLog.Log(
+                    "TraceUI",
+                    $"sample={_uiTracerSamplesTaken}/{_uiTracerMaxSamples} name={go.name} pos={rect.anchoredPosition} size={rect.sizeDelta} " +
+                    $"anchors=({rect.anchorMin.x:F2},{rect.anchorMin.y:F2})-({rect.anchorMax.x:F2},{rect.anchorMax.y:F2}) " +
+                    $"image={(img != null)} imageEnabled={(img != null && img.enabled)} sprite={(img != null && img.sprite != null)} " +
+                    $"raw={(raw != null)} rawEnabled={(raw != null && raw.enabled)} texture={(raw != null && raw.texture != null)} " +
+                    $"tmp={(tmp != null)} text='{textPreview}' mbs=[{sb}]");
+
+                logged++;
+                if (logged >= maxLogged) break;
+            }
+
+            if (logged == 0)
+            {
+                DiagnosticLog.Log("TraceUI", $"sample={_uiTracerSamplesTaken}/{_uiTracerMaxSamples} no center/bottom-left candidates");
             }
         }
 
