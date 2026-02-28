@@ -686,11 +686,71 @@ namespace BlackBartsGold.UI
 
             // Keep existing broad text-pattern cleanup too.
             RemoveDevelopmentConsolePanel();
+            removedObjects += RemoveBottomLeftDiagnosticCandidates();
 
             if (removedComponents > 0 || removedObjects > 0 || _hardKillPassIteration <= 3)
             {
                 DiagnosticLog.Log("KillPass", $"reason={reason} iteration={_hardKillPassIteration} removedComponents={removedComponents} removedObjects={removedObjects}");
             }
+        }
+
+        private int RemoveBottomLeftDiagnosticCandidates()
+        {
+            int removed = 0;
+            var rects = GetComponentsInChildren<RectTransform>(true);
+            foreach (var rect in rects)
+            {
+                if (rect == null || rect == transform) continue;
+                var go = rect.gameObject;
+                if (go == null || !go.activeInHierarchy) continue;
+                if (go.name == "BackButton" || go.name == "RadarPanel" || go.name == "MessagePanel") continue;
+
+                bool anchorBottomLeft = rect.anchorMin.x <= 0.05f && rect.anchorMin.y <= 0.05f
+                    && rect.anchorMax.x <= 0.05f && rect.anchorMax.y <= 0.05f;
+                bool nearBottomLeft = rect.anchoredPosition.x < 420f && rect.anchoredPosition.y < 420f;
+                if (!(anchorBottomLeft && nearBottomLeft)) continue;
+
+                string lowerName = go.name.ToLowerInvariant();
+                bool suspiciousName = lowerName.Contains("debug")
+                    || lowerName.Contains("diagnostic")
+                    || lowerName.Contains("console")
+                    || lowerName.Contains("sensor");
+
+                string textBlob = string.Empty;
+                var tmpTexts = go.GetComponentsInChildren<TextMeshProUGUI>(true);
+                for (int i = 0; i < tmpTexts.Length; i++)
+                {
+                    if (tmpTexts[i] == null) continue;
+                    textBlob += " " + (tmpTexts[i].text ?? string.Empty);
+                }
+                var legacyTexts = go.GetComponentsInChildren<Text>(true);
+                for (int i = 0; i < legacyTexts.Length; i++)
+                {
+                    if (legacyTexts[i] == null) continue;
+                    textBlob += " " + (legacyTexts[i].text ?? string.Empty);
+                }
+
+                bool looksLikeDiagnostics = textBlob.Contains("AR:")
+                    || textBlob.Contains("Planes:")
+                    || textBlob.Contains("API:")
+                    || textBlob.Contains("Compass")
+                    || textBlob.Contains("Gyro")
+                    || textBlob.Contains("Accel")
+                    || textBlob.Contains("GPS");
+
+                if (!suspiciousName && !looksLikeDiagnostics) continue;
+
+                var owner = GetDirectCanvasChild(rect);
+                var killTarget = owner != null ? owner.gameObject : go;
+                if (killTarget == null || killTarget == gameObject) continue;
+                if (killTarget.name == "BackButton" || killTarget.name == "RadarPanel" || killTarget.name == "MessagePanel") continue;
+
+                killTarget.SetActive(false);
+                Destroy(killTarget);
+                removed++;
+            }
+
+            return removed;
         }
 
         private void TraceHudArtifactCandidates()
@@ -1360,26 +1420,35 @@ namespace BlackBartsGold.UI
                 }
 
                 var controls = transform.Find("RadarZoomControls");
+                if (controls != null && controls.GetComponent<RectTransform>() == null)
+                {
+                    Destroy(controls.gameObject);
+                    controls = null;
+                }
+
                 if (controls == null)
                 {
-                    var controlsGO = new GameObject("RadarZoomControls");
+                    var controlsGO = new GameObject("RadarZoomControls", typeof(RectTransform));
                     controlsGO.transform.SetParent(transform, false);
                     controls = controlsGO.transform;
-                    controlsGO.AddComponent<RectTransform>();
-                    controlsGO.AddComponent<Image>();
                     DiagnosticLog.Log("Radar", "Created RadarZoomControls");
                 }
 
                 if (controls == null || controls.gameObject == null)
                 {
-                    DiagnosticLog.Warn("Radar", "SetupRadarZoomControls aborted: controls transform invalid");
-                    return;
+                    DiagnosticLog.Warn("Radar", "SetupRadarZoomControls recovering from invalid controls transform");
+                    var controlsGO = new GameObject("RadarZoomControls", typeof(RectTransform));
+                    controlsGO.transform.SetParent(transform, false);
+                    controls = controlsGO.transform;
                 }
 
                 var controlsRect = controls.GetComponent<RectTransform>();
                 if (controlsRect == null)
                 {
-                    controlsRect = controls.gameObject.AddComponent<RectTransform>();
+                    var controlsGO = new GameObject("RadarZoomControls", typeof(RectTransform));
+                    controlsGO.transform.SetParent(transform, false);
+                    controls = controlsGO.transform;
+                    controlsRect = controls.GetComponent<RectTransform>();
                 }
                 controlsRect.anchorMin = new Vector2(1f, 1f);
                 controlsRect.anchorMax = new Vector2(1f, 1f);
@@ -1392,13 +1461,15 @@ namespace BlackBartsGold.UI
                 {
                     controlsBg = controls.gameObject.AddComponent<Image>();
                 }
-                controlsBg.color = new Color(0f, 0f, 0f, 0.45f);
-                controlsBg.raycastTarget = true;
+                // Keep parent container non-rendering so it never appears as a white center square.
+                controlsBg.enabled = false;
+                controlsBg.color = new Color(0f, 0f, 0f, 0f);
+                controlsBg.raycastTarget = false;
 
-                var minusButton = EnsureRadarZoomButton(controls, "MinusButton", "-", new Vector2(36f, -32f));
-                var plusButton = EnsureRadarZoomButton(controls, "PlusButton", "+", new Vector2(100f, -32f));
+                var minusButton = EnsureRadarZoomButton(controls, "MinusButton", "-", new Vector2(36f, -32f), null, 42f);
+                var plusButton = EnsureRadarZoomButton(controls, "PlusButton", "+", new Vector2(100f, -32f), null, 42f);
                 var rangeText = EnsureRadarZoomLabel(controls, "RangeText", new Vector2(158f, -32f));
-                var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(232f, -32f), new Vector2(70f, 56f), 20f);
+                var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(232f, -32f), new Vector2(70f, 56f), 24f);
                 DiagnosticLog.Log("Radar", $"Zoom controls refs: minus={minusButton != null} plus={plusButton != null} range={rangeText != null} auto={autoButton != null}");
 
                 if (minusButton == null || plusButton == null || rangeText == null || autoButton == null)
@@ -1530,9 +1601,13 @@ namespace BlackBartsGold.UI
                 labelText = labelTransform.gameObject.AddComponent<TextMeshProUGUI>();
             }
             labelText.alignment = TextAlignmentOptions.Center;
-            labelText.color = Color.white;
+            labelText.color = GoldColor;
             labelText.text = label;
             labelText.fontSize = fontSize;
+            labelText.fontStyle = FontStyles.Bold;
+            labelText.enableWordWrapping = false;
+            labelText.outlineColor = new Color(0f, 0f, 0f, 0.75f);
+            labelText.outlineWidth = 0.2f;
             DiagnosticLog.Log("Radar", $"Prepared zoom button {buttonName} label={label}");
 
             return button;
