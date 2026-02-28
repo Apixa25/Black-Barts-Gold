@@ -15,6 +15,7 @@ using UnityEngine.InputSystem.EnhancedTouch;
 using TMPro;
 using System.Collections;
 using System.Text;
+using System.Reflection;
 using BlackBartsGold.Location;
 using BlackBartsGold.Core;
 using BlackBartsGold.Utils;
@@ -195,6 +196,7 @@ namespace BlackBartsGold.UI
                 _uiTracerSamplesTaken++;
                 TraceHudArtifactCandidates();
                 TraceBottomLeftAcrossCanvases();
+                TraceNoFilterAcrossCanvases();
             }
 
             if (Time.time - _lastVerboseLifecycleLog >= _verboseLifecycleInterval)
@@ -579,6 +581,8 @@ namespace BlackBartsGold.UI
                 emergencyBtn.enabled = false;
                 DiagnosticLog.Log("Setup", "EmergencyMapButton overlay disabled");
             }
+
+            DisableOnGuiOverlays("foreign-panel-sweep");
         }
 
         private void DisableRuntimeDiagnosticsForProduction()
@@ -689,11 +693,66 @@ namespace BlackBartsGold.UI
             // Keep existing broad text-pattern cleanup too.
             RemoveDevelopmentConsolePanel();
             removedObjects += RemoveBottomLeftDiagnosticCandidates();
+            removedComponents += DisableOnGuiOverlays($"kill-pass:{reason}");
 
             if (removedComponents > 0 || removedObjects > 0 || _hardKillPassIteration <= 3)
             {
                 DiagnosticLog.Log("KillPass", $"reason={reason} iteration={_hardKillPassIteration} removedComponents={removedComponents} removedObjects={removedObjects}");
             }
+        }
+
+        private int DisableOnGuiOverlays(string reason)
+        {
+            int disabled = 0;
+            int traced = 0;
+            const int maxDetailedLogs = 8;
+
+            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            foreach (var behaviour in behaviours)
+            {
+                if (behaviour == null || !behaviour.enabled) continue;
+                if (behaviour == this) continue;
+
+                var type = behaviour.GetType();
+                var onGuiMethod = type.GetMethod("OnGUI", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (onGuiMethod == null) continue;
+
+                if (behaviour is EmergencyMapButton emergencyMapButton)
+                {
+                    emergencyMapButton.showButton = false;
+                    emergencyMapButton.showDebugInfo = false;
+                }
+
+                behaviour.enabled = false;
+                disabled++;
+
+                var owner = behaviour.gameObject;
+                if (owner != null)
+                {
+                    string lowerName = owner.name.ToLowerInvariant();
+                    bool looksLikeOverlayRoot = lowerName.Contains("debug")
+                        || lowerName.Contains("diagnostic")
+                        || lowerName.Contains("console")
+                        || lowerName.Contains("emergency");
+                    if (looksLikeOverlayRoot && owner.activeSelf)
+                    {
+                        owner.SetActive(false);
+                    }
+                }
+
+                if (traced < maxDetailedLogs)
+                {
+                    traced++;
+                    DiagnosticLog.Log("OnGUIKill", $"reason={reason} disabled {type.FullName} on {owner?.name}");
+                }
+            }
+
+            if (disabled > 0)
+            {
+                DiagnosticLog.Log("OnGUIKill", $"reason={reason} disabledTotal={disabled}");
+            }
+
+            return disabled;
         }
 
         private int RemoveBottomLeftDiagnosticCandidates()
@@ -886,6 +945,72 @@ namespace BlackBartsGold.UI
             if (logged == 0)
             {
                 DiagnosticLog.Log("TraceUIBroad", $"sample={_uiTracerSamplesTaken}/{_uiTracerMaxSamples} no bottom-left candidates across canvases");
+            }
+        }
+
+        private void TraceNoFilterAcrossCanvases()
+        {
+            int logged = 0;
+            const int maxLogged = 40;
+
+            var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            foreach (var canvas in canvases)
+            {
+                if (canvas == null || !canvas.isActiveAndEnabled) continue;
+                var root = canvas.transform;
+                if (root == null) continue;
+
+                var rects = root.GetComponentsInChildren<RectTransform>(true);
+                foreach (var rect in rects)
+                {
+                    if (rect == null) continue;
+                    var go = rect.gameObject;
+                    if (go == null || !go.activeInHierarchy) continue;
+
+                    var tmp = go.GetComponent<TextMeshProUGUI>();
+                    var txt = go.GetComponent<Text>();
+                    var img = go.GetComponent<Image>();
+                    var raw = go.GetComponent<RawImage>();
+                    if (tmp == null && txt == null && img == null && raw == null) continue;
+
+                    string preview = string.Empty;
+                    if (tmp != null && !string.IsNullOrEmpty(tmp.text))
+                    {
+                        preview = tmp.text.Replace('\n', ' ').Replace('\r', ' ');
+                    }
+                    else if (txt != null && !string.IsNullOrEmpty(txt.text))
+                    {
+                        preview = txt.text.Replace('\n', ' ').Replace('\r', ' ');
+                    }
+                    if (preview.Length > 100) preview = preview.Substring(0, 100);
+
+                    var mbs = go.GetComponents<MonoBehaviour>();
+                    var sb = new StringBuilder(220);
+                    for (int i = 0; i < mbs.Length; i++)
+                    {
+                        var mb = mbs[i];
+                        if (mb == null) continue;
+                        if (sb.Length > 0) sb.Append(",");
+                        sb.Append(mb.GetType().Name);
+                    }
+
+                    DiagnosticLog.Log(
+                        "TraceUINoFilter",
+                        $"sample={_uiTracerSamplesTaken}/{_uiTracerMaxSamples} canvas={canvas.name} go={go.name} " +
+                        $"pos={rect.anchoredPosition} size={rect.sizeDelta} anchors=({rect.anchorMin.x:F2},{rect.anchorMin.y:F2})-({rect.anchorMax.x:F2},{rect.anchorMax.y:F2}) " +
+                        $"img={(img != null)} imgOn={(img != null && img.enabled)} raw={(raw != null)} rawOn={(raw != null && raw.enabled)} " +
+                        $"tmp={(tmp != null)} txt={(txt != null)} text='{preview}' mbs=[{sb}]");
+
+                    logged++;
+                    if (logged >= maxLogged) break;
+                }
+
+                if (logged >= maxLogged) break;
+            }
+
+            if (logged == 0)
+            {
+                DiagnosticLog.Log("TraceUINoFilter", $"sample={_uiTracerSamplesTaken}/{_uiTracerMaxSamples} no active UI candidates");
             }
         }
 

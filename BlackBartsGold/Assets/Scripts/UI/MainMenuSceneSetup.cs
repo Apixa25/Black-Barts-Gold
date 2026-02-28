@@ -10,6 +10,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
+using System.Text;
+using System.Reflection;
 namespace BlackBartsGold.UI
 {
     public class MainMenuSceneSetup : MonoBehaviour
@@ -22,6 +24,8 @@ namespace BlackBartsGold.UI
         private bool _isApplyingSetup;
         private int _lastAppliedFrame = -1;
         private Coroutine _debugOverlayCleanupRoutine;
+        private int _globalDumpSamplesTaken;
+        private const int GlobalDumpMaxSamples = 10;
 
         private void OnEnable()
         {
@@ -112,6 +116,8 @@ namespace BlackBartsGold.UI
                 Debug.Log("[MainMenuSceneSetup] EmergencyMapButton debug overlay disabled.");
             }
 
+            DisableOnGuiOverlays("mainmenu-debug-sweep");
+
             // 3. Defensive cleanup: disable legacy diagnostic overlays by naming convention.
             foreach (var obj in allObjects)
             {
@@ -127,6 +133,60 @@ namespace BlackBartsGold.UI
                 }
             }
             
+        }
+
+        private int DisableOnGuiOverlays(string reason)
+        {
+            int disabled = 0;
+            int traced = 0;
+            const int maxDetailedLogs = 8;
+
+            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+            foreach (var behaviour in behaviours)
+            {
+                if (behaviour == null || !behaviour.enabled) continue;
+                if (behaviour == this) continue;
+
+                var type = behaviour.GetType();
+                var onGuiMethod = type.GetMethod("OnGUI", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (onGuiMethod == null) continue;
+
+                if (behaviour is EmergencyMapButton emergencyMapButton)
+                {
+                    emergencyMapButton.showButton = false;
+                    emergencyMapButton.showDebugInfo = false;
+                }
+
+                behaviour.enabled = false;
+                disabled++;
+
+                var owner = behaviour.gameObject;
+                if (owner != null)
+                {
+                    string lowerName = owner.name.ToLowerInvariant();
+                    bool looksLikeOverlayRoot = lowerName.Contains("debug")
+                        || lowerName.Contains("diagnostic")
+                        || lowerName.Contains("console")
+                        || lowerName.Contains("emergency");
+                    if (looksLikeOverlayRoot && owner.activeSelf)
+                    {
+                        owner.SetActive(false);
+                    }
+                }
+
+                if (traced < maxDetailedLogs)
+                {
+                    traced++;
+                    Debug.Log($"[MainMenuSceneSetup][OnGUIKill] reason={reason} disabled {type.FullName} on {owner?.name}");
+                }
+            }
+
+            if (disabled > 0)
+            {
+                Debug.Log($"[MainMenuSceneSetup][OnGUIKill] reason={reason} disabledTotal={disabled}");
+            }
+
+            return disabled;
         }
 
         private void DisableDiagnosticsLikeTextOverlays()
@@ -200,10 +260,85 @@ namespace BlackBartsGold.UI
             {
                 DisableDebugPanels();
                 DisableDiagnosticsLikeTextOverlays();
+                if (_globalDumpSamplesTaken < GlobalDumpMaxSamples)
+                {
+                    _globalDumpSamplesTaken++;
+                    DumpGlobalUiStateNoFilter();
+                }
                 yield return new WaitForSeconds(interval);
             }
 
             _debugOverlayCleanupRoutine = null;
+        }
+
+        private void DumpGlobalUiStateNoFilter()
+        {
+            int logged = 0;
+            const int maxLogged = 40;
+
+            var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            foreach (var canvas in canvases)
+            {
+                if (canvas == null || !canvas.isActiveAndEnabled) continue;
+                var root = canvas.transform;
+                if (root == null) continue;
+
+                var rects = root.GetComponentsInChildren<RectTransform>(true);
+                for (int i = 0; i < rects.Length; i++)
+                {
+                    var rect = rects[i];
+                    if (rect == null) continue;
+                    var go = rect.gameObject;
+                    if (go == null || !go.activeInHierarchy) continue;
+
+                    var tmp = go.GetComponent<TextMeshProUGUI>();
+                    var txt = go.GetComponent<Text>();
+                    var img = go.GetComponent<Image>();
+                    var raw = go.GetComponent<RawImage>();
+
+                    bool interesting = tmp != null || txt != null || img != null || raw != null;
+                    if (!interesting) continue;
+
+                    string preview = string.Empty;
+                    if (tmp != null && !string.IsNullOrEmpty(tmp.text))
+                    {
+                        preview = tmp.text.Replace('\n', ' ').Replace('\r', ' ');
+                    }
+                    else if (txt != null && !string.IsNullOrEmpty(txt.text))
+                    {
+                        preview = txt.text.Replace('\n', ' ').Replace('\r', ' ');
+                    }
+                    if (preview.Length > 100) preview = preview.Substring(0, 100);
+
+                    var mbs = go.GetComponents<MonoBehaviour>();
+                    var sb = new StringBuilder(200);
+                    for (int m = 0; m < mbs.Length; m++)
+                    {
+                        var mb = mbs[m];
+                        if (mb == null) continue;
+                        if (sb.Length > 0) sb.Append(",");
+                        sb.Append(mb.GetType().Name);
+                    }
+
+                    Debug.Log(
+                        $"[MainMenuSceneSetup][GlobalDump] sample={_globalDumpSamplesTaken}/{GlobalDumpMaxSamples} " +
+                        $"canvas={canvas.name} go={go.name} active={go.activeInHierarchy} " +
+                        $"pos={rect.anchoredPosition} size={rect.sizeDelta} " +
+                        $"anchors=({rect.anchorMin.x:F2},{rect.anchorMin.y:F2})-({rect.anchorMax.x:F2},{rect.anchorMax.y:F2}) " +
+                        $"img={(img != null)} imgOn={(img != null && img.enabled)} raw={(raw != null)} rawOn={(raw != null && raw.enabled)} " +
+                        $"tmp={(tmp != null)} txt={(txt != null)} text='{preview}' mbs=[{sb}]");
+
+                    logged++;
+                    if (logged >= maxLogged) break;
+                }
+
+                if (logged >= maxLogged) break;
+            }
+
+            if (logged == 0)
+            {
+                Debug.Log($"[MainMenuSceneSetup][GlobalDump] sample={_globalDumpSamplesTaken}/{GlobalDumpMaxSamples} no active UI candidates");
+            }
         }
 
         private void CleanupCenteredWhiteSquareArtifacts()
