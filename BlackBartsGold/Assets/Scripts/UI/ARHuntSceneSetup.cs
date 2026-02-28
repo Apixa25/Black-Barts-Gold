@@ -1472,12 +1472,6 @@ namespace BlackBartsGold.UI
                 var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(232f, -32f), new Vector2(70f, 56f), 24f);
                 DiagnosticLog.Log("Radar", $"Zoom controls refs: minus={minusButton != null} plus={plusButton != null} range={rangeText != null} auto={autoButton != null}");
 
-                if (minusButton == null || plusButton == null || rangeText == null || autoButton == null)
-                {
-                    DiagnosticLog.Warn("Radar", "SetupRadarZoomControls aborted due to missing controls");
-                    return;
-                }
-
                 _radarZoomRadarUI = radarUI;
                 _radarMinusButton = minusButton;
                 _radarPlusButton = plusButton;
@@ -1485,9 +1479,21 @@ namespace BlackBartsGold.UI
                 _radarRangeText = rangeText;
                 _lastRadarControlsRefresh = -999f;
 
+                if (minusButton == null || plusButton == null || autoButton == null)
+                {
+                    DiagnosticLog.Warn("Radar", "SetupRadarZoomControls aborted: required zoom buttons missing");
+                    return;
+                }
+
+                if (rangeText == null)
+                {
+                    DiagnosticLog.Warn("Radar", "SetupRadarZoomControls continuing without RangeText label");
+                }
+
                 minusButton.onClick.RemoveAllListeners();
                 minusButton.onClick.AddListener(() =>
                 {
+                    DiagnosticLog.Log("RadarZoom", "MinusButton pressed");
                     radarUI.ZoomOut();
                     TriggerZoomHaptic();
                     RefreshRadarZoomControlsUi();
@@ -1496,6 +1502,7 @@ namespace BlackBartsGold.UI
                 plusButton.onClick.RemoveAllListeners();
                 plusButton.onClick.AddListener(() =>
                 {
+                    DiagnosticLog.Log("RadarZoom", "PlusButton pressed");
                     radarUI.ZoomIn();
                     TriggerZoomHaptic();
                     RefreshRadarZoomControlsUi();
@@ -1504,6 +1511,7 @@ namespace BlackBartsGold.UI
                 autoButton.onClick.RemoveAllListeners();
                 autoButton.onClick.AddListener(() =>
                 {
+                    DiagnosticLog.Log("RadarZoom", "AutoButton pressed");
                     radarUI.ToggleAutoZoom();
                     TriggerZoomHaptic();
                     RefreshRadarZoomControlsUi();
@@ -1647,11 +1655,14 @@ namespace BlackBartsGold.UI
 
         private void RefreshRadarZoomControlsUi()
         {
-            if (_radarZoomRadarUI == null || _radarRangeText == null) return;
+            if (_radarZoomRadarUI == null) return;
 
-            _radarRangeText.text = _radarZoomRadarUI.AutoZoomEnabled
-                ? $"A {Mathf.RoundToInt(_radarZoomRadarUI.Range)}m"
-                : $"{Mathf.RoundToInt(_radarZoomRadarUI.Range)}m";
+            if (_radarRangeText != null)
+            {
+                _radarRangeText.text = _radarZoomRadarUI.AutoZoomEnabled
+                    ? $"A {Mathf.RoundToInt(_radarZoomRadarUI.Range)}m"
+                    : $"{Mathf.RoundToInt(_radarZoomRadarUI.Range)}m";
+            }
 
             if (_radarMinusButton != null)
                 _radarMinusButton.interactable = !_radarZoomRadarUI.AutoZoomEnabled;
