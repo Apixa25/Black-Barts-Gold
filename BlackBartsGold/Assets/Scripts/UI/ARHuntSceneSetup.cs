@@ -1514,103 +1514,84 @@ namespace BlackBartsGold.UI
             }
             catch (System.Exception ex)
             {
-                DiagnosticLog.Error("Radar", $"SetupRadarZoomControls exception: {ex.GetType().Name}: {ex.Message}");
+                DiagnosticLog.Error("Radar", $"SetupRadarZoomControls exception: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
         private Button EnsureRadarZoomButton(Transform parent, string buttonName, string label, Vector2 anchoredPosition, Vector2? sizeOverride = null, float fontSize = 32f)
         {
-            if (parent == null || !parent)
+            try
             {
-                DiagnosticLog.Warn("Radar", $"EnsureRadarZoomButton failed: parent invalid for {buttonName}");
+                if (parent == null || !parent)
+                {
+                    DiagnosticLog.Warn("Radar", $"EnsureRadarZoomButton failed: parent invalid for {buttonName}");
+                    return null;
+                }
+
+                var buttonTransform = parent.Find(buttonName);
+                if (buttonTransform == null)
+                {
+                    var buttonGO = new GameObject(buttonName, typeof(RectTransform), typeof(Image), typeof(Button));
+                    buttonGO.transform.SetParent(parent, false);
+                    buttonTransform = buttonGO.transform;
+                    DiagnosticLog.Log("Radar", $"Created zoom button {buttonName}");
+                }
+
+                if (buttonTransform == null || !buttonTransform) return null;
+
+                var rect = buttonTransform.GetComponent<RectTransform>() ?? buttonTransform.gameObject.AddComponent<RectTransform>();
+                rect.anchorMin = new Vector2(0f, 1f);
+                rect.anchorMax = new Vector2(0f, 1f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.anchoredPosition = anchoredPosition;
+                rect.sizeDelta = sizeOverride ?? new Vector2(56f, 56f);
+
+                var image = buttonTransform.GetComponent<Image>() ?? buttonTransform.gameObject.AddComponent<Image>();
+                image.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
+                image.raycastTarget = true;
+
+                var button = buttonTransform.GetComponent<Button>() ?? buttonTransform.gameObject.AddComponent<Button>();
+                button.transition = Selectable.Transition.ColorTint;
+
+                var labelTransform = buttonTransform.Find("Text");
+                if (labelTransform == null)
+                {
+                    var textGO = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+                    textGO.transform.SetParent(buttonTransform, false);
+                    labelTransform = textGO.transform;
+                }
+
+                if (labelTransform == null || !labelTransform) return button;
+
+                var labelRect = labelTransform.GetComponent<RectTransform>() ?? labelTransform.gameObject.AddComponent<RectTransform>();
+                labelRect.anchorMin = Vector2.zero;
+                labelRect.anchorMax = Vector2.one;
+                labelRect.offsetMin = Vector2.zero;
+                labelRect.offsetMax = Vector2.zero;
+
+                var labelText = labelTransform.GetComponent<TextMeshProUGUI>() ?? labelTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                labelText.alignment = TextAlignmentOptions.Center;
+                labelText.color = GoldColor;
+                labelText.text = label;
+                labelText.fontSize = fontSize;
+                labelText.fontStyle = FontStyles.Bold;
+                labelText.enableWordWrapping = false;
+
+                // Use a UI Outline effect instead of TMP material outline to avoid runtime material null issues.
+                var outline = labelTransform.GetComponent<UnityEngine.UI.Outline>();
+                if (outline == null) outline = labelTransform.gameObject.AddComponent<UnityEngine.UI.Outline>();
+                outline.effectColor = new Color(0f, 0f, 0f, 0.65f);
+                outline.effectDistance = new Vector2(1f, -1f);
+                outline.useGraphicAlpha = true;
+
+                DiagnosticLog.Log("Radar", $"Prepared zoom button {buttonName} label={label}");
+                return button;
+            }
+            catch (System.Exception ex)
+            {
+                DiagnosticLog.Error("Radar", $"EnsureRadarZoomButton exception ({buttonName}): {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
                 return null;
             }
-
-            var buttonTransform = parent.Find(buttonName);
-            if (buttonTransform == null)
-            {
-                var buttonGO = new GameObject(buttonName);
-                buttonGO.transform.SetParent(parent, false);
-                buttonTransform = buttonGO.transform;
-                buttonGO.AddComponent<RectTransform>();
-                buttonGO.AddComponent<Image>();
-                buttonGO.AddComponent<Button>();
-
-                var textGO = new GameObject("Text");
-                textGO.transform.SetParent(buttonTransform, false);
-                var textRect = textGO.AddComponent<RectTransform>();
-                textRect.anchorMin = Vector2.zero;
-                textRect.anchorMax = Vector2.one;
-                textRect.offsetMin = Vector2.zero;
-                textRect.offsetMax = Vector2.zero;
-
-                var tmpText = textGO.AddComponent<TextMeshProUGUI>();
-                tmpText.alignment = TextAlignmentOptions.Center;
-                tmpText.fontSize = fontSize;
-                tmpText.color = Color.white;
-                DiagnosticLog.Log("Radar", $"Created zoom button {buttonName}");
-            }
-
-            var rect = buttonTransform.GetComponent<RectTransform>();
-            if (rect == null)
-            {
-                rect = buttonTransform.gameObject.AddComponent<RectTransform>();
-            }
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = sizeOverride ?? new Vector2(56f, 56f);
-
-            var image = buttonTransform.GetComponent<Image>();
-            if (image == null)
-            {
-                image = buttonTransform.gameObject.AddComponent<Image>();
-            }
-            image.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
-            image.raycastTarget = true;
-
-            var button = buttonTransform.GetComponent<Button>();
-            if (button == null)
-            {
-                button = buttonTransform.gameObject.AddComponent<Button>();
-            }
-            button.transition = Selectable.Transition.ColorTint;
-
-            var labelTransform = buttonTransform.Find("Text");
-            if (labelTransform == null)
-            {
-                var textGO = new GameObject("Text");
-                textGO.transform.SetParent(buttonTransform, false);
-                labelTransform = textGO.transform;
-            }
-
-            var labelRect = labelTransform.GetComponent<RectTransform>();
-            if (labelRect == null)
-            {
-                labelRect = labelTransform.gameObject.AddComponent<RectTransform>();
-            }
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
-
-            var labelText = labelTransform.GetComponent<TextMeshProUGUI>();
-            if (labelText == null)
-            {
-                labelText = labelTransform.gameObject.AddComponent<TextMeshProUGUI>();
-            }
-            labelText.alignment = TextAlignmentOptions.Center;
-            labelText.color = GoldColor;
-            labelText.text = label;
-            labelText.fontSize = fontSize;
-            labelText.fontStyle = FontStyles.Bold;
-            labelText.enableWordWrapping = false;
-            labelText.outlineColor = new Color(0f, 0f, 0f, 0.75f);
-            labelText.outlineWidth = 0.2f;
-            DiagnosticLog.Log("Radar", $"Prepared zoom button {buttonName} label={label}");
-
-            return button;
         }
 
         private TextMeshProUGUI EnsureRadarZoomLabel(Transform parent, string name, Vector2 anchoredPosition)
