@@ -39,6 +39,7 @@ namespace BlackBartsGold.UI
         private const float _radarControlsRefreshInterval = 0.25f;
         private const float _sensorConsoleRefreshInterval = 0.5f;
         private int _radarZoom = 19; // 19 = default (3 levels closer); 21 = zoomed in when hunting
+        private int _lastLoggedRadarTileZoom = -1;
         private Sprite _cachedMapCoinIconSprite;
         private bool _mapCoinIconLoadLogged = false;
         private Sprite _directionArrowSprite;
@@ -159,7 +160,7 @@ namespace BlackBartsGold.UI
         
         private void OnHuntModeChanged(HuntMode mode)
         {
-            _radarZoom = (mode == HuntMode.Hunting || mode == HuntMode.Collecting) ? 21 : 19;
+            _radarZoom = ComputeMiniMapTileZoom();
             _radarMapUpdatePending = false;
             _radarMapLastUpdate = -999f; // Force immediate refresh on next Update
         }
@@ -193,6 +194,7 @@ namespace BlackBartsGold.UI
                 _lastUiTracerLogTime = Time.time;
                 _uiTracerSamplesTaken++;
                 TraceHudArtifactCandidates();
+                TraceBottomLeftAcrossCanvases();
             }
 
             if (Time.time - _lastVerboseLifecycleLog >= _verboseLifecycleInterval)
@@ -816,6 +818,77 @@ namespace BlackBartsGold.UI
             }
         }
 
+        private void TraceBottomLeftAcrossCanvases()
+        {
+            int logged = 0;
+            const int maxLogged = 24;
+
+            var canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+            foreach (var canvas in canvases)
+            {
+                if (canvas == null || !canvas.isActiveAndEnabled) continue;
+                var root = canvas.transform;
+                if (root == null) continue;
+
+                var rects = root.GetComponentsInChildren<RectTransform>(true);
+                foreach (var rect in rects)
+                {
+                    if (rect == null || rect == root) continue;
+                    var go = rect.gameObject;
+                    if (go == null || !go.activeInHierarchy) continue;
+
+                    bool anchoredToBottomLeft = rect.anchorMin.x <= 0.1f && rect.anchorMin.y <= 0.1f
+                        && rect.anchorMax.x <= 0.25f && rect.anchorMax.y <= 0.25f;
+                    bool nearBottomLeft = rect.anchoredPosition.x <= 520f && rect.anchoredPosition.y <= 520f;
+                    bool largeEnough = rect.sizeDelta.x >= 120f && rect.sizeDelta.y >= 60f;
+                    if (!(anchoredToBottomLeft && nearBottomLeft && largeEnough)) continue;
+
+                    var img = go.GetComponent<Image>();
+                    var raw = go.GetComponent<RawImage>();
+                    var tmp = go.GetComponent<TextMeshProUGUI>();
+                    var txt = go.GetComponent<Text>();
+
+                    string preview = string.Empty;
+                    if (tmp != null && !string.IsNullOrEmpty(tmp.text))
+                    {
+                        preview = tmp.text.Replace('\n', ' ').Replace('\r', ' ');
+                    }
+                    else if (txt != null && !string.IsNullOrEmpty(txt.text))
+                    {
+                        preview = txt.text.Replace('\n', ' ').Replace('\r', ' ');
+                    }
+                    if (preview.Length > 100) preview = preview.Substring(0, 100);
+
+                    var mbs = go.GetComponents<MonoBehaviour>();
+                    var sb = new StringBuilder(220);
+                    for (int i = 0; i < mbs.Length; i++)
+                    {
+                        var mb = mbs[i];
+                        if (mb == null) continue;
+                        if (sb.Length > 0) sb.Append(",");
+                        sb.Append(mb.GetType().Name);
+                    }
+
+                    DiagnosticLog.Log(
+                        "TraceUIBroad",
+                        $"sample={_uiTracerSamplesTaken}/{_uiTracerMaxSamples} canvas={canvas.name} go={go.name} " +
+                        $"pos={rect.anchoredPosition} size={rect.sizeDelta} anchors=({rect.anchorMin.x:F2},{rect.anchorMin.y:F2})-({rect.anchorMax.x:F2},{rect.anchorMax.y:F2}) " +
+                        $"img={(img != null)} imgOn={(img != null && img.enabled)} raw={(raw != null)} rawOn={(raw != null && raw.enabled)} " +
+                        $"tmp={(tmp != null)} text='{preview}' mbs=[{sb}]");
+
+                    logged++;
+                    if (logged >= maxLogged) break;
+                }
+
+                if (logged >= maxLogged) break;
+            }
+
+            if (logged == 0)
+            {
+                DiagnosticLog.Log("TraceUIBroad", $"sample={_uiTracerSamplesTaken}/{_uiTracerMaxSamples} no bottom-left candidates across canvases");
+            }
+        }
+
         private void RemoveDevelopmentConsolePanel()
         {
             // Remove legacy diagnostics overlays globally, not just this canvas hierarchy.
@@ -1264,6 +1337,7 @@ namespace BlackBartsGold.UI
                 _radarZoomRadarUI = radarUI;
                 SetupRadarContent(radar, radarUI);
                 radarUI.SetMiniMapScale(_miniMapUiScale);
+                radarUI.SetOrientationMode(RadarUI.MiniMapOrientationMode.NorthUp);
                 SetupRadarZoomControls(radarUI);
                 radar.gameObject.SetActive(true);
                 radarUI.Show();
@@ -1453,8 +1527,9 @@ namespace BlackBartsGold.UI
                 controlsRect.anchorMin = new Vector2(1f, 1f);
                 controlsRect.anchorMax = new Vector2(1f, 1f);
                 controlsRect.pivot = new Vector2(1f, 1f);
-                controlsRect.anchoredPosition = new Vector2(-20f, -(_radarBaseSize * _miniMapUiScale + 28f));
-                controlsRect.sizeDelta = new Vector2(270f, 64f);
+                controlsRect.anchoredPosition = new Vector2(-20f, -(_radarBaseSize * _miniMapUiScale + 40f));
+                controlsRect.sizeDelta = new Vector2(520f, 120f);
+                controls.SetAsLastSibling();
 
                 var controlsBg = controls.GetComponent<Image>();
                 if (controlsBg == null)
@@ -1466,10 +1541,10 @@ namespace BlackBartsGold.UI
                 controlsBg.color = new Color(0f, 0f, 0f, 0f);
                 controlsBg.raycastTarget = false;
 
-                var minusButton = EnsureRadarZoomButton(controls, "MinusButton", "-", new Vector2(36f, -32f), null, 42f);
-                var plusButton = EnsureRadarZoomButton(controls, "PlusButton", "+", new Vector2(100f, -32f), null, 42f);
-                var rangeText = EnsureRadarZoomLabel(controls, "RangeText", new Vector2(158f, -32f));
-                var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(232f, -32f), new Vector2(70f, 56f), 24f);
+                var minusButton = EnsureRadarZoomButton(controls, "MinusButton", "-", new Vector2(56f, -60f), new Vector2(112f, 112f), 52f);
+                var plusButton = EnsureRadarZoomButton(controls, "PlusButton", "+", new Vector2(188f, -60f), new Vector2(112f, 112f), 52f);
+                var rangeText = EnsureRadarZoomLabel(controls, "RangeText", new Vector2(328f, -60f));
+                var autoButton = EnsureRadarZoomButton(controls, "AutoButton", "AUTO", new Vector2(452f, -60f), new Vector2(140f, 112f), 30f);
                 DiagnosticLog.Log("Radar", $"Zoom controls refs: minus={minusButton != null} plus={plusButton != null} range={rangeText != null} auto={autoButton != null}");
 
                 _radarZoomRadarUI = radarUI;
@@ -1493,28 +1568,43 @@ namespace BlackBartsGold.UI
                 minusButton.onClick.RemoveAllListeners();
                 minusButton.onClick.AddListener(() =>
                 {
+                    float before = radarUI.Range;
+                    bool autoBefore = radarUI.AutoZoomEnabled;
                     DiagnosticLog.Log("RadarZoom", "MinusButton pressed");
                     radarUI.ZoomOut();
                     TriggerZoomHaptic();
                     RefreshRadarZoomControlsUi();
+                    _radarMapUpdatePending = false;
+                    _radarMapLastUpdate = -999f;
+                    DiagnosticLog.Log("RadarZoom", $"MinusButton applied range {before:F1}m -> {radarUI.Range:F1}m auto {autoBefore}->{radarUI.AutoZoomEnabled}");
                 });
 
                 plusButton.onClick.RemoveAllListeners();
                 plusButton.onClick.AddListener(() =>
                 {
+                    float before = radarUI.Range;
+                    bool autoBefore = radarUI.AutoZoomEnabled;
                     DiagnosticLog.Log("RadarZoom", "PlusButton pressed");
                     radarUI.ZoomIn();
                     TriggerZoomHaptic();
                     RefreshRadarZoomControlsUi();
+                    _radarMapUpdatePending = false;
+                    _radarMapLastUpdate = -999f;
+                    DiagnosticLog.Log("RadarZoom", $"PlusButton applied range {before:F1}m -> {radarUI.Range:F1}m auto {autoBefore}->{radarUI.AutoZoomEnabled}");
                 });
 
                 autoButton.onClick.RemoveAllListeners();
                 autoButton.onClick.AddListener(() =>
                 {
+                    float before = radarUI.Range;
+                    bool autoBefore = radarUI.AutoZoomEnabled;
                     DiagnosticLog.Log("RadarZoom", "AutoButton pressed");
                     radarUI.ToggleAutoZoom();
                     TriggerZoomHaptic();
                     RefreshRadarZoomControlsUi();
+                    _radarMapUpdatePending = false;
+                    _radarMapLastUpdate = -999f;
+                    DiagnosticLog.Log("RadarZoom", $"AutoButton applied range {before:F1}m -> {radarUI.Range:F1}m auto {autoBefore}->{radarUI.AutoZoomEnabled}");
                 });
 
                 RefreshRadarZoomControlsUi();
@@ -1555,7 +1645,7 @@ namespace BlackBartsGold.UI
                 rect.sizeDelta = sizeOverride ?? new Vector2(56f, 56f);
 
                 var image = buttonTransform.GetComponent<Image>() ?? buttonTransform.gameObject.AddComponent<Image>();
-                image.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
+                image.color = new Color(0.14f, 0.14f, 0.14f, 0.9f);
                 image.raycastTarget = true;
 
                 var button = buttonTransform.GetComponent<Button>() ?? buttonTransform.gameObject.AddComponent<Button>();
@@ -1604,53 +1694,52 @@ namespace BlackBartsGold.UI
 
         private TextMeshProUGUI EnsureRadarZoomLabel(Transform parent, string name, Vector2 anchoredPosition)
         {
-            if (parent == null || !parent)
+            try
             {
-                DiagnosticLog.Warn("Radar", $"EnsureRadarZoomLabel failed: parent invalid for {name}");
+                if (parent == null || !parent)
+                {
+                    DiagnosticLog.Warn("Radar", $"EnsureRadarZoomLabel failed: parent invalid for {name}");
+                    return null;
+                }
+
+                var textTransform = parent.Find(name);
+                if (textTransform == null)
+                {
+                    var textGO = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
+                    textGO.transform.SetParent(parent, false);
+                    textTransform = textGO.transform;
+                }
+
+                if (textTransform == null || !textTransform)
+                {
+                    return null;
+                }
+
+                var rect = textTransform.GetComponent<RectTransform>() ?? textTransform.gameObject.AddComponent<RectTransform>();
+                rect.anchorMin = new Vector2(0f, 1f);
+                rect.anchorMax = new Vector2(0f, 1f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.anchoredPosition = anchoredPosition;
+                rect.sizeDelta = new Vector2(110f, 70f);
+
+                var tmpText = textTransform.GetComponent<TextMeshProUGUI>() ?? textTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                if (tmpText == null) return null;
+                tmpText.fontSize = 28f;
+                tmpText.fontStyle = FontStyles.Bold;
+                tmpText.color = GoldColor;
+                tmpText.alignment = TextAlignmentOptions.Center;
+                tmpText.enableWordWrapping = false;
+                tmpText.raycastTarget = false;
+                tmpText.text = _radarZoomRadarUI != null ? $"{Mathf.RoundToInt(_radarZoomRadarUI.Range)}m" : "50m";
+                DiagnosticLog.Log("Radar", $"Prepared zoom label {name} at {anchoredPosition} size={rect.sizeDelta}");
+
+                return tmpText;
+            }
+            catch (System.Exception ex)
+            {
+                DiagnosticLog.Error("Radar", $"EnsureRadarZoomLabel exception ({name}): {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
                 return null;
             }
-
-            var textTransform = parent.Find(name);
-            if (textTransform == null)
-            {
-                var textGO = new GameObject(name);
-                textGO.transform.SetParent(parent, false);
-                textTransform = textGO.transform;
-                textGO.AddComponent<RectTransform>();
-                textGO.AddComponent<TextMeshProUGUI>();
-            }
-            if (textTransform == null || !textTransform)
-            {
-                return null;
-            }
-
-            var rect = textTransform.GetComponent<RectTransform>();
-            if (rect == null)
-            {
-                rect = textTransform.gameObject.AddComponent<RectTransform>();
-            }
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = new Vector2(70f, 44f);
-
-            var tmpText = textTransform.GetComponent<TextMeshProUGUI>();
-            if (tmpText == null)
-            {
-                tmpText = textTransform.gameObject.AddComponent<TextMeshProUGUI>();
-            }
-            if (tmpText == null)
-            {
-                return null;
-            }
-            tmpText.fontSize = 24f;
-            tmpText.color = GoldColor;
-            tmpText.alignment = TextAlignmentOptions.Center;
-            tmpText.text = "50m";
-            DiagnosticLog.Log("Radar", $"Prepared zoom label {name}");
-
-            return tmpText;
         }
 
         private void RefreshRadarZoomControlsUi()
@@ -2497,9 +2586,15 @@ namespace BlackBartsGold.UI
             float timeSince = Time.time - _radarMapLastUpdate;
             double latDiff = System.Math.Abs(loc.latitude - _radarMapLastLat);
             double lngDiff = System.Math.Abs(loc.longitude - _radarMapLastLng);
+            int desiredZoom = ComputeMiniMapTileZoom();
+            bool zoomChanged = desiredZoom != _radarZoom;
+            if (zoomChanged)
+            {
+                _radarZoom = desiredZoom;
+            }
 
             bool needsUpdate = timeSince >= 2f &&
-                (latDiff > 0.0001 || lngDiff > 0.0001);
+                (latDiff > 0.0001 || lngDiff > 0.0001 || zoomChanged);
 
             if (needsUpdate && !_radarMapUpdatePending)
             {
@@ -2508,8 +2603,29 @@ namespace BlackBartsGold.UI
                 _radarMapLastLat = loc.latitude;
                 _radarMapLastLng = loc.longitude;
 
+                if (_lastLoggedRadarTileZoom != _radarZoom || zoomChanged)
+                {
+                    _lastLoggedRadarTileZoom = _radarZoom;
+                    float range = _radarZoomRadarUI != null ? _radarZoomRadarUI.Range : -1f;
+                    bool auto = _radarZoomRadarUI != null && _radarZoomRadarUI.AutoZoomEnabled;
+                    DiagnosticLog.Log("RadarTileZoom", $"Request tile zoom={_radarZoom} from range={range:F1}m auto={auto} lat={loc.latitude:F6} lng={loc.longitude:F6}");
+                }
+
                 MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, _radarZoom, 0f, OnRadarMapTileReceived);
             }
+        }
+
+        private int ComputeMiniMapTileZoom()
+        {
+            // Match map tile zoom to radar range so + / - / AUTO visibly change the mini-map image scale.
+            float range = _radarZoomRadarUI != null ? _radarZoomRadarUI.Range : 50f;
+
+            if (range <= 35f) return 21;
+            if (range <= 50f) return 20;
+            if (range <= 80f) return 19;
+            if (range <= 120f) return 18;
+            if (range <= 180f) return 17;
+            return 16;
         }
 
         private void OnRadarMapTileReceived(Texture2D texture)

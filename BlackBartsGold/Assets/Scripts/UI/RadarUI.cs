@@ -29,6 +29,12 @@ namespace BlackBartsGold.UI
     /// </summary>
     public class RadarUI : MonoBehaviour
     {
+        public enum MiniMapOrientationMode
+        {
+            NorthUp = 0,
+            ForwardUp = 1
+        }
+
         #region Inspector Fields
         
         [Header("UI References")]
@@ -78,8 +84,8 @@ namespace BlackBartsGold.UI
         private bool autoZoomEnabled = false;
         
         [SerializeField]
-        [Tooltip("Rotate radar with device heading")]
-        private bool rotateWithHeading = true;
+        [Tooltip("NorthUp = map stays north-up; ForwardUp = player-forward-up mini-map")]
+        private MiniMapOrientationMode orientationMode = MiniMapOrientationMode.NorthUp;
         
         [SerializeField]
         [Tooltip("Sweep animation speed (degrees/second)")]
@@ -158,6 +164,11 @@ namespace BlackBartsGold.UI
         /// Is automatic range zoom enabled?
         /// </summary>
         public bool AutoZoomEnabled => autoZoomEnabled;
+
+        /// <summary>
+        /// Current mini-map orientation mode.
+        /// </summary>
+        public MiniMapOrientationMode OrientationMode => orientationMode;
         
         /// <summary>
         /// Number of coins on radar
@@ -629,10 +640,11 @@ namespace BlackBartsGold.UI
                 activeDots[coin.id] = dot;
             }
             
-            // Calculate position on radar
-            // Adjust bearing for heading if rotating
+            // Calculate position on radar.
+            // NorthUp: use world bearing directly (matches north-up map tile).
+            // ForwardUp: rotate bearing into player-forward frame.
             float adjustedBearing = bearing;
-            if (rotateWithHeading)
+            if (orientationMode == MiniMapOrientationMode.ForwardUp)
             {
                 adjustedBearing = bearing - currentHeading;
             }
@@ -780,10 +792,17 @@ namespace BlackBartsGold.UI
                 currentHeading = DeviceCompass.Heading;
             }
             
-            // Rotate north indicator
-            if (northIndicator != null && rotateWithHeading)
+            // Rotate north indicator only in ForwardUp mode.
+            if (northIndicator != null)
             {
-                northIndicator.localRotation = Quaternion.Euler(0, 0, currentHeading);
+                if (orientationMode == MiniMapOrientationMode.ForwardUp)
+                {
+                    northIndicator.localRotation = Quaternion.Euler(0, 0, currentHeading);
+                }
+                else
+                {
+                    northIndicator.localRotation = Quaternion.identity;
+                }
             }
         }
         
@@ -889,6 +908,12 @@ namespace BlackBartsGold.UI
         {
             autoZoomEnabled = enabled;
             SavePreferences();
+            UpdateRadar();
+        }
+
+        public void SetOrientationMode(MiniMapOrientationMode mode)
+        {
+            orientationMode = mode;
             UpdateRadar();
         }
 
