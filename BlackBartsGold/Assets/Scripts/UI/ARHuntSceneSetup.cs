@@ -68,11 +68,13 @@ namespace BlackBartsGold.UI
         private int _hardKillPassIteration;
         private float _lastUiTracerLogTime;
         private int _uiTracerSamplesTaken;
+        private int _tapTraceSamplesTaken;
         private const float _verboseLifecycleInterval = 3f;
         private const float _adbSensorSnapshotInterval = 2f;
         private const float _hardKillPassInterval = 1f;
         private const float _uiTracerInterval = 2f;
         private const int _uiTracerMaxSamples = 8;
+        private const int _tapTraceMaxSamples = 30;
         private TextMeshProUGUI _sensorStatusText;
         private Transform _sensorStatusPanel;
         private const bool EnableRuntimeDevConsole = false;
@@ -171,6 +173,11 @@ namespace BlackBartsGold.UI
             // Update radar map tile from Mapbox
             UpdateRadarMapTile();
 
+            if (_tapTraceSamplesTaken < _tapTraceMaxSamples)
+            {
+                TraceTapRaycastTargets();
+            }
+
             if (EnableRuntimeDevConsole && _sensorStatusText != null && Time.time - _lastSensorConsoleRefresh >= _sensorConsoleRefreshInterval)
             {
                 _lastSensorConsoleRefresh = Time.time;
@@ -214,6 +221,67 @@ namespace BlackBartsGold.UI
                 _lastAdbSensorSnapshotLog = Time.time;
                 EmitPeriodicSensorSnapshotLog();
             }
+        }
+
+        private void TraceTapRaycastTargets()
+        {
+            if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
+            {
+                LogTapRaycast(Touchscreen.current.primaryTouch.position.ReadValue(), "touch");
+            }
+
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                LogTapRaycast(Mouse.current.position.ReadValue(), "mouse");
+            }
+        }
+
+        private void LogTapRaycast(Vector2 screenPosition, string source)
+        {
+            _tapTraceSamplesTaken++;
+
+            if (EventSystem.current == null)
+            {
+                DiagnosticLog.Log("TapTrace", $"sample={_tapTraceSamplesTaken}/{_tapTraceMaxSamples} source={source} pos={screenPosition} no EventSystem");
+                return;
+            }
+
+            var eventData = new PointerEventData(EventSystem.current) { position = screenPosition };
+            var hits = new System.Collections.Generic.List<RaycastResult>(12);
+            EventSystem.current.RaycastAll(eventData, hits);
+
+            if (hits.Count == 0)
+            {
+                DiagnosticLog.Log("TapTrace", $"sample={_tapTraceSamplesTaken}/{_tapTraceMaxSamples} source={source} pos={screenPosition} hitCount=0");
+                return;
+            }
+
+            var top = hits[0];
+            string path = BuildTransformPath(top.gameObject != null ? top.gameObject.transform : null);
+            string module = top.module != null ? top.module.GetType().Name : "none";
+            DiagnosticLog.Log(
+                "TapTrace",
+                $"sample={_tapTraceSamplesTaken}/{_tapTraceMaxSamples} source={source} pos={screenPosition} " +
+                $"hitCount={hits.Count} top={top.gameObject?.name} path={path} module={module}");
+        }
+
+        private static string BuildTransformPath(Transform leaf)
+        {
+            if (leaf == null) return "null";
+            var sb = new StringBuilder(128);
+            var stack = new System.Collections.Generic.Stack<string>();
+            var current = leaf;
+            while (current != null)
+            {
+                stack.Push(current.name);
+                current = current.parent;
+            }
+            while (stack.Count > 0)
+            {
+                if (sb.Length > 0) sb.Append("/");
+                sb.Append(stack.Pop());
+            }
+            return sb.ToString();
         }
 
         private void InitializeDevelopmentConsoleSensors()

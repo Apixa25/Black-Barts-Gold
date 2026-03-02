@@ -8,6 +8,8 @@
 
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using TMPro;
 using System.Collections;
 using System.Text;
@@ -26,6 +28,8 @@ namespace BlackBartsGold.UI
         private Coroutine _debugOverlayCleanupRoutine;
         private int _globalDumpSamplesTaken;
         private const int GlobalDumpMaxSamples = 10;
+        private int _tapTraceSamplesTaken;
+        private const int TapTraceMaxSamples = 30;
 
         private void OnEnable()
         {
@@ -45,6 +49,14 @@ namespace BlackBartsGold.UI
             {
                 StopCoroutine(_debugOverlayCleanupRoutine);
                 _debugOverlayCleanupRoutine = null;
+            }
+        }
+
+        private void Update()
+        {
+            if (_tapTraceSamplesTaken < TapTraceMaxSamples)
+            {
+                TraceTapRaycastTargets();
             }
         }
 
@@ -269,6 +281,66 @@ namespace BlackBartsGold.UI
             }
 
             _debugOverlayCleanupRoutine = null;
+        }
+
+        private void TraceTapRaycastTargets()
+        {
+            if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
+            {
+                LogTapRaycast(Touchscreen.current.primaryTouch.position.ReadValue(), "touch");
+            }
+
+            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                LogTapRaycast(Mouse.current.position.ReadValue(), "mouse");
+            }
+        }
+
+        private void LogTapRaycast(Vector2 screenPosition, string source)
+        {
+            _tapTraceSamplesTaken++;
+
+            if (EventSystem.current == null)
+            {
+                Debug.Log($"[MainMenuSceneSetup][TapTrace] sample={_tapTraceSamplesTaken}/{TapTraceMaxSamples} source={source} pos={screenPosition} no EventSystem");
+                return;
+            }
+
+            var eventData = new PointerEventData(EventSystem.current) { position = screenPosition };
+            var hits = new System.Collections.Generic.List<RaycastResult>(12);
+            EventSystem.current.RaycastAll(eventData, hits);
+
+            if (hits.Count == 0)
+            {
+                Debug.Log($"[MainMenuSceneSetup][TapTrace] sample={_tapTraceSamplesTaken}/{TapTraceMaxSamples} source={source} pos={screenPosition} hitCount=0");
+                return;
+            }
+
+            var top = hits[0];
+            string path = BuildTransformPath(top.gameObject != null ? top.gameObject.transform : null);
+            string module = top.module != null ? top.module.GetType().Name : "none";
+            Debug.Log(
+                $"[MainMenuSceneSetup][TapTrace] sample={_tapTraceSamplesTaken}/{TapTraceMaxSamples} source={source} pos={screenPosition} " +
+                $"hitCount={hits.Count} top={top.gameObject?.name} path={path} module={module}");
+        }
+
+        private static string BuildTransformPath(Transform leaf)
+        {
+            if (leaf == null) return "null";
+            var sb = new StringBuilder(128);
+            var stack = new System.Collections.Generic.Stack<string>();
+            var current = leaf;
+            while (current != null)
+            {
+                stack.Push(current.name);
+                current = current.parent;
+            }
+            while (stack.Count > 0)
+            {
+                if (sb.Length > 0) sb.Append("/");
+                sb.Append(stack.Pop());
+            }
+            return sb.ToString();
         }
 
         private void DumpGlobalUiStateNoFilter()
