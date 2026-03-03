@@ -81,6 +81,11 @@ namespace BlackBartsGold.UI
         [Tooltip("Extra buffer to avoid on-screen/off-screen flicker")]
         private float onScreenHysteresisDegrees = 6f;
         
+        [SerializeField]
+        [Tooltip("Vertical anchor bias for indicator track (0 = center, 1 = bottom edge)")]
+        [Range(0f, 1f)]
+        private float lowerTrackBias = 0.75f;
+        
         [Header("Colors")]
         [SerializeField]
         private Color farColor = new Color(1f, 0.84f, 0f, 0.9f); // Gold
@@ -515,10 +520,13 @@ namespace BlackBartsGold.UI
             float halfH = screenHeight * 0.5f;
             float sideX = Mathf.Max(80f, halfW - edgePadding);
             float topY = Mathf.Max(120f, halfH - edgePadding);
+            float trackY = Mathf.Lerp(0f, -Mathf.Max(120f, halfH - edgePadding), Mathf.Clamp01(lowerTrackBias));
+            float lowerY = Mathf.Min(trackY + 40f, -40f);
+            float upperY = Mathf.Max(trackY + 180f, 80f);
             
             if (IsCoinOnScreen)
             {
-                indicatorContainer.anchoredPosition = new Vector2(0f, 140f);
+                indicatorContainer.anchoredPosition = new Vector2(0f, upperY);
                 return;
             }
             
@@ -527,12 +535,13 @@ namespace BlackBartsGold.UI
             
             if (absBearing < 120f)
             {
-                indicatorContainer.anchoredPosition = new Vector2(sign * sideX, 100f);
+                indicatorContainer.anchoredPosition = new Vector2(sign * sideX, lowerY);
             }
             else
             {
                 float xHint = sign * Mathf.Min(sideX * 0.35f, 220f);
-                indicatorContainer.anchoredPosition = new Vector2(xHint, topY);
+                // Keep rear-target hint in lower third instead of center.
+                indicatorContainer.anchoredPosition = new Vector2(xHint, Mathf.Min(topY, upperY));
             }
         }
         

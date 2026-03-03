@@ -2082,10 +2082,11 @@ namespace BlackBartsGold.UI
                     DiagnosticLog.Error("Setup", "SensorStatusPanel setup aborted: panel RectTransform missing");
                     return;
                 }
-                panelRect.anchorMin = new Vector2(0, 1);
-                panelRect.anchorMax = new Vector2(0, 1);
-                panelRect.pivot = new Vector2(0, 1);
-                panelRect.anchoredPosition = new Vector2(20, -20);
+                // Keep clear of the mini-map by pinning this HUD to bottom-left.
+                panelRect.anchorMin = new Vector2(0, 0);
+                panelRect.anchorMax = new Vector2(0, 0);
+                panelRect.pivot = new Vector2(0, 0);
+                panelRect.anchoredPosition = new Vector2(20, 20);
                 panelRect.sizeDelta = new Vector2(560, 360);
 
                 var bgImage = panelGO.GetComponent<Image>();
