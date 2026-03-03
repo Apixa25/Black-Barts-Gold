@@ -340,6 +340,8 @@ namespace BlackBartsGold.UI
             {
                 radarButton = GetComponent<Button>();
             }
+
+            RecalculateRadarRadiusFromContainer();
             
             Debug.Log($"[RadarUI] AutoFindReferences - container:{radarContainer != null}, button:{radarButton != null}, image:{radarImage != null}, raycastTarget:{radarImage?.raycastTarget}");
         }
@@ -556,6 +558,7 @@ namespace BlackBartsGold.UI
         public void UpdateRadar()
         {
             if (!IsVisible) return;
+            RecalculateRadarRadiusFromContainer();
             
             LocationData playerLocation = GetPlayerLocation();
             if (playerLocation == null) return;
@@ -895,7 +898,7 @@ namespace BlackBartsGold.UI
         public void SetMiniMapScale(float scale)
         {
             miniMapScale = Mathf.Clamp(scale, 0.5f, 4f);
-            radarRadius = BaseRadarRadiusPixels * miniMapScale;
+            RecalculateRadarRadiusFromContainer();
             ApplyDotSizes();
             SavePreferences();
             UpdateRadar();
@@ -964,6 +967,30 @@ namespace BlackBartsGold.UI
             }
             
             return null;
+        }
+
+        /// <summary>
+        /// Keep radar projection radius aligned to actual on-screen mini-map size.
+        /// Prevents coin dots from clustering toward center when panel size differs
+        /// from older hardcoded assumptions.
+        /// </summary>
+        private void RecalculateRadarRadiusFromContainer()
+        {
+            if (radarContainer != null)
+            {
+                float width = radarContainer.rect.width;
+                float height = radarContainer.rect.height;
+                float minDim = Mathf.Min(width, height);
+                if (minDim > 1f)
+                {
+                    // Use most of the circular map area while keeping slight edge padding.
+                    radarRadius = (minDim * 0.5f) * 0.95f;
+                    return;
+                }
+            }
+
+            // Fallback for early lifecycle frames before layout is resolved.
+            radarRadius = BaseRadarRadiusPixels * miniMapScale;
         }
         
         #endregion

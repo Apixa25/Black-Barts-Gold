@@ -1713,7 +1713,7 @@ namespace BlackBartsGold.UI
                 sweepRect.anchorMax = new Vector2(0.5f, 0.5f);
                 sweepRect.pivot = new Vector2(0.5f, 0f);
                 sweepRect.anchoredPosition = Vector2.zero;
-                sweepRect.sizeDelta = new Vector2(4f * localScale, 70f * localScale);
+                sweepRect.sizeDelta = new Vector2(4f * localScale, 140f * localScale);
                 var sweepImg = sweepGO.AddComponent<Image>();
                 sweepImg.color = new Color(1f, 0.84f, 0f, 0.4f);
                 sweepImg.raycastTarget = false;
@@ -1723,7 +1723,7 @@ namespace BlackBartsGold.UI
                 sweepRect = sweepLine.GetComponent<RectTransform>();
                 if (sweepRect == null) sweepRect = sweepLine.gameObject.AddComponent<RectTransform>();
             }
-            sweepRect.sizeDelta = new Vector2(4f * localScale, 70f * localScale);
+            sweepRect.sizeDelta = new Vector2(4f * localScale, 140f * localScale);
 
             // North indicator (optional)
             var northIndicator = radar.Find("NorthIndicator");
