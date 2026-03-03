@@ -44,6 +44,7 @@ namespace BlackBartsGold.UI
         private Sprite _cachedMapCoinIconSprite;
         private bool _mapCoinIconLoadLogged = false;
         private Sprite _directionArrowSprite;
+        private Sprite _radarCircleMaskSprite;
         private const float _miniMapUiScale = 2f; // Single tuning point for AR mini-map sizing
         private const float _radarBaseSize = 360f;
         private float _lastRadarControlsRefresh;
@@ -1543,7 +1544,18 @@ namespace BlackBartsGold.UI
             }
             image.raycastTarget = true;
             image.color = new Color(1f, 1f, 1f, 0.01f); // Nearly invisible so map tile shows through
+            image.sprite = GetOrCreateRadarCircleMaskSprite();
+            image.type = Image.Type.Simple;
+            image.preserveAspect = false;
+            image.maskable = true;
             Debug.Log($"[ARHuntSceneSetup] RadarPanel Image raycastTarget: {image.raycastTarget}");
+
+            var radarMask = radar.GetComponent<Mask>();
+            if (radarMask == null)
+            {
+                radarMask = radar.gameObject.AddComponent<Mask>();
+            }
+            radarMask.showMaskGraphic = false;
             
             // CRITICAL: Ensure there's a Button component
             var button = radar.GetComponent<Button>();
@@ -2842,6 +2854,44 @@ namespace BlackBartsGold.UI
             _directionArrowSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.1f), 100f);
             DiagnosticLog.Log("Setup", "Generated runtime direction arrow sprite");
             return _directionArrowSprite;
+        }
+
+        private Sprite GetOrCreateRadarCircleMaskSprite()
+        {
+            if (_radarCircleMaskSprite != null)
+            {
+                return _radarCircleMaskSprite;
+            }
+
+            const int size = 256;
+            float radius = (size * 0.5f) - 1f;
+            float radiusSq = radius * radius;
+            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false);
+            tex.filterMode = FilterMode.Bilinear;
+
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x - (size * 0.5f) + 0.5f;
+                    float dy = y - (size * 0.5f) + 0.5f;
+                    float distSq = dx * dx + dy * dy;
+                    byte a = distSq <= radiusSq ? (byte)255 : (byte)0;
+                    pixels[(y * size) + x] = new Color32(255, 255, 255, a);
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply(false, false);
+            _radarCircleMaskSprite = Sprite.Create(
+                tex,
+                new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f),
+                100f
+            );
+            DiagnosticLog.Log("Setup", "Generated radar circular mask sprite");
+            return _radarCircleMaskSprite;
         }
         
         /// <summary>
