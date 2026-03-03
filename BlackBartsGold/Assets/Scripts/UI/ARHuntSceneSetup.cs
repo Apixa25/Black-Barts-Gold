@@ -106,12 +106,24 @@ namespace BlackBartsGold.UI
             CleanupStrayCenteredImages(); // Remove white square from orphan CompassArrowPanel etc.
             SetupBackButton();
             SetupCrosshairs();
-            SetupRadarPanel();
-            RemoveDevelopmentConsolePanel();
             if (EnableRuntimeSensorDebugHud)
             {
                 SetupSensorStatusPanel();
+                EnsureSensorStatusPanelVisible();
+                DiagnosticLog.Log("Setup", "SensorDebugHud requested at startup");
             }
+
+            try
+            {
+                SetupRadarPanel();
+            }
+            catch (System.Exception ex)
+            {
+                // Keep startup resilient: sensor HUD and remaining AR HUD should still initialize.
+                DiagnosticLog.Error("Setup", $"SetupRadarPanel failed but startup continues: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            RemoveDevelopmentConsolePanel();
             SetupMessagePanel();
             SetupLockedPopup();
             SetupCollectionPopup();
