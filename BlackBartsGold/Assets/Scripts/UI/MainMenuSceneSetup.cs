@@ -30,15 +30,18 @@ namespace BlackBartsGold.UI
         private const int GlobalDumpMaxSamples = 10;
         private int _tapTraceSamplesTaken;
         private const int TapTraceMaxSamples = 30;
+        private bool _loggedDevConsoleForceOff;
 
         private void OnEnable()
         {
+            ForceDisableUnityDeveloperConsole("mainmenu-onenable");
             ApplySetup();
             StartDebugOverlayCleanupSweep();
         }
 
         private void Start()
         {
+            ForceDisableUnityDeveloperConsole("mainmenu-start");
             ApplySetup();
             StartDebugOverlayCleanupSweep();
         }
@@ -270,6 +273,7 @@ namespace BlackBartsGold.UI
 
             while (Time.realtimeSinceStartup < endTime && isActiveAndEnabled)
             {
+                ForceDisableUnityDeveloperConsole("mainmenu-sweep");
                 DisableDebugPanels();
                 DisableDiagnosticsLikeTextOverlays();
                 if (_globalDumpSamplesTaken < GlobalDumpMaxSamples)
@@ -281,6 +285,21 @@ namespace BlackBartsGold.UI
             }
 
             _debugOverlayCleanupRoutine = null;
+        }
+
+        private void ForceDisableUnityDeveloperConsole(string reason)
+        {
+            bool wasEnabled = Debug.developerConsoleEnabled;
+            bool wasVisible = Debug.developerConsoleVisible;
+
+            Debug.developerConsoleVisible = false;
+            Debug.developerConsoleEnabled = false;
+
+            if ((wasEnabled || wasVisible) && !_loggedDevConsoleForceOff)
+            {
+                _loggedDevConsoleForceOff = true;
+                Debug.Log($"[MainMenuSceneSetup][DevConsole] Forced Unity developer console OFF reason={reason} wasEnabled={wasEnabled} wasVisible={wasVisible}");
+            }
         }
 
         private void TraceTapRaycastTargets()

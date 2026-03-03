@@ -69,6 +69,7 @@ namespace BlackBartsGold.UI
         private float _lastUiTracerLogTime;
         private int _uiTracerSamplesTaken;
         private int _tapTraceSamplesTaken;
+        private bool _loggedDevConsoleForceOff;
         private const float _verboseLifecycleInterval = 3f;
         private const float _adbSensorSnapshotInterval = 2f;
         private const float _hardKillPassInterval = 1f;
@@ -84,6 +85,7 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
+            ForceDisableUnityDeveloperConsole("start");
             DiagnosticLog.Log("Setup", $"AR SCENE START T+{Time.realtimeSinceStartup:F2}s");
             DiagnosticLog.Log("Setup", $"GameObject: {gameObject.name}");
             DiagnosticLog.Log("Setup", $"Scene={UnityEngine.SceneManagement.SceneManager.GetActiveScene().name} children={transform.childCount} screen={Screen.width}x{Screen.height}");
@@ -224,11 +226,12 @@ namespace BlackBartsGold.UI
             if (Time.time - _lastVerboseLifecycleLog >= _verboseLifecycleInterval)
             {
                 _lastVerboseLifecycleLog = Time.time;
+                ForceDisableUnityDeveloperConsole("heartbeat");
                 RemoveDevelopmentConsolePanel();
                 CleanupDirectionIndicatorArtifacts();
                 EnsureRadarPanelOperational();
                 bool debugPanelPresent = HasDevelopmentOverlayVisible();
-                DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s devConsole={debugPanelPresent} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
+                DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s devConsole={debugPanelPresent} unityDevConsoleVisible={Debug.developerConsoleVisible} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
             }
 
             if ((EnableRuntimeDevConsole || EnableRuntimeSensorDebugHud) && Time.time - _lastAdbSensorSnapshotLog >= _adbSensorSnapshotInterval)
@@ -1109,6 +1112,8 @@ namespace BlackBartsGold.UI
 
         private void RemoveDevelopmentConsolePanel()
         {
+            ForceDisableUnityDeveloperConsole("remove-overlay");
+
             // Remove legacy diagnostics overlays globally, not just this canvas hierarchy.
             string[] debugOverlayNames =
             {
@@ -1218,6 +1223,11 @@ namespace BlackBartsGold.UI
 
         private bool HasDevelopmentOverlayVisible()
         {
+            if (Debug.developerConsoleVisible)
+            {
+                return true;
+            }
+
             var allObjects = FindObjectsByType<GameObject>(FindObjectsSortMode.None);
             foreach (var obj in allObjects)
             {
@@ -2051,59 +2061,55 @@ namespace BlackBartsGold.UI
         {
             try
             {
-                Transform panel = transform.Find(SensorHudPanelName);
-                if (panel == null || !panel)
+                // Rebuild from scratch to avoid malformed legacy transform/component states.
+                var existing = transform.Find(SensorHudPanelName);
+                if (existing != null && existing)
                 {
-                    var panelGO = new GameObject(SensorHudPanelName);
-                    panelGO.transform.SetParent(transform, false);
-                    panel = panelGO.transform;
+                    Destroy(existing.gameObject);
                 }
 
-                if (panel == null || panel.gameObject == null)
+                var panelGO = new GameObject(
+                    SensorHudPanelName,
+                    typeof(RectTransform),
+                    typeof(CanvasRenderer),
+                    typeof(Image)
+                );
+                panelGO.transform.SetParent(transform, false);
+                var panel = panelGO.transform;
+                var panelRect = panel as RectTransform;
+                if (panelRect == null)
                 {
-                    DiagnosticLog.Warn("Setup", "SensorStatusPanel setup aborted: panel transform invalid");
+                    DiagnosticLog.Error("Setup", "SensorStatusPanel setup aborted: panel RectTransform missing");
                     return;
                 }
-
-                var panelRect = panel.GetComponent<RectTransform>() ?? panel.gameObject.AddComponent<RectTransform>();
                 panelRect.anchorMin = new Vector2(0, 1);
                 panelRect.anchorMax = new Vector2(0, 1);
                 panelRect.pivot = new Vector2(0, 1);
                 panelRect.anchoredPosition = new Vector2(20, -20);
                 panelRect.sizeDelta = new Vector2(560, 360);
 
-                // Ensure required UI renderer component exists to avoid runtime nulls on some scene roots.
-                var panelRenderer = panel.GetComponent<CanvasRenderer>() ?? panel.gameObject.AddComponent<CanvasRenderer>();
-                var bgImage = panel.GetComponent<Image>() ?? panel.gameObject.AddComponent<Image>();
+                var bgImage = panelGO.GetComponent<Image>();
                 bgImage.color = new Color(0, 0, 0, 0.7f);
                 bgImage.raycastTarget = false;
 
-                Transform textTransform = panel.Find(SensorHudTextName);
-                if (textTransform == null || !textTransform)
-                {
-                    var textGO = new GameObject(SensorHudTextName);
-                    textGO.transform.SetParent(panel, false);
-                    textTransform = textGO.transform;
-                }
-
-                if (textTransform == null || textTransform.gameObject == null)
-                {
-                    DiagnosticLog.Warn("Setup", "SensorStatusPanel setup aborted: SensorText invalid");
-                    return;
-                }
-
-                var textRect = textTransform.GetComponent<RectTransform>() ?? textTransform.gameObject.AddComponent<RectTransform>();
+                var textGO = new GameObject(
+                    SensorHudTextName,
+                    typeof(RectTransform),
+                    typeof(CanvasRenderer)
+                );
+                textGO.transform.SetParent(panel, false);
+                var textTransform = textGO.transform;
+                var textRect = textGO.GetComponent<RectTransform>();
                 textRect.anchorMin = new Vector2(0, 0);
                 textRect.anchorMax = new Vector2(1, 1);
                 textRect.offsetMin = new Vector2(12, 12);
                 textRect.offsetMax = new Vector2(-12, -12);
 
-                var textRenderer = textTransform.GetComponent<CanvasRenderer>() ?? textTransform.gameObject.AddComponent<CanvasRenderer>();
                 _sensorStatusText = null;
                 bool tmpReady = false;
                 try
                 {
-                    _sensorStatusText = textTransform.GetComponent<TextMeshProUGUI>() ?? textTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                    _sensorStatusText = textGO.AddComponent<TextMeshProUGUI>();
                     if (_sensorStatusText != null)
                     {
                         _sensorStatusText.fontSize = 18;
@@ -2124,7 +2130,7 @@ namespace BlackBartsGold.UI
                 // Fallback path: keep panel visible even if TMP cannot initialize.
                 if (!tmpReady)
                 {
-                    var fallbackText = textTransform.GetComponent<Text>() ?? textTransform.gameObject.AddComponent<Text>();
+                    var fallbackText = textGO.AddComponent<Text>();
                     fallbackText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                     fallbackText.fontSize = 18;
                     fallbackText.color = Color.white;
@@ -2146,6 +2152,21 @@ namespace BlackBartsGold.UI
             catch (System.Exception ex)
             {
                 DiagnosticLog.Error("Setup", $"SetupSensorStatusPanel exception: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
+
+        private void ForceDisableUnityDeveloperConsole(string reason)
+        {
+            bool wasEnabled = Debug.developerConsoleEnabled;
+            bool wasVisible = Debug.developerConsoleVisible;
+
+            Debug.developerConsoleVisible = false;
+            Debug.developerConsoleEnabled = false;
+
+            if ((wasEnabled || wasVisible) && !_loggedDevConsoleForceOff)
+            {
+                _loggedDevConsoleForceOff = true;
+                DiagnosticLog.Warn("DevConsole", $"Forced Unity developer console OFF reason={reason} wasEnabled={wasEnabled} wasVisible={wasVisible}");
             }
         }
 
