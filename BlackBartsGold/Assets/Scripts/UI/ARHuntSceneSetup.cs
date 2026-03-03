@@ -1736,10 +1736,7 @@ namespace BlackBartsGold.UI
                 northRect.anchorMax = new Vector2(0.5f, 1f);
                 northRect.pivot = new Vector2(0.5f, 1f);
                 northRect.anchoredPosition = new Vector2(0, -10f * localScale);
-                northRect.sizeDelta = new Vector2(8f * localScale, 12f * localScale);
-                var northImg = northGO.AddComponent<Image>();
-                northImg.color = new Color(1f, 0.3f, 0.3f, 0.8f);
-                northImg.raycastTarget = false;
+                northRect.sizeDelta = new Vector2(24f * localScale, 24f * localScale);
             }
             else
             {
@@ -1747,7 +1744,25 @@ namespace BlackBartsGold.UI
                 if (northRect == null) northRect = northIndicator.gameObject.AddComponent<RectTransform>();
             }
             northRect.anchoredPosition = new Vector2(0, -10f * localScale);
-            northRect.sizeDelta = new Vector2(8f * localScale, 12f * localScale);
+            northRect.sizeDelta = new Vector2(24f * localScale, 24f * localScale);
+
+            // Replace ambiguous red dot with explicit "N" label for north.
+            var northImage = northRect.GetComponent<Image>();
+            if (northImage != null)
+            {
+                northImage.enabled = false;
+                northImage.raycastTarget = false;
+            }
+            var northText = northRect.GetComponent<TextMeshProUGUI>();
+            if (northText == null)
+            {
+                northText = northRect.gameObject.AddComponent<TextMeshProUGUI>();
+            }
+            northText.text = "N";
+            northText.fontSize = 16f * localScale;
+            northText.color = new Color(1f, 0.95f, 0.6f, 0.95f);
+            northText.alignment = TextAlignmentOptions.Center;
+            northText.raycastTarget = false;
 
             if (playerRect == null)
             {

@@ -1366,7 +1366,7 @@ namespace BlackBartsGold.Core
             // Instructions (left side)
             var instructions = CreateText(bottomBar.transform, "Instructions", 
                 "TAP COIN TO SELECT | PINCH TO ZOOM", 
-                Vector2.zero, 14, Color.white, FontStyles.Normal);
+                Vector2.zero, 32, Color.white, FontStyles.Normal);
             var instrRect = instructions.GetComponent<RectTransform>();
             instrRect.anchorMin = new Vector2(0, 0.5f);
             instrRect.anchorMax = new Vector2(0, 0.5f);
@@ -1381,15 +1381,15 @@ namespace BlackBartsGold.Core
             zoomRect.anchorMax = new Vector2(1, 0.5f);
             zoomRect.pivot = new Vector2(1, 0.5f);
             zoomRect.anchoredPosition = new Vector2(-15, 0);
-            zoomRect.sizeDelta = new Vector2(180, 60);
+            zoomRect.sizeDelta = new Vector2(540, 180);
             
             // Zoom level display (create first so buttons can reference it)
             _zoomLevelText = CreateText(zoomControls.transform, "ZoomLevel", $"{_fullMapZoom}x", 
-                Vector2.zero, 18, GoldColor, FontStyles.Bold);
+                Vector2.zero, 32, GoldColor, FontStyles.Bold);
             var zoomLevelRect = _zoomLevelText.GetComponent<RectTransform>();
             zoomLevelRect.anchorMin = new Vector2(0.5f, 0.5f);
             zoomLevelRect.anchorMax = new Vector2(0.5f, 0.5f);
-            zoomLevelRect.sizeDelta = new Vector2(60, 40);
+            zoomLevelRect.sizeDelta = new Vector2(180, 90);
             
             // Store reference for button callbacks
             var zoomText = _zoomLevelText;
@@ -1397,12 +1397,13 @@ namespace BlackBartsGold.Core
             
             // Zoom OUT button (-)
             var zoomOutBtn = CreateButton(zoomControls.transform, "ZoomOut", "-", 
-                Vector2.zero, new Vector2(55, 55), new Color(0.3f, 0.4f, 0.5f),
+                Vector2.zero, new Vector2(165, 165), new Color(0.3f, 0.4f, 0.5f),
                 () => {
                     uiMgr._fullMapZoom = Mathf.Clamp(uiMgr._fullMapZoom - 1, MIN_ZOOM, MAX_ZOOM);
                     if (zoomText != null) zoomText.text = $"{uiMgr._fullMapZoom}x";
                     uiMgr.StartCoroutine(uiMgr.LoadFullMapTile());
                 });
+            StyleMapZoomButton(zoomOutBtn);
             var zoomOutRect = zoomOutBtn.GetComponent<RectTransform>();
             zoomOutRect.anchorMin = new Vector2(0, 0.5f);
             zoomOutRect.anchorMax = new Vector2(0, 0.5f);
@@ -1411,12 +1412,13 @@ namespace BlackBartsGold.Core
             
             // Zoom IN button (+)
             var zoomInBtn = CreateButton(zoomControls.transform, "ZoomIn", "+", 
-                Vector2.zero, new Vector2(55, 55), new Color(0.3f, 0.4f, 0.5f),
+                Vector2.zero, new Vector2(165, 165), new Color(0.3f, 0.4f, 0.5f),
                 () => {
                     uiMgr._fullMapZoom = Mathf.Clamp(uiMgr._fullMapZoom + 1, MIN_ZOOM, MAX_ZOOM);
                     if (zoomText != null) zoomText.text = $"{uiMgr._fullMapZoom}x";
                     uiMgr.StartCoroutine(uiMgr.LoadFullMapTile());
                 });
+            StyleMapZoomButton(zoomInBtn);
             var zoomInRect = zoomInBtn.GetComponent<RectTransform>();
             zoomInRect.anchorMin = new Vector2(1, 0.5f);
             zoomInRect.anchorMax = new Vector2(1, 0.5f);
@@ -1715,7 +1717,7 @@ namespace BlackBartsGold.Core
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(60, 70); // Clickable area
+            rect.sizeDelta = new Vector2(120, 140); // 2x clickable area for bigger marker
             
             // Calculate distance for display
             float distance = 0f;
@@ -1734,8 +1736,8 @@ namespace BlackBartsGold.Core
             var iconObj = new GameObject("Icon");
             iconObj.transform.SetParent(marker.transform, false);
             var iconRect = iconObj.AddComponent<RectTransform>();
-            iconRect.anchoredPosition = new Vector2(0, 10);
-            iconRect.sizeDelta = new Vector2(40, 40);
+            iconRect.anchoredPosition = new Vector2(0, 24);
+            iconRect.sizeDelta = new Vector2(80, 80); // 2x icon size
             var iconImg = iconObj.AddComponent<Image>();
             var coinIconSprite = GetMapCoinIconSprite();
             iconImg.sprite = coinIconSprite;
@@ -1747,13 +1749,13 @@ namespace BlackBartsGold.Core
             var valueText = CreateText(marker.transform, "Value", $"${coin.value:F0}", 
                 Vector2.zero, 14, Color.white, FontStyles.Bold);
             var valueRect = valueText.GetComponent<RectTransform>();
-            valueRect.anchoredPosition = new Vector2(0, -20);
+            valueRect.anchoredPosition = new Vector2(0, -46);
             
             // Distance text
             var distText = CreateText(marker.transform, "Distance", $"{distance:F0}m", 
                 Vector2.zero, 11, new Color(0.8f, 0.8f, 0.8f), FontStyles.Normal);
             var distRect = distText.GetComponent<RectTransform>();
-            distRect.anchoredPosition = new Vector2(0, -32);
+            distRect.anchoredPosition = new Vector2(0, -68);
             
             // Make it a button
             var button = marker.AddComponent<Button>();
@@ -2904,6 +2906,33 @@ namespace BlackBartsGold.Core
             text.raycastTarget = false;
             
             return button;
+        }
+
+        private void StyleMapZoomButton(Button button)
+        {
+            if (button == null) return;
+
+            var image = button.GetComponent<Image>();
+            if (image != null)
+            {
+                // Subtle instrument-style edge definition for outdoor readability.
+                var outline = button.GetComponent<Outline>() ?? button.gameObject.AddComponent<Outline>();
+                outline.effectColor = new Color(0.95f, 0.8f, 0.35f, 0.35f);
+                outline.effectDistance = new Vector2(2f, -2f);
+                outline.useGraphicAlpha = true;
+
+                var shadow = button.GetComponent<Shadow>() ?? button.gameObject.AddComponent<Shadow>();
+                shadow.effectColor = new Color(0f, 0f, 0f, 0.25f);
+                shadow.effectDistance = new Vector2(3f, -3f);
+                shadow.useGraphicAlpha = true;
+            }
+
+            var text = button.transform.Find("Text")?.GetComponent<TextMeshProUGUI>();
+            if (text != null)
+            {
+                text.color = new Color(0.98f, 0.96f, 0.86f, 1f);
+                text.fontStyle = FontStyles.Bold;
+            }
         }
         
         #endregion

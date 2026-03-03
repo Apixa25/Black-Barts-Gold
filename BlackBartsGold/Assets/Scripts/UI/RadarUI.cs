@@ -180,7 +180,7 @@ namespace BlackBartsGold.UI
         #region Private Fields
 
         private const float BaseRadarRadiusPixels = 60f;
-        private const float BaseDotSizePixels = 8f;
+        private const float BaseDotSizePixels = 16f;
         private const float MinRadarRangeMeters = 15f;
         private const float MaxRadarRangeMeters = 200f;
         private const float AutoZoomPaddingMultiplier = 1.35f;
