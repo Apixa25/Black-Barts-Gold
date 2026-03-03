@@ -45,6 +45,7 @@ namespace BlackBartsGold.UI
         private bool _mapCoinIconLoadLogged = false;
         private Sprite _directionArrowSprite;
         private Sprite _radarCircleMaskSprite;
+        private Sprite _radarRingSprite;
         private const float _miniMapUiScale = 2f; // Single tuning point for AR mini-map sizing
         private const float _radarBaseSize = 360f;
         private float _lastRadarControlsRefresh;
@@ -1638,6 +1639,40 @@ namespace BlackBartsGold.UI
             EnsureMapboxService();
             Debug.Log("[ARHuntSceneSetup] Map tile wired - will fetch from Mapbox");
 
+            // Decorative instrument-style ring: subtle gold circular border.
+            var ring = radar.Find("RadarRing");
+            if (ring == null || !ring.gameObject)
+            {
+                var ringGO = new GameObject("RadarRing");
+                ringGO.transform.SetParent(radar, false);
+                var ringRect = ringGO.AddComponent<RectTransform>();
+                ringRect.anchorMin = Vector2.zero;
+                ringRect.anchorMax = Vector2.one;
+                ringRect.offsetMin = Vector2.zero;
+                ringRect.offsetMax = Vector2.zero;
+                var ringImage = ringGO.AddComponent<Image>();
+                ringImage.sprite = GetOrCreateRadarRingSprite();
+                ringImage.color = new Color(1f, 0.84f, 0f, 0.55f);
+                ringImage.raycastTarget = false;
+                ringImage.preserveAspect = false;
+                ringGO.transform.SetAsLastSibling();
+                DiagnosticLog.Log("Radar", "Created RadarRing overlay");
+            }
+            else
+            {
+                var ringRect = ring.GetComponent<RectTransform>() ?? ring.gameObject.AddComponent<RectTransform>();
+                ringRect.anchorMin = Vector2.zero;
+                ringRect.anchorMax = Vector2.one;
+                ringRect.offsetMin = Vector2.zero;
+                ringRect.offsetMax = Vector2.zero;
+                var ringImage = ring.GetComponent<Image>() ?? ring.gameObject.AddComponent<Image>();
+                ringImage.sprite = GetOrCreateRadarRingSprite();
+                ringImage.color = new Color(1f, 0.84f, 0f, 0.55f);
+                ringImage.raycastTarget = false;
+                ringImage.preserveAspect = false;
+                ring.SetAsLastSibling();
+            }
+
             // Player dot at center
             var playerDot = radar.Find("PlayerDot");
             if (playerDot == null || !playerDot.gameObject)
@@ -2892,6 +2927,49 @@ namespace BlackBartsGold.UI
             );
             DiagnosticLog.Log("Setup", "Generated radar circular mask sprite");
             return _radarCircleMaskSprite;
+        }
+
+        private Sprite GetOrCreateRadarRingSprite()
+        {
+            if (_radarRingSprite != null)
+            {
+                return _radarRingSprite;
+            }
+
+            const int size = 256;
+            const float thickness = 6f;
+            float outerRadius = (size * 0.5f) - 1f;
+            float innerRadius = Mathf.Max(outerRadius - thickness, 1f);
+            float outerRadiusSq = outerRadius * outerRadius;
+            float innerRadiusSq = innerRadius * innerRadius;
+
+            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false);
+            tex.filterMode = FilterMode.Bilinear;
+
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x - (size * 0.5f) + 0.5f;
+                    float dy = y - (size * 0.5f) + 0.5f;
+                    float distSq = dx * dx + dy * dy;
+                    bool inRing = distSq <= outerRadiusSq && distSq >= innerRadiusSq;
+                    byte a = inRing ? (byte)255 : (byte)0;
+                    pixels[(y * size) + x] = new Color32(255, 255, 255, a);
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply(false, false);
+            _radarRingSprite = Sprite.Create(
+                tex,
+                new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f),
+                100f
+            );
+            DiagnosticLog.Log("Setup", "Generated radar ring sprite");
+            return _radarRingSprite;
         }
         
         /// <summary>
