@@ -2072,6 +2072,8 @@ namespace BlackBartsGold.UI
                 panelRect.anchoredPosition = new Vector2(20, -20);
                 panelRect.sizeDelta = new Vector2(560, 360);
 
+                // Ensure required UI renderer component exists to avoid runtime nulls on some scene roots.
+                var panelRenderer = panel.GetComponent<CanvasRenderer>() ?? panel.gameObject.AddComponent<CanvasRenderer>();
                 var bgImage = panel.GetComponent<Image>() ?? panel.gameObject.AddComponent<Image>();
                 bgImage.color = new Color(0, 0, 0, 0.7f);
                 bgImage.raycastTarget = false;
@@ -2096,14 +2098,45 @@ namespace BlackBartsGold.UI
                 textRect.offsetMin = new Vector2(12, 12);
                 textRect.offsetMax = new Vector2(-12, -12);
 
-                _sensorStatusText = textTransform.GetComponent<TextMeshProUGUI>() ?? textTransform.gameObject.AddComponent<TextMeshProUGUI>();
-                _sensorStatusText.fontSize = 18;
-                _sensorStatusText.color = Color.white;
-                _sensorStatusText.alignment = TextAlignmentOptions.TopLeft;
-                _sensorStatusText.enableWordWrapping = true;
-                _sensorStatusText.richText = true;
-                _sensorStatusText.raycastTarget = false;
-                _sensorStatusText.text = BuildSensorStatusString();
+                var textRenderer = textTransform.GetComponent<CanvasRenderer>() ?? textTransform.gameObject.AddComponent<CanvasRenderer>();
+                _sensorStatusText = null;
+                bool tmpReady = false;
+                try
+                {
+                    _sensorStatusText = textTransform.GetComponent<TextMeshProUGUI>() ?? textTransform.gameObject.AddComponent<TextMeshProUGUI>();
+                    if (_sensorStatusText != null)
+                    {
+                        _sensorStatusText.fontSize = 18;
+                        _sensorStatusText.color = Color.white;
+                        _sensorStatusText.alignment = TextAlignmentOptions.TopLeft;
+                        _sensorStatusText.enableWordWrapping = true;
+                        _sensorStatusText.richText = true;
+                        _sensorStatusText.raycastTarget = false;
+                        _sensorStatusText.text = BuildSensorStatusString();
+                        tmpReady = true;
+                    }
+                }
+                catch (System.Exception tmpEx)
+                {
+                    DiagnosticLog.Error("Setup", $"Sensor HUD TMP setup failed: {tmpEx.GetType().Name}: {tmpEx.Message}\n{tmpEx.StackTrace}");
+                }
+
+                // Fallback path: keep panel visible even if TMP cannot initialize.
+                if (!tmpReady)
+                {
+                    var fallbackText = textTransform.GetComponent<Text>() ?? textTransform.gameObject.AddComponent<Text>();
+                    fallbackText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                    fallbackText.fontSize = 18;
+                    fallbackText.color = Color.white;
+                    fallbackText.alignment = TextAnchor.UpperLeft;
+                    fallbackText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    fallbackText.verticalOverflow = VerticalWrapMode.Overflow;
+                    fallbackText.raycastTarget = false;
+                    fallbackText.text = BuildSensorStatusString()
+                        .Replace("<b>", string.Empty)
+                        .Replace("</b>", string.Empty);
+                    DiagnosticLog.Warn("Setup", "Sensor HUD using legacy Text fallback (TMP unavailable)");
+                }
 
                 panel.gameObject.SetActive(true);
                 _sensorStatusPanel = panel;
@@ -2112,7 +2145,7 @@ namespace BlackBartsGold.UI
             }
             catch (System.Exception ex)
             {
-                DiagnosticLog.Error("Setup", $"SetupSensorStatusPanel exception: {ex.GetType().Name}: {ex.Message}");
+                DiagnosticLog.Error("Setup", $"SetupSensorStatusPanel exception: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
