@@ -1509,13 +1509,29 @@ namespace BlackBartsGold.UI
             DiagnosticLog.Log("Setup", "Setting up RadarPanel...");
             
             var radar = transform.Find("RadarPanel");
+            if (radar != null && !radar)
+            {
+                radar = null;
+            }
+
+            if (radar != null)
+            {
+                // Defensive: if legacy scene object is malformed, rebuild to avoid startup null refs.
+                var existingRect = radar.GetComponent<RectTransform>();
+                if (existingRect == null)
+                {
+                    DiagnosticLog.Warn("Radar", "Found malformed RadarPanel (no RectTransform) - rebuilding");
+                    Destroy(radar.gameObject);
+                    radar = null;
+                }
+            }
+
             if (radar == null)
             {
                 // Create RadarPanel from code for fully code-based setup
-                var radarGO = new GameObject("RadarPanel");
+                var radarGO = new GameObject("RadarPanel", typeof(RectTransform));
                 radarGO.transform.SetParent(transform, false);
                 radar = radarGO.transform;
-                radarGO.AddComponent<RectTransform>();
                 radarGO.AddComponent<RadarUI>();
                 DiagnosticLog.Log("Setup", "Created RadarPanel from code");
             }
@@ -1574,6 +1590,11 @@ namespace BlackBartsGold.UI
             
             // Wire RadarUI and create radar content (player dot, coin sprite) - code-only
             var radarUI = radar.GetComponent<RadarUI>();
+            if (radarUI == null)
+            {
+                radarUI = radar.gameObject.AddComponent<RadarUI>();
+                DiagnosticLog.Log("Radar", "Added missing RadarUI component to RadarPanel");
+            }
             if (radarUI != null)
             {
                 // Keep the primary radar reference even if optional zoom controls fail.
