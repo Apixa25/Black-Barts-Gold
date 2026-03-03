@@ -82,9 +82,8 @@ namespace BlackBartsGold.UI
         private float onScreenHysteresisDegrees = 6f;
         
         [SerializeField]
-        [Tooltip("Vertical anchor bias for indicator track (0 = center, 1 = bottom edge)")]
-        [Range(0f, 1f)]
-        private float lowerTrackBias = 0.75f;
+        [Tooltip("Fixed vertical lane for the indicator, relative to center (negative = lower screen)")]
+        private float fixedLaneY = -220f;
         
         [Header("Colors")]
         [SerializeField]
@@ -520,13 +519,12 @@ namespace BlackBartsGold.UI
             float halfH = screenHeight * 0.5f;
             float sideX = Mathf.Max(80f, halfW - edgePadding);
             float topY = Mathf.Max(120f, halfH - edgePadding);
-            float trackY = Mathf.Lerp(0f, -Mathf.Max(120f, halfH - edgePadding), Mathf.Clamp01(lowerTrackBias));
-            float lowerY = Mathf.Min(trackY + 40f, -40f);
-            float upperY = Mathf.Max(trackY + 180f, 80f);
+            float laneY = Mathf.Clamp(fixedLaneY, -(halfH - 90f), halfH - 90f);
             
             if (IsCoinOnScreen)
             {
-                indicatorContainer.anchoredPosition = new Vector2(0f, upperY);
+                // Keep straight-ahead guidance on the same horizontal lane (no jump back to screen center).
+                indicatorContainer.anchoredPosition = new Vector2(0f, laneY);
                 return;
             }
             
@@ -535,13 +533,13 @@ namespace BlackBartsGold.UI
             
             if (absBearing < 120f)
             {
-                indicatorContainer.anchoredPosition = new Vector2(sign * sideX, lowerY);
+                indicatorContainer.anchoredPosition = new Vector2(sign * sideX, laneY);
             }
             else
             {
                 float xHint = sign * Mathf.Min(sideX * 0.35f, 220f);
-                // Keep rear-target hint in lower third instead of center.
-                indicatorContainer.anchoredPosition = new Vector2(xHint, Mathf.Min(topY, upperY));
+                // Keep rear-target hint on the same lane for consistent visual tracking.
+                indicatorContainer.anchoredPosition = new Vector2(xHint, laneY);
             }
         }
         

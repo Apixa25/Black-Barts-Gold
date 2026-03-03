@@ -863,6 +863,7 @@ namespace BlackBartsGold.UI
                 var go = rect.gameObject;
                 if (go == null || !go.activeInHierarchy) continue;
                 if (go.name == "BackButton" || go.name == "RadarPanel" || go.name == "MessagePanel") continue;
+                if (go.name == SensorHudPanelName || go.name == SensorHudTextName) continue;
 
                 bool anchorBottomLeft = rect.anchorMin.x <= 0.05f && rect.anchorMin.y <= 0.05f
                     && rect.anchorMax.x <= 0.05f && rect.anchorMax.y <= 0.05f;
@@ -903,6 +904,7 @@ namespace BlackBartsGold.UI
                 var killTarget = owner != null ? owner.gameObject : go;
                 if (killTarget == null || killTarget == gameObject) continue;
                 if (killTarget.name == "BackButton" || killTarget.name == "RadarPanel" || killTarget.name == "MessagePanel") continue;
+                if (killTarget.name == SensorHudPanelName || killTarget.name == SensorHudTextName) continue;
 
                 killTarget.SetActive(false);
                 Destroy(killTarget);
