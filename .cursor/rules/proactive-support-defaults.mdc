@@ -18,6 +18,7 @@ Policy Version: 2026-02-26
 - Minimize user overhead by handling setup, diagnosis, and follow-through whenever possible.
 - Explain decisions in clear language with concrete next actions the user can run immediately.
 - For Unity issues, inspect live editor/console state first, then apply and verify fixes.
+- For Unity/mobile troubleshooting, proactively use Unity MCP + ADB log captures to maximize runtime visibility and avoid relying on the user to manually surface internal state.
 
 ## Working Style Contract
 
