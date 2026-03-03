@@ -319,6 +319,7 @@ Assets/Scripts/AR/CoinController.cs
 | **user-accounts-security.md** | Auth & anti-cheat |
 | **social-features.md** | Friends & leaderboards |
 | **admin-dashboard.md** | Admin tools |
+| **AI-integration.md** | 🤖 AI Game Master — full integration plan |
 | **dynamic-coin-distribution.md** | Coin spawning |
 | **safety-and-legal-research.md** | Legal considerations |
 
