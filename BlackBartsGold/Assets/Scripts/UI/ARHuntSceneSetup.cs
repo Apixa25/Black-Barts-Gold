@@ -78,6 +78,9 @@ namespace BlackBartsGold.UI
         private TextMeshProUGUI _sensorStatusText;
         private Transform _sensorStatusPanel;
         private const bool EnableRuntimeDevConsole = false;
+        private const bool EnableRuntimeSensorDebugHud = true;
+        private const string SensorHudPanelName = "SensorDebugHudPanel";
+        private const string SensorHudTextName = "SensorDebugHudText";
         
         private void Start()
         {
@@ -95,7 +98,7 @@ namespace BlackBartsGold.UI
             
             SetupCanvas();
             HardGlobalKillPass("start");
-            if (EnableRuntimeDevConsole)
+            if (EnableRuntimeDevConsole || EnableRuntimeSensorDebugHud)
             {
                 InitializeDevelopmentConsoleSensors();
             }
@@ -105,7 +108,7 @@ namespace BlackBartsGold.UI
             SetupCrosshairs();
             SetupRadarPanel();
             RemoveDevelopmentConsolePanel();
-            if (EnableRuntimeDevConsole)
+            if (EnableRuntimeSensorDebugHud)
             {
                 SetupSensorStatusPanel();
             }
@@ -178,7 +181,7 @@ namespace BlackBartsGold.UI
                 TraceTapRaycastTargets();
             }
 
-            if (EnableRuntimeDevConsole && _sensorStatusText != null && Time.time - _lastSensorConsoleRefresh >= _sensorConsoleRefreshInterval)
+            if (EnableRuntimeSensorDebugHud && _sensorStatusText != null && Time.time - _lastSensorConsoleRefresh >= _sensorConsoleRefreshInterval)
             {
                 _lastSensorConsoleRefresh = Time.time;
                 _sensorStatusText.text = BuildSensorStatusString();
@@ -216,7 +219,7 @@ namespace BlackBartsGold.UI
                 DiagnosticLog.Log("Setup", $"Heartbeat t={Time.time:F1}s devConsole={debugPanelPresent} radarUI={(_radarZoomRadarUI != null)} mapTile={(_radarMapTileImage != null)}");
             }
 
-            if (EnableRuntimeDevConsole && Time.time - _lastAdbSensorSnapshotLog >= _adbSensorSnapshotInterval)
+            if ((EnableRuntimeDevConsole || EnableRuntimeSensorDebugHud) && Time.time - _lastAdbSensorSnapshotLog >= _adbSensorSnapshotInterval)
             {
                 _lastAdbSensorSnapshotLog = Time.time;
                 EmitPeriodicSensorSnapshotLog();
@@ -344,26 +347,29 @@ namespace BlackBartsGold.UI
 
                 bool gyroOn = (_gyroscope != null && _gyroscope.enabled) || Input.gyro.enabled;
                 bool gyroWorking = false;
+                Vector3 gyroRate = Vector3.zero;
                 if (_gyroscope != null && _gyroscope.enabled)
                 {
-                    Vector3 rate = _gyroscope.angularVelocity.ReadValue();
-                    gyroWorking = rate.sqrMagnitude > 0.0001f;
+                    gyroRate = _gyroscope.angularVelocity.ReadValue();
+                    gyroWorking = gyroRate.sqrMagnitude > 0.0001f;
                 }
 
                 bool accelOn = _accelerometer != null && _accelerometer.enabled;
                 bool accelWorking = false;
+                Vector3 accelValue = Vector3.zero;
                 if (accelOn)
                 {
-                    Vector3 accel = _accelerometer.acceleration.ReadValue();
-                    accelWorking = accel.sqrMagnitude > 0.01f;
+                    accelValue = _accelerometer.acceleration.ReadValue();
+                    accelWorking = accelValue.sqrMagnitude > 0.01f;
                 }
 
                 bool gravityOn = _gravitySensor != null && _gravitySensor.enabled;
                 bool gravityWorking = false;
+                Vector3 gravityValue = Vector3.zero;
                 if (gravityOn)
                 {
-                    Vector3 grav = _gravitySensor.gravity.ReadValue();
-                    gravityWorking = grav.sqrMagnitude > 0.01f;
+                    gravityValue = _gravitySensor.gravity.ReadValue();
+                    gravityWorking = gravityValue.sqrMagnitude > 0.01f;
                 }
 
                 bool attitudeOn = _attitudeSensor != null && _attitudeSensor.enabled;
@@ -376,10 +382,11 @@ namespace BlackBartsGold.UI
 
                 bool magOn = _magneticFieldSensor != null && _magneticFieldSensor.enabled;
                 bool magWorking = false;
+                Vector3 magValue = Vector3.zero;
                 if (magOn)
                 {
-                    Vector3 mag = _magneticFieldSensor.magneticField.ReadValue();
-                    magWorking = mag.sqrMagnitude > 1f;
+                    magValue = _magneticFieldSensor.magneticField.ReadValue();
+                    magWorking = magValue.sqrMagnitude > 1f;
                 }
 
                 string metersToCoin = "n/a";
@@ -392,16 +399,22 @@ namespace BlackBartsGold.UI
                     }
                 }
 
-                sb.AppendLine("<b>SENSOR STATUS</b>");
+                sb.AppendLine("<b>SENSOR DEBUG HUD</b>");
+                sb.AppendLine($"t={Time.time:F1}s");
                 sb.AppendLine($"AR: {arState}");
-                sb.AppendLine($"Compass: {(compassOn ? "ON" : "OFF")}/{(compassWorking ? "YES" : "NO")}  {DeviceCompass.Heading:F1} deg");
+                sb.AppendLine($"Compass: {(compassOn ? "ON" : "OFF")}/{(compassWorking ? "YES" : "NO")}  heading={DeviceCompass.Heading:F1} deg  method={DeviceCompass.ActiveMethod}");
                 sb.AppendLine($"Coin distance: {metersToCoin}");
                 sb.AppendLine($"GPS: {(gpsOn ? "ON" : "OFF")}/{(gpsWorking ? "YES" : "NO")}  acc={(gpsAcc >= 0f ? $"{gpsAcc:F1}m" : "n/a")}");
-                sb.AppendLine($"Gyro: {(gyroOn ? "ON" : "OFF")}/{(gyroWorking ? "YES" : "NO")}");
-                sb.AppendLine($"Accel: {(accelOn ? "ON" : "OFF")}/{(accelWorking ? "YES" : "NO")}");
-                sb.AppendLine($"Gravity: {(gravityOn ? "ON" : "OFF")}/{(gravityWorking ? "YES" : "NO")}");
+                if (gpsWorking)
+                {
+                    sb.AppendLine($"GPS lat/lng: {gpsManager.CurrentLocation.latitude:F6}, {gpsManager.CurrentLocation.longitude:F6}");
+                }
+                sb.AppendLine($"Gyro: {(gyroOn ? "ON" : "OFF")}/{(gyroWorking ? "YES" : "NO")}  w=({gyroRate.x:F2},{gyroRate.y:F2},{gyroRate.z:F2})");
+                sb.AppendLine($"Accel: {(accelOn ? "ON" : "OFF")}/{(accelWorking ? "YES" : "NO")}  a=({accelValue.x:F2},{accelValue.y:F2},{accelValue.z:F2})");
+                sb.AppendLine($"Gravity: {(gravityOn ? "ON" : "OFF")}/{(gravityWorking ? "YES" : "NO")}  g=({gravityValue.x:F2},{gravityValue.y:F2},{gravityValue.z:F2})");
                 sb.AppendLine($"Attitude: {(attitudeOn ? "ON" : "OFF")}/{(attitudeWorking ? "YES" : "NO")}");
-                sb.AppendLine($"MagField: {(magOn ? "ON" : "OFF")}/{(magWorking ? "YES" : "NO")}");
+                sb.AppendLine($"MagField: {(magOn ? "ON" : "OFF")}/{(magWorking ? "YES" : "NO")}  m=({magValue.x:F1},{magValue.y:F1},{magValue.z:F1})");
+                sb.AppendLine("Satellites: n/a (not exposed by current Unity location API path)");
 
                 return sb.ToString();
             }
@@ -2026,10 +2039,10 @@ namespace BlackBartsGold.UI
         {
             try
             {
-                Transform panel = transform.Find("SensorStatusPanel");
+                Transform panel = transform.Find(SensorHudPanelName);
                 if (panel == null || !panel)
                 {
-                    var panelGO = new GameObject("SensorStatusPanel");
+                    var panelGO = new GameObject(SensorHudPanelName);
                     panelGO.transform.SetParent(transform, false);
                     panel = panelGO.transform;
                 }
@@ -2041,20 +2054,20 @@ namespace BlackBartsGold.UI
                 }
 
                 var panelRect = panel.GetComponent<RectTransform>() ?? panel.gameObject.AddComponent<RectTransform>();
-                panelRect.anchorMin = new Vector2(0, 0);
-                panelRect.anchorMax = new Vector2(0, 0);
-                panelRect.pivot = new Vector2(0, 0);
-                panelRect.anchoredPosition = new Vector2(20, 20);
-                panelRect.sizeDelta = new Vector2(520, 320);
+                panelRect.anchorMin = new Vector2(0, 1);
+                panelRect.anchorMax = new Vector2(0, 1);
+                panelRect.pivot = new Vector2(0, 1);
+                panelRect.anchoredPosition = new Vector2(20, -20);
+                panelRect.sizeDelta = new Vector2(560, 360);
 
                 var bgImage = panel.GetComponent<Image>() ?? panel.gameObject.AddComponent<Image>();
                 bgImage.color = new Color(0, 0, 0, 0.7f);
                 bgImage.raycastTarget = false;
 
-                Transform textTransform = panel.Find("SensorText");
+                Transform textTransform = panel.Find(SensorHudTextName);
                 if (textTransform == null || !textTransform)
                 {
-                    var textGO = new GameObject("SensorText");
+                    var textGO = new GameObject(SensorHudTextName);
                     textGO.transform.SetParent(panel, false);
                     textTransform = textGO.transform;
                 }
@@ -2083,7 +2096,7 @@ namespace BlackBartsGold.UI
                 panel.gameObject.SetActive(true);
                 _sensorStatusPanel = panel;
                 panel.SetAsLastSibling();
-                DiagnosticLog.Log("Setup", "SensorStatusPanel created");
+                DiagnosticLog.Log("Setup", "SensorDebugHudPanel created");
             }
             catch (System.Exception ex)
             {
@@ -2095,7 +2108,7 @@ namespace BlackBartsGold.UI
         {
             if (_sensorStatusPanel == null || !_sensorStatusPanel)
             {
-                _sensorStatusPanel = transform.Find("SensorStatusPanel");
+                _sensorStatusPanel = transform.Find(SensorHudPanelName);
             }
 
             if (_sensorStatusPanel == null || !_sensorStatusPanel) return;
@@ -2103,7 +2116,7 @@ namespace BlackBartsGold.UI
             if (!_sensorStatusPanel.gameObject.activeSelf)
             {
                 _sensorStatusPanel.gameObject.SetActive(true);
-                DiagnosticLog.Warn("Setup", "SensorStatusPanel was hidden and has been re-enabled");
+                DiagnosticLog.Warn("Setup", "SensorDebugHudPanel was hidden and has been re-enabled");
             }
         }
 
