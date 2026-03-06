@@ -23,6 +23,15 @@ export type CoinTier = 'gold' | 'silver' | 'bronze'
 /** Which 3D coin graphic to show in AR (Unity app) */
 export type CoinModel = 'bb_gold' | 'prize_race' | 'color_bb'
 
+/** Who/what created a coin — added in Migration 014 */
+export type CoinCreatedBy =
+  | 'system'
+  | 'admin'
+  | 'user'
+  | 'ai_spawn_governor'
+  | 'ai_game_master'
+  | 'ai_economy_balancer'
+
 export interface Coin {
   id: string
   coin_type: CoinType
@@ -44,6 +53,10 @@ export interface Coin {
   description: string | null
   /** Which coin model/graphic to use in AR (bb_gold = Black Bart, prize_race = Prize Race). Optional until migration 011 applied. */
   coin_model?: CoinModel
+  /** Who/what created this coin. Added in Migration 014. */
+  created_by: CoinCreatedBy
+  /** AI agent context attached at spawn time (hunt pressure, weather, reasoning). Added in Migration 014. */
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -862,8 +875,16 @@ export type DistributionSystemStatus = 'running' | 'paused' | 'stopped' | 'error
  * - scheduled: Scheduled release
  * - manual: Admin triggered spawn
  * - recycle: Recycled stale coin
+ * - ai_spawn_governor: Spawn Governor AI agent (added Migration 014)
+ * - ai_game_master: Black Bart AI character agent (added Migration 014)
  */
-export type SpawnTriggerType = 'auto' | 'scheduled' | 'manual' | 'recycle'
+export type SpawnTriggerType =
+  | 'auto'
+  | 'scheduled'
+  | 'manual'
+  | 'recycle'
+  | 'ai_spawn_governor'
+  | 'ai_game_master'
 
 /**
  * Value distribution strategy
@@ -1067,6 +1088,92 @@ export type DistributionAction =
   | { type: 'recycle_stale'; zone_id?: string }
   | { type: 'clear_queue' }
   | { type: 'update_config'; config: Partial<DistributionConfig> }
+
+// ============================================================================
+// AI AGENT TYPES — Phase AI-1: AI Integration (Migration 014)
+// ============================================================================
+
+/**
+ * AI agent identifiers — must match CHECK constraint in ai_actions table
+ */
+export type AiAgentId =
+  | 'ai_spawn_governor'
+  | 'ai_game_master'
+  | 'ai_economy_balancer'
+  | 'ai_churn_agent'
+
+/**
+ * A single entry in the ai_actions audit log table
+ */
+export interface AiAction {
+  id: string
+  agent_id: AiAgentId
+  tool_called: string
+  parameters: Record<string, unknown>
+  reasoning: string | null
+  result: Record<string, unknown> | null
+  success: boolean
+  error_code: string | null
+  cost_usd: number
+  created_at: string
+}
+
+/**
+ * Summary statistics for the AI activity dashboard
+ */
+export interface AiActionsSummary {
+  total_actions: number
+  total_cost_usd: number
+  success_rate: number
+  coins_spawned: number
+  coins_recycled: number
+  most_active_agent: AiAgentId | null
+}
+
+/**
+ * Per-zone hunt pressure data returned by GET /api/v1/admin/ai/hunt-pressure
+ */
+export interface ZoneHuntPressure {
+  zone_id: string
+  zone_name: string
+  zone_type: ZoneType
+  center: { latitude: number; longitude: number }
+  active_player_count: number
+  active_coin_count: number
+  hunt_pressure: number
+  needs_spawn: boolean
+  coins_to_spawn: number
+  player_tier_distribution: {
+    cabin_boy: number
+    deck_hand: number
+    captain: number
+    king_of_pirates: number
+  }
+  recommended_spawn_tier: CoinTier
+}
+
+/**
+ * Economy health snapshot returned by GET /api/v1/admin/ai/economy-health
+ */
+export type EconomyStatus = 'healthy' | 'oversupply' | 'undersupply' | 'margin_risk'
+
+export interface EconomyHealth {
+  coins_spawned_today: number
+  coins_collected_today: number
+  coins_recycled_today: number
+  active_coins_total: number
+  supply_demand_ratio: number
+  value_spawned_today_usd: number
+  value_collected_today_usd: number
+  gas_revenue_today_usd: number
+  net_margin_today_usd: number
+  avg_time_to_collection_hours: number
+  avg_coin_value_usd: number
+  ai_spend_today_usd: number
+  ai_spend_this_hour_usd: number
+  ai_actions_today: number
+  economy_status: EconomyStatus
+}
 
 /**
  * Zone spawn preview - for visualizing where coins would spawn
