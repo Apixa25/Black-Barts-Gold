@@ -320,6 +320,8 @@ Assets/Scripts/AR/CoinController.cs
 | **social-features.md** | Friends & leaderboards |
 | **admin-dashboard.md** | Admin tools |
 | **AI-integration.md** | 🤖 AI Game Master — full integration plan |
+| **game-mechanics-design.md** | 🎮 Perks, streaks, contracts, battle pass, competitive systems |
+| **pvp-game-design.md** | ⚔️ PvP interaction, coin types, player-as-coin modes, safety |
 | **dynamic-coin-distribution.md** | Coin spawning |
 | **safety-and-legal-research.md** | Legal considerations |
 
