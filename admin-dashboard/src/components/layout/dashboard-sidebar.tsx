@@ -14,6 +14,7 @@ import {
   Settings,
   MapPinned,
   Navigation,
+  Bot,
 } from "lucide-react"
 
 interface DashboardSidebarProps {
@@ -22,6 +23,7 @@ interface DashboardSidebarProps {
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Black Bart AI", href: "/ai-governor", icon: Bot },
   { name: "Live Players", href: "/players", icon: Navigation },
   { name: "Users", href: "/users", icon: Users },
   { name: "Coins", href: "/coins", icon: Coins },
