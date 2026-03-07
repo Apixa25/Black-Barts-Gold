@@ -30,6 +30,72 @@ Black Bart's Gold is an augmented reality mobile game where players hunt for vir
 
 ---
 
+## 🤖 AI-First Architecture (The Big Idea)
+
+### What "AI-First" Means
+
+Most apps are built for one user: a human with a screen. This project is built for **two users simultaneously**:
+
+1. 🧑 **The human admin** — opens a browser, reads cards, clicks buttons
+2. 🤖 **The AI agent (Black Bart)** — makes HTTP calls, reads JSON, takes actions autonomously
+
+The philosophy: **design the app for the AI, and it becomes better for humans too.** The AI forces clean APIs, structured data, and clear logic — which also makes the human dashboard faster and more reliable.
+
+### The Ranch Mental Model
+
+Think of the full system as a working ranch:
+
+| Layer | Ranch Analogy | Tech Equivalent |
+|-------|--------------|-----------------|
+| **The Land** | Terrain, water, grass | Supabase database |
+| **The Ranch House** | Operations hub, records | Admin dashboard (Next.js) |
+| **The Foreman** | Makes daily decisions autonomously | Spawn Governor (Edge Function) |
+| **The Owner** | Sets rules, can override anything | Human admin (you) |
+| **The Fence** | Keeps things from going wrong | Guardrails ($10/hr cap, kill switch) |
+
+The AI Foreman runs the ranch day-to-day. You look at the reports and can step in any time. You don't have to be there for the ranch to run.
+
+### The 5 AI-First Design Rules
+
+Every AI-facing feature in this project follows these five rules:
+
+1. **Action-verb endpoints** — Routes read like decisions (`spawn_coin`, `recycle_stale_coins`, `get_hunt_pressure`), not CRUD forms
+2. **`meta` blocks with recommended actions** — Every API response tells the AI what to do next (`meta.recommended_action`, `meta.economy_status`, `meta.alerts`)
+3. **`ai_actions` audit log** — Every AI decision is recorded with `agent_id`, `tool_called`, `reasoning`, `cost_usd`, `success`
+4. **Hard guardrails in the API layer** — Spend limits, kill switch, idempotency keys, and approval thresholds are enforced server-side. The AI cannot bypass them no matter how its reasoning loop behaves
+5. **MCP server as remote control** — A standardized interface (Model Context Protocol) lets any LLM (Claude, GPT, Gemini) call the game's functions as tools. The AI says "call `spawn_coin`" and the MCP server handles auth, validation, and the actual API call
+
+### The 4-Layer Technical Stack (AI path)
+
+```
+Claude / GPT / any LLM
+        ↓  (calls tool by name)
+MCP Server (mcp-server/)          ← tool definitions, input schemas
+        ↓  (authenticated HTTP)
+Admin AI API Routes                ← guardrails enforced here
+  /api/v1/admin/ai/spawn
+  /api/v1/admin/ai/hunt-pressure
+  /api/v1/admin/ai/economy-health
+  /api/v1/admin/ai/recycle-stale
+  /api/v1/admin/ai/actions
+        ↓  (reads/writes)
+Supabase PostgreSQL                ← source of truth
+  coins, ai_actions, zones,
+  distribution_config, spawn_history
+```
+
+### The Black Bart Command Center (Admin UI)
+
+The human-facing window into what the AI is doing:
+- **5 KPI cards** — economy status, hourly spend, actions today, active coins, kill switch toggle
+- **Hunt pressure grid** — per-zone live pressure scores (players ÷ coins), color coded hot/warm/cool
+- **Economy health panel** — supply/demand ratio, net margin, spawn/collect/recycle counts
+- **Action feed** — real-time log of every AI decision with agent, tool, reasoning, cost, timestamp
+- **"Summon Black Bart" button** — manually triggers a full governor cycle immediately
+- **Auto-refreshes every 15 seconds** — dies when the tab closes (zero background cost)
+
+---
+
 ## 🛠️ Technology Stack
 
 ### Why Unity + AR Foundation?
@@ -319,6 +385,7 @@ Assets/Scripts/AR/CoinController.cs
 | **user-accounts-security.md** | Auth & anti-cheat |
 | **social-features.md** | Friends & leaderboards |
 | **admin-dashboard.md** | Admin tools |
+| **session-handoff.md** | 🔁 **READ SECOND** — Current build state, tactical next steps, vocabulary |
 | **AI-integration.md** | 🤖 AI Game Master — full integration plan |
 | **AI-INTEGRATION-SPEC.md** | 🔧 AI integration technical build spec — exact SQL, routes, MCP tools |
 | **game-mechanics-design.md** | 🎮 Perks, streaks, contracts, battle pass, competitive systems |
