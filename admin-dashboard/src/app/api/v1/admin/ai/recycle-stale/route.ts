@@ -17,10 +17,13 @@ import {
   AI_ERROR_CODES,
   type AiAgentId,
 } from '@/lib/ai-guardrails'
+import { isValidAiApiKey, unauthorizedResponse } from '@/lib/ai-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  if (!isValidAiApiKey(request)) return unauthorizedResponse()
+
   let body: Record<string, unknown>
   try {
     body = await request.json()

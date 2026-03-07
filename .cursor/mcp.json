@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "black-barts-gold": {
+      "command": "npx",
+      "args": ["tsx", "mcp-server/src/index.ts"],
+      "env": {
+        "ADMIN_API_BASE_URL": "http://localhost:3000",
+        "AI_AGENT_API_KEY": ""
+      }
+    }
+  }
+}

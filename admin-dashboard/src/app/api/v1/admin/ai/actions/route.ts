@@ -18,11 +18,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { isValidAiApiKey, unauthorizedResponse } from '@/lib/ai-auth'
 import type { AiAgentId } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
+  if (!isValidAiApiKey(request)) return unauthorizedResponse()
+
   try {
     const params = request.nextUrl.searchParams
 

@@ -15,14 +15,16 @@
  * @file admin-dashboard/src/app/api/v1/admin/ai/economy-health/route.ts
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { AI_AUTONOMOUS_SPEND_LIMIT_USD } from '@/lib/ai-guardrails'
+import { isValidAiApiKey, unauthorizedResponse } from '@/lib/ai-auth'
 import type { EconomyStatus } from '@/types/database'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!isValidAiApiKey(request)) return unauthorizedResponse()
   try {
     const supabase = createServiceRoleClient()
     const todayStart = new Date()
