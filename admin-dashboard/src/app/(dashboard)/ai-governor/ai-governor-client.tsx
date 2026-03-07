@@ -334,12 +334,12 @@ export function AiGovernorClient({
             <Heart
               className={
                 !killSwitchEnabled
-                  ? 'bb-heart-idle h-4 w-4 text-slate-400'
+                  ? 'bb-heart-idle h-12 w-12 text-slate-400'
                   : economyStatus === 'margin_risk'
-                    ? 'bb-heart-stressed h-4 w-4 text-red-500 fill-red-500'
+                    ? 'bb-heart-stressed h-12 w-12 text-red-500 fill-red-500'
                     : secondsSinceRefresh < 5
-                      ? 'bb-heart h-4 w-4 text-red-400 fill-red-400'
-                      : 'bb-heart h-4 w-4 text-red-300 fill-red-300'
+                      ? 'bb-heart h-12 w-12 text-red-400 fill-red-400'
+                      : 'bb-heart h-12 w-12 text-red-300 fill-red-300'
               }
             />
             <span className="text-xs text-leather-light">
