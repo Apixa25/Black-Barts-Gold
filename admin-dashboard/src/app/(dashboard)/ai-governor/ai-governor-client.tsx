@@ -27,7 +27,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   Bot, Zap, DollarSign, Coins, Activity, TrendingUp, TrendingDown,
   RefreshCw, Play, AlertTriangle, CheckCircle2, XCircle, Clock,
-  Users, Flame, Snowflake, BarChart3,
+  Users, Flame, Snowflake, BarChart3, Heart,
 } from 'lucide-react'
 import type { AiAction, ZoneHuntPressure, EconomyStatus } from '@/types/database'
 
@@ -294,6 +294,28 @@ export function AiGovernorClient({
   const alerts = economy?.meta.alerts ?? []
 
   return (
+    <>
+    {/* ── Heartbeat keyframe animation ─────────────────────────────────────── */}
+    <style>{`
+      @keyframes bb-heartbeat {
+        0%, 100% { transform: scale(1);    opacity: 1;    }
+        10%       { transform: scale(1.35); opacity: 1;    }
+        20%       { transform: scale(1);    opacity: 1;    }
+        32%       { transform: scale(1.2);  opacity: 1;    }
+        50%       { transform: scale(1);    opacity: 0.85; }
+      }
+      @keyframes bb-heartbeat-fast {
+        0%, 100% { transform: scale(1);    opacity: 1;    }
+        10%       { transform: scale(1.4);  opacity: 1;    }
+        20%       { transform: scale(1);    opacity: 1;    }
+        32%       { transform: scale(1.25); opacity: 1;    }
+        50%       { transform: scale(1);    opacity: 0.8;  }
+      }
+      .bb-heart          { animation: bb-heartbeat      1.6s ease-in-out infinite; display: inline-block; }
+      .bb-heart-stressed { animation: bb-heartbeat-fast 0.9s ease-in-out infinite; display: inline-block; }
+      .bb-heart-idle     { display: inline-block; opacity: 0.3; }
+    `}</style>
+
     <div className="space-y-6">
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -307,9 +329,27 @@ export function AiGovernorClient({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-leather-light">
-            {secondsSinceRefresh < 5 ? 'Just updated' : `Updated ${secondsSinceRefresh}s ago`}
-          </span>
+          {/* ── Heartbeat indicator ──────────────────────────────────────── */}
+          <div className="flex items-center gap-1.5 select-none">
+            <Heart
+              className={
+                !killSwitchEnabled
+                  ? 'bb-heart-idle h-4 w-4 text-slate-400'
+                  : economyStatus === 'margin_risk'
+                    ? 'bb-heart-stressed h-4 w-4 text-red-500 fill-red-500'
+                    : secondsSinceRefresh < 5
+                      ? 'bb-heart h-4 w-4 text-red-400 fill-red-400'
+                      : 'bb-heart h-4 w-4 text-red-300 fill-red-300'
+              }
+            />
+            <span className="text-xs text-leather-light">
+              {!killSwitchEnabled
+                ? 'AI sleeping'
+                : secondsSinceRefresh < 5
+                  ? 'Just updated'
+                  : `Updated ${secondsSinceRefresh}s ago`}
+            </span>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -717,5 +757,6 @@ export function AiGovernorClient({
         Governor cycle: every 5 minutes
       </div>
     </div>
+    </>
   )
 }
