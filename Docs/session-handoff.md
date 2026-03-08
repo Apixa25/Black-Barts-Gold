@@ -205,6 +205,49 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 
 ---
 
+### Session: 2026-03-08 — Zone Implementation Plan
+
+**What we did:**
+- Turned the S2 zone architecture decision into a concrete implementation sequence
+- Wrote `Docs/zone-implementation-plan.md` as the build guide for the spatial migration
+- Chose **S2 cell tokens stored as text** as the canonical backend spatial identifier format
+- Recommended `s2js` as the initial backend TypeScript S2 library
+
+**Key implementation decisions:**
+- Keep `public.zones` as a **named-zone overlay** system
+- Keep Unity `ProximityZone` untouched as local gameplay feedback
+- Add S2 fields to:
+  - `player_locations`
+  - `coins`
+  - `spawn_history`
+- Make the backend compute canonical spatial context on writes
+- Migrate AI hunt pressure from `current_zone_id` / `spawn_history.zone_id` to **cell-based aggregation**
+
+**Most important architectural pivot:**
+- The AI Governor should stop depending on `spawn_coin(zone_id, ...)` as its primary world primitive
+- Add a new **cell-first** spawn path using explicit lat/lng:
+  - recommended DB function: `spawn_coin_at_location(...)`
+- Keep legacy zone-based spawning alive for backward compatibility and overlay-driven flows
+
+**Recommended build order:**
+1. `017_s2_spatial_context.sql`
+2. `admin-dashboard/src/lib/geo/s2.ts`
+3. Update `POST /api/v1/player/location`
+4. Update `POST /api/v1/coins/hide`
+5. Backfill players + coins
+6. Add `spawn_coin_at_location(...)`
+7. Update AI spawn route
+8. Update `GET /api/v1/admin/ai/hunt-pressure`
+9. Update Spawn Governor caller and dashboard consumers
+
+**Best next coding step:**
+- Implement Phase 1 + Phase 2 + Phase 3 together:
+  - create `017_s2_spatial_context.sql`
+  - add shared S2 helper module
+  - stamp player location writes with `L17` and `L14` tokens
+
+---
+
 ### Session: 2026-03-08 — Zone Architecture Proposal
 
 **What we did:**
