@@ -129,10 +129,12 @@ interface RecycleResponse {
   data?: {
     coins_recycled: number
     zone_id: string | null
+    cell_id?: string | null
   }
   meta?: {
     recommended_action: 'spawn_replacements' | 'no_action_needed'
     zones_affected: string[]
+    cells_affected?: string[]
   }
 }
 
@@ -482,28 +484,26 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
 
     // ────────────────────────────────────────────────────────────────────────
     // STEP 5: Cleanup pass
-    // Legacy recycler is still zone-based, so derive affected overlay zones from dead cells.
+    // Recycle stale coins directly by dead pressure cell.
     // Uses a 6-hour age limit to avoid recycling freshly placed coins.
     // ────────────────────────────────────────────────────────────────────────
     const deadCells = pressure.data.cells.filter(
       (cell) => cell.active_player_count === 0 && cell.active_coin_count > 0
     )
-    const cleanupZoneIds = [...new Set(
-      deadCells.flatMap((cell) => cell.named_zone_overlays.map((overlay) => overlay.zone_id))
-    )]
 
     if (deadCells.length > 0) {
-      console.log(`[SpawnGov] Cleanup pass: ${deadCells.length} dead cell(s), ${cleanupZoneIds.length} overlay zone(s) eligible for recycle`)
+      console.log(`[SpawnGov] Cleanup pass: ${deadCells.length} dead cell(s) eligible for recycle`)
     }
 
-    for (const zoneId of cleanupZoneIds) {
+    for (const cell of deadCells) {
       const recycleRes = await callAdminApi<RecycleResponse>('/api/v1/admin/ai/recycle-stale', {
         method: 'POST',
         body: JSON.stringify({
           agent_id: 'ai_spawn_governor',
-          zone_id: zoneId,
+          cell_id: cell.cell_id,
+          zone_id: cell.named_zone_overlays[0]?.zone_id ?? null,
           reasoning:
-            `Overlay zone ${zoneId} only has stale coins in dead pressure cells. Recycling after 6h.`,
+            `Cell ${cell.cell_id} has 0 active players and ${cell.active_coin_count} stale coin(s). Recycling after 6h.`,
           max_age_hours: 6,
         }),
       })
@@ -512,7 +512,7 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
       result.coins_recycled += recycled
 
       if (recycled > 0) {
-        console.log(`[SpawnGov] Recycled ${recycled} stale coin(s) in overlay zone ${zoneId}`)
+        console.log(`[SpawnGov] Recycled ${recycled} stale coin(s) in cell ${cell.cell_id}`)
       }
     }
 
