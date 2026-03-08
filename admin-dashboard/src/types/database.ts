@@ -1254,11 +1254,14 @@ export interface ReleaseBatch {
   schedule_id: string
   zone_id: string
   zone_name: string
+  /** Optional canonical target cell for cell-backed timed release batches. */
+  cell_id?: string | null
   release_at: string           // ISO timestamp
   coins_count: number
   coins_released: number       // How many actually spawned
   status: 'pending' | 'released' | 'partial' | 'failed'
   error_message?: string
+  coin_tier?: CoinTier
 }
 
 /**
@@ -1268,6 +1271,8 @@ export interface ReleaseSchedule {
   id: string
   zone_id: string
   zone_name: string
+  /** Optional canonical target cell for cell-backed timed releases. */
+  cell_id?: string | null
   name: string
   description: string | null
   
@@ -1275,6 +1280,9 @@ export interface ReleaseSchedule {
   total_coins: number
   coins_per_release: number
   release_interval_seconds: number
+  coin_tier?: CoinTier
+  min_value?: number | null
+  max_value?: number | null
   start_time: string
   end_time: string | null
   
@@ -1300,6 +1308,7 @@ export interface ReleaseQueueItem {
   schedule_name: string
   zone_id: string
   zone_name: string
+  cell_id?: string | null
   release_at: string
   coins_count: number
   status: 'pending' | 'releasing'
