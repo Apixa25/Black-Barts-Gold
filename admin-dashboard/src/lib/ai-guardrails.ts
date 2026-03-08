@@ -46,6 +46,7 @@ export const AI_ERROR_CODES = {
   DISTRIBUTION_DISABLED:   'DISTRIBUTION_DISABLED',    // kill switch active — wait for admin
   GUARDRAIL_BLOCKED:       'GUARDRAIL_BLOCKED',         // single-spawn too expensive — needs approval
   ZONE_NOT_FOUND:          'ZONE_NOT_FOUND',            // invalid zone_id
+  INVALID_CELL_ID:         'INVALID_CELL_ID',           // invalid or mismatched S2 cell target
   IDEMPOTENCY_CONFLICT:    'IDEMPOTENCY_CONFLICT',      // duplicate request — return cached response
   SPAWN_FAILED:            'SPAWN_FAILED',              // DB error during spawn
 } as const

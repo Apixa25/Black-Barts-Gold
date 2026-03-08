@@ -65,6 +65,42 @@ export function getCellCenter(token: string): CellCenter {
   }
 }
 
+function randomBetween(min: number, max: number): number {
+  return min + Math.random() * (max - min)
+}
+
+function randomLongitudeBetween(min: number, max: number): number {
+  if (max >= min) {
+    return randomBetween(min, max)
+  }
+
+  const wrappedSpan = (max + 360) - min
+  const wrappedValue = min + Math.random() * wrappedSpan
+  return ((wrappedValue + 540) % 360) - 180
+}
+
+export function getRandomPointInCell(token: string, maxAttempts: number = 24): CellCenter {
+  const cellId = toCellIdFromToken(token)
+  const cell = s2.Cell.fromCellID(cellId)
+  const rect = cell.rectBound()
+  const latMin = s1.angle.degrees(rect.lat.lo)
+  const latMax = s1.angle.degrees(rect.lat.hi)
+  const lngMin = s1.angle.degrees(rect.lng.lo)
+  const lngMax = s1.angle.degrees(rect.lng.hi)
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const latitude = randomBetween(latMin, latMax)
+    const longitude = randomLongitudeBetween(lngMin, lngMax)
+    const point = s2.Point.fromLatLng(s2.LatLng.fromDegrees(latitude, longitude))
+
+    if (cell.containsPoint(point)) {
+      return { latitude, longitude }
+    }
+  }
+
+  return getCellCenter(token)
+}
+
 export function getNeighborCellTokens(token: string, level: number = getCellLevel(token)): string[] {
   const cellId = toCellIdFromToken(token)
   return s2.cellid.allNeighbors(cellId, level).map((neighborId) => s2.cellid.toToken(neighborId))

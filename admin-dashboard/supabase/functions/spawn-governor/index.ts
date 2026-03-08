@@ -9,7 +9,7 @@
  *   1. Scheduled (cron):        POST /functions/v1/spawn-governor
  *      → Runs the full 6-step governor cycle
  *   2. Coin collected (webhook): POST /functions/v1/spawn-governor?trigger=coin_collected
- *      → Immediately checks the zone where the coin was found and spawns a
+ *      → Immediately checks the pressure cell where the coin was found and spawns a
  *        replacement if pressure warrants it. Called by a Supabase Database Webhook.
  *   3. Manual trigger:          POST /functions/v1/spawn-governor?trigger=manual
  *      → Same as cron but recorded as manual in the audit log
@@ -41,10 +41,11 @@ const SPEND_LIMIT_USD = parseFloat(Deno.env.get('AI_AUTONOMOUS_SPEND_LIMIT_USD')
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface ZoneHuntPressure {
-  zone_id: string
-  zone_name: string
-  zone_type: string
+interface CellHuntPressure {
+  cell_id: string
+  cell_label: string
+  cell_level: number
+  parent_cell_id: string
   active_player_count: number
   active_coin_count: number
   hunt_pressure: number
@@ -57,18 +58,25 @@ interface ZoneHuntPressure {
     captain: number
     king_of_pirates: number
   }
+  named_zone_overlays: Array<{
+    zone_id: string
+    zone_name: string
+    zone_type: string
+  }>
 }
 
 interface HuntPressureResponse {
   success: boolean
   data: {
-    zones: ZoneHuntPressure[]
+    cells: CellHuntPressure[]
     summary: {
-      total_active_zones: number
-      zones_needing_spawn: number
+      total_active_cells: number
+      cells_needing_spawn: number
       total_active_players: number
       total_active_coins: number
       overall_hunt_pressure: number
+      total_active_zones?: number
+      zones_needing_spawn?: number
     }
   }
   meta: {
@@ -77,6 +85,7 @@ interface HuntPressureResponse {
     spend_remaining_usd: number
     kill_switch_active: boolean
     autonomous_spend_limit_usd: number
+    high_pressure_cells?: string[]
   }
 }
 
@@ -104,6 +113,8 @@ interface SpawnResponse {
     coin_id: string
     value_usd: number
     ai_action_id: string | null
+    cell_id?: string
+    zone_id?: string | null
   }
   meta?: {
     spend_this_hour_usd: number
@@ -129,7 +140,7 @@ interface GovernorCycleResult {
   trigger: string
   started_at: string
   action: 'completed' | 'recycled_only' | 'aborted' | 'error'
-  zones_processed: number
+  cells_processed: number
   coins_spawned: number
   coins_recycled: number
   total_cost_usd: number
@@ -137,7 +148,7 @@ interface GovernorCycleResult {
   duration_ms: number
 }
 
-// ── Supabase client — used for direct DB operations (audit log, zone lookups) ─
+// ── Supabase client — used for direct DB operations (audit log, history lookups) ─
 
 let _supabase: SupabaseClient | null = null
 function getSupabase(): SupabaseClient {
@@ -188,7 +199,8 @@ async function writeCycleSummary(result: GovernorCycleResult, trigger: string): 
         ? `Cycle ${result.action}: ${result.aborted_reason}`
         : `Cycle completed: ${result.coins_spawned} spawned, ${result.coins_recycled} recycled in ${result.duration_ms}ms`,
     result: {
-      zones_processed: result.zones_processed,
+      cells_processed: result.cells_processed,
+      zones_processed: result.cells_processed,
       coins_spawned: result.coins_spawned,
       coins_recycled: result.coins_recycled,
       total_cost_usd: result.total_cost_usd,
@@ -206,23 +218,23 @@ async function writeCycleSummary(result: GovernorCycleResult, trigger: string): 
   }
 }
 
-// ── Immediate zone check — called when a coin is collected ───────────────────
+// ── Immediate pressure-cell check — called when a coin is collected ──────────
 //
 // Used by Step 5 (Realtime subscription) and the coin_collected webhook mode.
-// Checks the zone that just lost a coin and spawns a replacement if needed.
+// Checks the pressure cell that just lost a coin and spawns a replacement if needed.
 
-async function checkZonePressureImmediate(coinId: string): Promise<void> {
+async function checkCellPressureImmediate(coinId: string): Promise<void> {
   const supabase = getSupabase()
 
-  // Find which zone this coin belongs to via spawn_history
+  // Find which pressure cell this coin belongs to via spawn_history.
   const { data: historyRow } = await supabase
     .from('spawn_history')
-    .select('zone_id')
+    .select('zone_id, s2_cell_token_l17')
     .eq('coin_id', coinId)
     .maybeSingle()
 
-  if (!historyRow?.zone_id) {
-    console.log(`[SpawnGov] Coin ${coinId} not found in spawn_history — skipping immediate check`)
+  if (!historyRow?.s2_cell_token_l17) {
+    console.log(`[SpawnGov] Coin ${coinId} has no stamped pressure cell — skipping immediate check`)
     return
   }
 
@@ -240,8 +252,8 @@ async function checkZonePressureImmediate(coinId: string): Promise<void> {
   if (!pressure.success) return
   if (pressure.meta.kill_switch_active || pressure.meta.spend_remaining_usd <= 0) return
 
-  const zone = pressure.data.zones.find(z => z.zone_id === historyRow.zone_id)
-  if (!zone?.needs_spawn) return
+  const cell = pressure.data.cells.find((pressureCell) => pressureCell.cell_id === historyRow.s2_cell_token_l17)
+  if (!cell?.needs_spawn) return
 
   const windowKey = Math.floor(Date.now() / 300_000)
   const idempotencyKey = `collect_replace_${coinId}_${windowKey}`
@@ -249,15 +261,17 @@ async function checkZonePressureImmediate(coinId: string): Promise<void> {
   const spawnRes = await callAdminApi<SpawnResponse>('/api/v1/admin/ai/spawn', {
     method: 'POST',
     body: JSON.stringify({
-      zone_id: zone.zone_id,
-      tier: zone.recommended_spawn_tier,
+      cell_id: cell.cell_id,
+      zone_id: historyRow.zone_id ?? null,
+      tier: cell.recommended_spawn_tier,
       agent_id: 'ai_spawn_governor',
-      reasoning: `Immediate replace after coin ${coinId} was collected in zone "${zone.zone_name}". ${zone.active_player_count} players still active, pressure ${zone.hunt_pressure}`,
+      reasoning: `Immediate replace after coin ${coinId} was collected in cell ${cell.cell_id}. ${cell.active_player_count} players still active, pressure ${cell.hunt_pressure}.`,
       metadata: {
         trigger: 'coin_collected',
         collected_coin_id: coinId,
-        hunt_pressure: zone.hunt_pressure,
-        player_count: zone.active_player_count,
+        hunt_pressure: cell.hunt_pressure,
+        player_count: cell.active_player_count,
+        cell_id: cell.cell_id,
       },
       idempotency_key: idempotencyKey,
     }),
@@ -265,7 +279,7 @@ async function checkZonePressureImmediate(coinId: string): Promise<void> {
 
   if (spawnRes.success) {
     console.log(
-      `[SpawnGov] Immediate spawn for zone "${zone.zone_name}" — coin ${spawnRes.data?.coin_id} ($${spawnRes.data?.value_usd})`
+      `[SpawnGov] Immediate spawn for cell ${cell.cell_id} — coin ${spawnRes.data?.coin_id} ($${spawnRes.data?.value_usd})`
     )
   } else {
     console.log(`[SpawnGov] Immediate spawn skipped: ${spawnRes.code ?? spawnRes.error}`)
@@ -281,7 +295,7 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
     trigger,
     started_at: new Date().toISOString(),
     action: 'completed',
-    zones_processed: 0,
+    cells_processed: 0,
     coins_spawned: 0,
     coins_recycled: 0,
     total_cost_usd: 0,
@@ -332,7 +346,7 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
 
     console.log(
       `[SpawnGov] Safety checks passed. ${pressure.data.summary.total_active_players} active players, ` +
-      `${pressure.data.summary.zones_needing_spawn} zones need spawn, ` +
+      `${pressure.data.summary.cells_needing_spawn} cells need spawn, ` +
       `$${pressure.meta.spend_remaining_usd.toFixed(2)} remaining`
     )
 
@@ -391,42 +405,44 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
 
     // ────────────────────────────────────────────────────────────────────────
     // STEP 4: Spawn decisions
-    // Iterate zones by hunt_pressure DESC (already sorted by the API).
-    // Stop when budget runs out or all zones are handled.
+    // Iterate cells by hunt_pressure DESC (already sorted by the API).
+    // Stop when budget runs out or all target cells are handled.
     // ────────────────────────────────────────────────────────────────────────
-    const zonesNeedingSpawn = pressure.data.zones.filter(z => z.needs_spawn)
+    const cellsNeedingSpawn = pressure.data.cells.filter((cell) => cell.needs_spawn)
     let spendRemaining = pressure.meta.spend_remaining_usd
     let budgetExhausted = false
 
-    console.log(`[SpawnGov] ${zonesNeedingSpawn.length} zone(s) need spawn`)
+    console.log(`[SpawnGov] ${cellsNeedingSpawn.length} cell(s) need spawn`)
 
-    for (const zone of zonesNeedingSpawn) {
+    for (const cell of cellsNeedingSpawn) {
       if (budgetExhausted || spendRemaining <= 0) break
 
       // 5-minute window key — prevents duplicate spawns within the same cycle
       const windowKey = Math.floor(Date.now() / 300_000)
-      const idempotencyKey = `spawn_gov_${zone.zone_id}_${windowKey}`
+      const idempotencyKey = `spawn_gov_${cell.cell_id}_${windowKey}`
 
       console.log(
-        `[SpawnGov] Spawning ${zone.recommended_spawn_tier} in "${zone.zone_name}" ` +
-        `(pressure ${zone.hunt_pressure}, ${zone.active_player_count} players)`
+        `[SpawnGov] Spawning ${cell.recommended_spawn_tier} in cell ${cell.cell_id} ` +
+        `(pressure ${cell.hunt_pressure}, ${cell.active_player_count} players)`
       )
 
       const spawnRes = await callAdminApi<SpawnResponse>('/api/v1/admin/ai/spawn', {
         method: 'POST',
         body: JSON.stringify({
-          zone_id: zone.zone_id,
-          tier: zone.recommended_spawn_tier,
+          cell_id: cell.cell_id,
+          zone_id: cell.named_zone_overlays[0]?.zone_id ?? null,
+          tier: cell.recommended_spawn_tier,
           agent_id: 'ai_spawn_governor',
           reasoning:
-            `Zone "${zone.zone_name}": ` +
-            `${zone.active_player_count} players, ${zone.active_coin_count} coins, ` +
-            `pressure ${zone.hunt_pressure}. ` +
+            `Cell ${cell.cell_id}: ` +
+            `${cell.active_player_count} players, ${cell.active_coin_count} coins, ` +
+            `pressure ${cell.hunt_pressure}. ` +
             `Economy: ${economy.meta.economy_status}.`,
           metadata: {
-            hunt_pressure: zone.hunt_pressure,
-            player_count: zone.active_player_count,
-            coin_count: zone.active_coin_count,
+            cell_id: cell.cell_id,
+            hunt_pressure: cell.hunt_pressure,
+            player_count: cell.active_player_count,
+            coin_count: cell.active_coin_count,
             economy_status: economy.meta.economy_status,
             supply_demand_ratio: economy.data.supply_demand_ratio,
             trigger,
@@ -448,44 +464,46 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
           budgetExhausted = true
           break
         }
-        // Other errors (zone not found, spawn failed): log and continue
-        console.warn(`[SpawnGov] Spawn failed for zone ${zone.zone_id}: ${spawnRes.code ?? spawnRes.error}`)
+        console.warn(`[SpawnGov] Spawn failed for cell ${cell.cell_id}: ${spawnRes.code ?? spawnRes.error}`)
         continue
       }
 
       const coinValue = spawnRes.data?.value_usd ?? 0
       result.coins_spawned++
       result.total_cost_usd = parseFloat((result.total_cost_usd + coinValue).toFixed(4))
-      result.zones_processed++
+      result.cells_processed++
       spendRemaining = spawnRes.meta?.spend_remaining_usd ?? Math.max(0, spendRemaining - coinValue)
 
       console.log(
         `[SpawnGov] ✓ Spawned coin ${spawnRes.data?.coin_id} ` +
-        `($${coinValue}) in "${zone.zone_name}" | $${spendRemaining.toFixed(2)} remaining`
+        `($${coinValue}) in cell ${cell.cell_id} | $${spendRemaining.toFixed(2)} remaining`
       )
     }
 
     // ────────────────────────────────────────────────────────────────────────
     // STEP 5: Cleanup pass
-    // Recycle stale coins from zones with zero active players.
+    // Legacy recycler is still zone-based, so derive affected overlay zones from dead cells.
     // Uses a 6-hour age limit to avoid recycling freshly placed coins.
     // ────────────────────────────────────────────────────────────────────────
-    const deadZones = pressure.data.zones.filter(
-      z => z.active_player_count === 0 && z.active_coin_count > 0
+    const deadCells = pressure.data.cells.filter(
+      (cell) => cell.active_player_count === 0 && cell.active_coin_count > 0
     )
+    const cleanupZoneIds = [...new Set(
+      deadCells.flatMap((cell) => cell.named_zone_overlays.map((overlay) => overlay.zone_id))
+    )]
 
-    if (deadZones.length > 0) {
-      console.log(`[SpawnGov] Cleanup pass: ${deadZones.length} zone(s) with coins and no active players`)
+    if (deadCells.length > 0) {
+      console.log(`[SpawnGov] Cleanup pass: ${deadCells.length} dead cell(s), ${cleanupZoneIds.length} overlay zone(s) eligible for recycle`)
     }
 
-    for (const zone of deadZones) {
+    for (const zoneId of cleanupZoneIds) {
       const recycleRes = await callAdminApi<RecycleResponse>('/api/v1/admin/ai/recycle-stale', {
         method: 'POST',
         body: JSON.stringify({
           agent_id: 'ai_spawn_governor',
-          zone_id: zone.zone_id,
+          zone_id: zoneId,
           reasoning:
-            `Zone "${zone.zone_name}" has 0 active players and ${zone.active_coin_count} coin(s) sitting idle. Recycling after 6h.`,
+            `Overlay zone ${zoneId} only has stale coins in dead pressure cells. Recycling after 6h.`,
           max_age_hours: 6,
         }),
       })
@@ -494,7 +512,7 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
       result.coins_recycled += recycled
 
       if (recycled > 0) {
-        console.log(`[SpawnGov] Recycled ${recycled} stale coin(s) in "${zone.zone_name}"`)
+        console.log(`[SpawnGov] Recycled ${recycled} stale coin(s) in overlay zone ${zoneId}`)
       }
     }
 
@@ -562,9 +580,9 @@ function setupRealtimeSubscription(): void {
       },
       async (payload) => {
         const coin = payload.new as { id: string; status: string }
-        console.log(`[SpawnGov] Realtime: coin ${coin.id} collected — checking zone pressure`)
+        console.log(`[SpawnGov] Realtime: coin ${coin.id} collected — checking cell pressure`)
         try {
-          await checkZonePressureImmediate(coin.id)
+          await checkCellPressureImmediate(coin.id)
         } catch (err) {
           console.error('[SpawnGov] Realtime handler error:', err)
         }
