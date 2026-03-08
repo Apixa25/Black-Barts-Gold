@@ -205,6 +205,51 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 
 ---
 
+### Session: 2026-03-08 — Zone Architecture Proposal
+
+**What we did:**
+- Researched how to define world geography for the AI Governor before implementing new backend zone logic
+- Confirmed the repo was using "zone" to mean multiple different things:
+  - Unity `ProximityZone` = coin-distance feedback bands
+  - backend/admin `zones` = geographic spawn and analytics areas
+  - design language = "player in a zone" without canonical runtime assignment
+- Reviewed Pokémon GO-style spatial partitioning patterns and aligned on **S2 cells** as the correct canonical backend geography
+- Wrote `Docs/zone-architecture-proposal.md` as the new source-of-truth design proposal
+
+**Key decision:**
+- **S2 cells are the canonical backend world partition**
+- The existing `zones` table should be treated as a **named zone overlay system**
+- Unity `ProximityZone` remains a **local gameplay concept**, separate from backend geography
+
+**What the proposal defines:**
+- Shared vocabulary: `SpatialCell`, `NamedZone`, `ProximityZone`
+- Recommended initial S2 hierarchy:
+  - `L14` for macro summaries and territory rollups
+  - `L17` for neighborhood-scale hunt pressure and spawn balancing
+  - optional `L20` later for fine spawn placement rules
+- Additive schema path:
+  - add S2 cell IDs to `player_locations`
+  - add S2 cell IDs to `coins`
+  - add S2 cell IDs to `spawn_history`
+- AI Governor path:
+  - compute hunt pressure per S2 cell instead of generic zone rows
+  - use named zones only as overlays, constraints, or modifiers
+
+**Why this matters:**
+- Gives the AI Governor a stable map grammar
+- Matches the AI-first direction already documented in `Docs/project-vision.md`
+- Aligns with the S2 direction already present in `Docs/AI-integration.md`
+- Avoids confusing Unity proximity logic with backend world partitioning
+
+**What's next:**
+- Write the implementation follow-up for S2 adoption:
+  - exact schema additions
+  - backend S2 computation strategy
+  - hunt-pressure route evolution
+  - backward-compatible rollout plan
+
+---
+
 ### Session: 2026-03-07 — AI Governor Command Center
 
 **What we did:**
@@ -235,5 +280,5 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 
 ---
 
-*Last updated: 2026-03-07*
+*Last updated: 2026-03-08*
 *Update this file at the end of every productive session to keep context fresh.*
