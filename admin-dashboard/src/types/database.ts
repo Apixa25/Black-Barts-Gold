@@ -1161,6 +1161,34 @@ export interface ZoneHuntPressure {
 }
 
 /**
+ * Canonical per-cell hunt pressure data returned by GET /api/v1/admin/ai/hunt-pressure
+ */
+export interface CellHuntPressure {
+  cell_id: string
+  cell_label: string
+  cell_level: number
+  parent_cell_id: string
+  center: { latitude: number; longitude: number }
+  active_player_count: number
+  active_coin_count: number
+  hunt_pressure: number
+  needs_spawn: boolean
+  coins_to_spawn: number
+  player_tier_distribution: {
+    cabin_boy: number
+    deck_hand: number
+    captain: number
+    king_of_pirates: number
+  }
+  recommended_spawn_tier: CoinTier
+  named_zone_overlays: Array<{
+    zone_id: string
+    zone_name: string
+    zone_type: ZoneType
+  }>
+}
+
+/**
  * Economy health snapshot returned by GET /api/v1/admin/ai/economy-health
  */
 export type EconomyStatus = 'healthy' | 'oversupply' | 'undersupply' | 'margin_risk'

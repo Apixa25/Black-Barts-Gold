@@ -8,7 +8,7 @@
  *
  * Sections:
  *   1. Status bar — 5 KPI cards (economy, spend, actions, coins, kill switch)
- *   2. Hunt pressure grid — per-zone live pressure scores
+ *   2. Hunt pressure grid — per-cell live pressure scores
  *   3. Economy health panel — supply/demand + margin breakdown
  *   4. Action feed — real-time log of every AI decision
  *
@@ -26,10 +26,10 @@ import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import {
   Bot, Zap, DollarSign, Coins, Activity, TrendingUp, TrendingDown,
-  RefreshCw, Play, AlertTriangle, CheckCircle2, XCircle, Clock,
+  RefreshCw, AlertTriangle, CheckCircle2, XCircle, Clock,
   Users, Flame, Snowflake, BarChart3, Heart,
 } from 'lucide-react'
-import type { AiAction, ZoneHuntPressure, EconomyStatus } from '@/types/database'
+import type { AiAction, CellHuntPressure, EconomyStatus } from '@/types/database'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -75,13 +75,15 @@ interface EconomyResponse {
 interface PressureResponse {
   success: boolean
   data: {
-    zones: ZoneHuntPressure[]
+    cells: CellHuntPressure[]
     summary: {
-      total_active_zones: number
-      zones_needing_spawn: number
+      total_active_cells: number
+      cells_needing_spawn: number
       total_active_players: number
       total_active_coins: number
       overall_hunt_pressure: number
+      total_active_zones?: number
+      zones_needing_spawn?: number
     }
   }
   meta: {
@@ -89,6 +91,7 @@ interface PressureResponse {
     spend_this_hour_usd: number
     spend_remaining_usd: number
     kill_switch_active: boolean
+    cell_level_used?: number
   }
 }
 
@@ -289,7 +292,9 @@ export function AiGovernorClient({
   const spendThisHour = economy?.data.ai_spend_this_hour_usd ?? pressure?.meta.spend_this_hour_usd ?? 0
   const spendPct = Math.min((spendThisHour / SPEND_LIMIT_USD) * 100, 100)
   const totalActivePlayers = pressure?.data.summary.total_active_players ?? 0
-  const zonesNeedingSpawn = pressure?.data.summary.zones_needing_spawn ?? 0
+  const cellsNeedingSpawn = pressure?.data.summary.cells_needing_spawn
+    ?? pressure?.data.summary.zones_needing_spawn
+    ?? 0
 
   const alerts = economy?.meta.alerts ?? []
 
@@ -484,7 +489,7 @@ export function AiGovernorClient({
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-saddle-dark flex items-center gap-2">
               <Flame className="h-4 w-4 text-gold" />
-              Hunt Pressure by Zone
+              Hunt Pressure by Cell
             </h3>
             <div className="flex items-center gap-3 text-xs text-leather-light">
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" /> Hot ≥5</span>
@@ -493,43 +498,56 @@ export function AiGovernorClient({
             </div>
           </div>
 
-          {pressure?.data.zones && pressure.data.zones.length > 0 ? (
+          {pressure?.data.cells && pressure.data.cells.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              {pressure.data.zones.map(zone => (
-                <Card key={zone.zone_id} className={`border ${pressureBg(zone.hunt_pressure)}`}>
+              {pressure.data.cells.map(cell => (
+                <Card key={cell.cell_id} className={`border ${pressureBg(cell.hunt_pressure)}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-saddle-dark text-sm truncate">{zone.zone_name}</p>
-                        <p className="text-xs text-leather-light capitalize">{zone.zone_type} zone</p>
+                        <p className="font-semibold text-saddle-dark text-sm truncate">{cell.cell_label}</p>
+                        <p className="text-xs text-leather-light">
+                          Canonical pressure cell
+                          {cell.named_zone_overlays.length > 0 ? ` • ${cell.named_zone_overlays.length} overlay${cell.named_zone_overlays.length !== 1 ? 's' : ''}` : ''}
+                        </p>
                       </div>
-                      <div className={`text-2xl font-black tabular-nums ${pressureColor(zone.hunt_pressure)}`}>
-                        {zone.hunt_pressure.toFixed(1)}
+                      <div className={`text-2xl font-black tabular-nums ${pressureColor(cell.hunt_pressure)}`}>
+                        {cell.hunt_pressure.toFixed(1)}
                       </div>
                     </div>
 
                     <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                       <div className="rounded bg-white/60 px-2 py-1">
                         <p className="text-xs text-leather-light">Players</p>
-                        <p className="font-bold text-saddle-dark text-sm">{zone.active_player_count}</p>
+                        <p className="font-bold text-saddle-dark text-sm">{cell.active_player_count}</p>
                       </div>
                       <div className="rounded bg-white/60 px-2 py-1">
                         <p className="text-xs text-leather-light">Coins</p>
-                        <p className="font-bold text-saddle-dark text-sm">{zone.active_coin_count}</p>
+                        <p className="font-bold text-saddle-dark text-sm">{cell.active_coin_count}</p>
                       </div>
                       <div className="rounded bg-white/60 px-2 py-1">
                         <p className="text-xs text-leather-light">Spawn</p>
-                        <p className={`font-bold text-sm capitalize ${tierBadge(zone.recommended_spawn_tier).includes('gold') ? 'text-saddle-dark' : ''}`}>
-                          {zone.recommended_spawn_tier}
+                        <p className={`font-bold text-sm capitalize ${tierBadge(cell.recommended_spawn_tier).includes('gold') ? 'text-saddle-dark' : ''}`}>
+                          {cell.recommended_spawn_tier}
                         </p>
                       </div>
                     </div>
 
-                    {zone.needs_spawn && (
+                    {cell.named_zone_overlays.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {cell.named_zone_overlays.slice(0, 2).map((overlay) => (
+                          <Badge key={overlay.zone_id} variant="outline" className="text-[10px] capitalize">
+                            {overlay.zone_name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {cell.needs_spawn && (
                       <div className="mt-2 rounded bg-amber-100 border border-amber-200 px-2 py-1 flex items-center gap-1.5">
                         <Flame className="h-3 w-3 text-amber-600" />
                         <span className="text-xs font-medium text-amber-700">
-                          Needs {zone.coins_to_spawn} coin{zone.coins_to_spawn !== 1 ? 's' : ''}
+                          Needs {cell.coins_to_spawn} coin{cell.coins_to_spawn !== 1 ? 's' : ''}
                         </span>
                       </div>
                     )}
@@ -541,8 +559,8 @@ export function AiGovernorClient({
             <Card className="border-saddle-light/30">
               <CardContent className="py-12 text-center text-leather-light">
                 <Snowflake className="h-8 w-8 mx-auto mb-3 opacity-40" />
-                <p className="font-medium">No active zones with players</p>
-                <p className="text-sm mt-1">Zones appear here when players are online</p>
+                <p className="font-medium">No active cells with players</p>
+                <p className="text-sm mt-1">Pressure cells appear here when players are online</p>
               </CardContent>
             </Card>
           )}
@@ -633,9 +651,9 @@ export function AiGovernorClient({
                   <p className="text-xs text-leather-light">Active hunters right now</p>
                 </div>
               </div>
-              {zonesNeedingSpawn > 0 && (
+              {cellsNeedingSpawn > 0 && (
                 <div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-                  🔥 {zonesNeedingSpawn} zone{zonesNeedingSpawn !== 1 ? 's' : ''} need{zonesNeedingSpawn === 1 ? 's' : ''} a coin drop
+                  🔥 {cellsNeedingSpawn} cell{cellsNeedingSpawn !== 1 ? 's' : ''} need{cellsNeedingSpawn === 1 ? 's' : ''} a coin drop
                 </div>
               )}
             </CardContent>
