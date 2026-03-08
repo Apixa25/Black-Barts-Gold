@@ -13,12 +13,12 @@
  * @file admin-dashboard/src/app/api/v1/admin/ai/trigger-governor/route.ts
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   // ── Admin session auth ─────────────────────────────────────────────────────
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: isTimeout
-          ? 'Governor cycle timed out after 45 seconds (this can happen if many zones need spawning)'
+          ? 'Governor cycle timed out after 45 seconds (this can happen if many pressure cells need spawning)'
           : `Edge Function call failed: ${err instanceof Error ? err.message : String(err)}`,
         code: isTimeout ? 'TIMEOUT' : 'EDGE_FUNCTION_ERROR',
       },

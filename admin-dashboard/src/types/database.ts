@@ -933,6 +933,8 @@ export interface SpawnQueueItem {
   id: string
   zone_id: string
   zone_name: string
+  /** Optional canonical target cell for cell-first queue items. */
+  cell_id?: string | null
   trigger_type: SpawnTriggerType
   scheduled_time: string
   coin_config: {
@@ -964,7 +966,10 @@ export interface SpawnResult {
     longitude: number
   }
   trigger_type: SpawnTriggerType
-  zone_id: string
+  /** Optional named-zone overlay associated with the spawn. */
+  zone_id: string | null
+  /** Canonical S2 Level 17 pressure/spawn cell for the result when available. */
+  cell_id?: string | null
   spawned_at: string
 }
 
@@ -1069,8 +1074,14 @@ export interface DistributionConfig {
 export interface SpawnHistoryEntry {
   id: string
   coin_id: string
-  zone_id: string
-  zone_name: string
+  /** Optional named-zone overlay at the time of spawn. */
+  zone_id: string | null
+  /** Optional overlay name. Null when no named zone applied. */
+  zone_name: string | null
+  /** Canonical S2 Level 17 pressure cell stamped at spawn time. */
+  s2_cell_token_l17?: string | null
+  /** Canonical S2 Level 14 parent summary cell stamped at spawn time. */
+  s2_cell_token_l14?: string | null
   trigger_type: SpawnTriggerType
   coin_value: number
   coin_tier: CoinTier
@@ -1092,8 +1103,8 @@ export type DistributionAction =
   | { type: 'start' }
   | { type: 'pause' }
   | { type: 'stop' }
-  | { type: 'spawn_now'; zone_id: string; count: number }
-  | { type: 'recycle_stale'; zone_id?: string }
+  | { type: 'spawn_now'; zone_id: string; count: number; cell_id?: string | null }
+  | { type: 'recycle_stale'; zone_id?: string; cell_id?: string | null }
   | { type: 'clear_queue' }
   | { type: 'update_config'; config: Partial<DistributionConfig> }
 
