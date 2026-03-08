@@ -10,25 +10,19 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { createClient } from "@/lib/supabase/client"
 import type { 
   Zone,
-  Coin,
   DistributionStats,
   DistributionConfig,
   ZoneDistributionStatus,
   SpawnQueueItem,
   SpawnResult,
   DistributionAction,
-  DistributionSystemStatus,
 } from "@/types/database"
 import {
   DEFAULT_DISTRIBUTION_CONFIG,
-  generateSpawnPlan,
-  calculateCoinsNeeded,
   randomPointInCircle,
   randomPointInPolygon,
-  formatTimeUntilSpawn,
 } from "@/components/maps/distribution-config"
 
 interface UseAutoDistributionOptions {
@@ -66,147 +60,6 @@ interface UseAutoDistributionResult {
 }
 
 /**
- * Generate mock zone distribution statuses
- */
-function generateMockZoneStatuses(): ZoneDistributionStatus[] {
-  return [
-    {
-      zone_id: 'zone-1',
-      zone_name: 'Downtown Player Zone',
-      zone_type: 'player',
-      auto_spawn_enabled: true,
-      min_coins: 3,
-      max_coins: 10,
-      current_coin_count: 5,
-      active_coins: 4,
-      collected_today: 12,
-      needs_spawn: false,
-      coins_to_spawn: 0,
-      next_spawn_time: new Date(Date.now() + 180000).toISOString(),
-      average_collection_time_hours: 2.5,
-      spawn_rate_per_hour: 3.2,
-      collection_rate_per_hour: 4.8,
-    },
-    {
-      zone_id: 'zone-2',
-      zone_name: 'Golden Gate Hunt Zone',
-      zone_type: 'hunt',
-      auto_spawn_enabled: false,
-      min_coins: 10,
-      max_coins: 50,
-      current_coin_count: 8,
-      active_coins: 8,
-      collected_today: 25,
-      needs_spawn: true,
-      coins_to_spawn: 2,
-      average_collection_time_hours: 1.2,
-      spawn_rate_per_hour: 8.5,
-      collection_rate_per_hour: 12.3,
-    },
-    {
-      zone_id: 'zone-3',
-      zone_name: 'Tech Sponsor Zone',
-      zone_type: 'sponsor',
-      auto_spawn_enabled: true,
-      min_coins: 5,
-      max_coins: 25,
-      current_coin_count: 2,
-      active_coins: 2,
-      collected_today: 8,
-      needs_spawn: true,
-      coins_to_spawn: 3,
-      next_spawn_time: new Date(Date.now() + 60000).toISOString(),
-      average_collection_time_hours: 3.0,
-      spawn_rate_per_hour: 2.1,
-      collection_rate_per_hour: 2.7,
-    },
-  ]
-}
-
-/**
- * Generate mock distribution stats
- */
-function generateMockStats(): DistributionStats {
-  return {
-    system_status: 'running',
-    last_spawn_time: new Date(Date.now() - 300000).toISOString(),
-    next_scheduled_spawn: new Date(Date.now() + 60000).toISOString(),
-    
-    total_zones_with_auto_spawn: 2,
-    zones_needing_spawn: 2,
-    queue_length: 5,
-    
-    coins_spawned_today: 47,
-    coins_collected_today: 45,
-    coins_recycled_today: 3,
-    
-    total_value_spawned_today: 52.75,
-    total_value_collected_today: 48.30,
-    average_coin_value: 1.12,
-    
-    average_spawn_time_ms: 125,
-    spawn_success_rate: 0.98,
-    errors_today: 1,
-  }
-}
-
-/**
- * Generate mock spawn queue
- */
-function generateMockQueue(): SpawnQueueItem[] {
-  return [
-    {
-      id: 'queue-1',
-      zone_id: 'zone-3',
-      zone_name: 'Tech Sponsor Zone',
-      trigger_type: 'auto',
-      scheduled_time: new Date(Date.now() + 60000).toISOString(),
-      coin_config: {
-        coin_type: 'fixed',
-        tier: 'silver',
-        min_value: 0.50,
-        max_value: 2.00,
-        is_mythical: false,
-      },
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'queue-2',
-      zone_id: 'zone-3',
-      zone_name: 'Tech Sponsor Zone',
-      trigger_type: 'auto',
-      scheduled_time: new Date(Date.now() + 65000).toISOString(),
-      coin_config: {
-        coin_type: 'fixed',
-        tier: 'bronze',
-        min_value: 0.10,
-        max_value: 0.50,
-        is_mythical: false,
-      },
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'queue-3',
-      zone_id: 'zone-2',
-      zone_name: 'Golden Gate Hunt Zone',
-      trigger_type: 'manual',
-      scheduled_time: new Date(Date.now() + 5000).toISOString(),
-      coin_config: {
-        coin_type: 'fixed',
-        tier: 'gold',
-        min_value: 2.00,
-        max_value: 5.00,
-        is_mythical: false,
-      },
-      status: 'processing',
-      created_at: new Date().toISOString(),
-    },
-  ]
-}
-
-/**
  * Hook for managing auto-distribution
  */
 export function useAutoDistribution(
@@ -218,14 +71,28 @@ export function useAutoDistribution(
     zoneId,
   } = options
   
-  const [stats, setStats] = useState<DistributionStats>(generateMockStats())
-  const [zoneStatuses, setZoneStatuses] = useState<ZoneDistributionStatus[]>(generateMockZoneStatuses())
-  const [spawnQueue, setSpawnQueue] = useState<SpawnQueueItem[]>(generateMockQueue())
+  const [stats, setStats] = useState<DistributionStats>({
+    system_status: 'paused',
+    last_spawn_time: null,
+    next_scheduled_spawn: null,
+    total_zones_with_auto_spawn: 0,
+    zones_needing_spawn: 0,
+    queue_length: 0,
+    coins_spawned_today: 0,
+    coins_collected_today: 0,
+    coins_recycled_today: 0,
+    total_value_spawned_today: 0,
+    total_value_collected_today: 0,
+    average_coin_value: 0,
+    average_spawn_time_ms: 0,
+    spawn_success_rate: 1,
+    errors_today: 0,
+  })
+  const [zoneStatuses, setZoneStatuses] = useState<ZoneDistributionStatus[]>([])
+  const [spawnQueue, setSpawnQueue] = useState<SpawnQueueItem[]>([])
   const [config, setConfig] = useState<DistributionConfig>(DEFAULT_DISTRIBUTION_CONFIG)
   const [isSpawning, setIsSpawning] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
-  const supabase = createClient()
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   
   /**
@@ -233,85 +100,73 @@ export function useAutoDistribution(
    */
   const fetchData = useCallback(async () => {
     try {
-      // For now, use mock data since tables don't exist yet
-      const useMockData = true
-      
-      if (useMockData) {
-        // Simulate data refresh with slight variations
-        setStats(prev => ({
-          ...prev,
-          coins_spawned_today: prev.coins_spawned_today + (Math.random() > 0.7 ? 1 : 0),
-          coins_collected_today: prev.coins_collected_today + (Math.random() > 0.8 ? 1 : 0),
-          last_spawn_time: Math.random() > 0.9 ? new Date().toISOString() : prev.last_spawn_time,
-          next_scheduled_spawn: new Date(Date.now() + 60000).toISOString(),
-        }))
-        
-        // Update zone statuses
-        setZoneStatuses(prev => prev.map(zone => ({
-          ...zone,
-          current_coin_count: Math.max(0, zone.current_coin_count + (Math.random() > 0.5 ? 0 : Math.random() > 0.5 ? 1 : -1)),
-          collected_today: zone.collected_today + (Math.random() > 0.8 ? 1 : 0),
-        })).map(zone => ({
-          ...zone,
-          needs_spawn: zone.current_coin_count < zone.min_coins,
-          coins_to_spawn: Math.max(0, zone.min_coins - zone.current_coin_count),
-        })))
-        
-        setError(null)
-        return
+      setError(null)
+      const response = await fetch('/api/v1/admin/dashboard/auto-distribution', {
+        cache: 'no-store',
+      })
+      const payload = await response.json()
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to fetch auto-distribution data')
       }
-      
-      // Real database queries would go here
-      // const { data: zones } = await supabase.from('zones').select('*')
-      // etc.
-      
+
+      let nextZoneStatuses = (payload.data?.zoneStatuses ?? []) as ZoneDistributionStatus[]
+      let nextSpawnQueue = (payload.data?.spawnQueue ?? []) as SpawnQueueItem[]
+      if (zoneId) {
+        nextZoneStatuses = nextZoneStatuses.filter(zone => zone.zone_id === zoneId)
+        nextSpawnQueue = nextSpawnQueue.filter(item => item.zone_id === zoneId)
+      }
+
+      setStats((payload.data?.stats ?? {
+        system_status: 'paused',
+        last_spawn_time: null,
+        next_scheduled_spawn: null,
+        total_zones_with_auto_spawn: 0,
+        zones_needing_spawn: 0,
+        queue_length: 0,
+        coins_spawned_today: 0,
+        coins_collected_today: 0,
+        coins_recycled_today: 0,
+        total_value_spawned_today: 0,
+        total_value_collected_today: 0,
+        average_coin_value: 0,
+        average_spawn_time_ms: 0,
+        spawn_success_rate: 1,
+        errors_today: 0,
+      }) as DistributionStats)
+      setZoneStatuses(nextZoneStatuses)
+      setSpawnQueue(nextSpawnQueue)
+      if (payload.data?.config) {
+        setConfig(payload.data.config as DistributionConfig)
+      }
     } catch (err) {
       console.error('Error fetching distribution data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch data')
     }
-  }, [supabase, zoneId])
+  }, [zoneId])
   
   /**
    * Dispatch an action to the distribution system
    */
   const dispatch = useCallback(async (action: DistributionAction) => {
     setError(null)
-    
-    switch (action.type) {
-      case 'start':
-        setStats(prev => ({ ...prev, system_status: 'running' as DistributionSystemStatus }))
-        break
-        
-      case 'pause':
-        setStats(prev => ({ ...prev, system_status: 'paused' as DistributionSystemStatus }))
-        break
-        
-      case 'stop':
-        setStats(prev => ({ ...prev, system_status: 'stopped' as DistributionSystemStatus }))
-        break
-        
-      case 'spawn_now':
-        await spawnCoinsForZone(action.zone_id, action.count)
-        break
-        
-      case 'recycle_stale':
-        // TODO: Implement stale coin recycling
-        console.log('Recycling stale coins for zone:', action.zone_id)
-        setStats(prev => ({
-          ...prev,
-          coins_recycled_today: prev.coins_recycled_today + 1,
-        }))
-        break
-        
-      case 'clear_queue':
-        setSpawnQueue([])
-        break
-        
-      case 'update_config':
-        setConfig(prev => ({ ...prev, ...action.config }))
-        break
+    setIsSpawning(action.type === 'spawn_now')
+
+    try {
+      const response = await fetch('/api/v1/admin/dashboard/auto-distribution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(action),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? `Failed to execute ${action.type}`)
+      }
+      await fetchData()
+    } finally {
+      setIsSpawning(false)
     }
-  }, [])
+  }, [fetchData])
   
   /**
    * Spawn coins for a specific zone
@@ -321,63 +176,56 @@ export function useAutoDistribution(
     count: number
   ): Promise<SpawnResult[]> => {
     setIsSpawning(true)
-    const results: SpawnResult[] = []
     
     try {
-      // Find the zone
       const zone = zoneStatuses.find(z => z.zone_id === targetZoneId)
       if (!zone) {
         throw new Error('Zone not found')
       }
-      
-      // For now, simulate spawning
-      for (let i = 0; i < count; i++) {
-        // Generate random location (using SF coordinates as placeholder)
-        const location = {
-          latitude: 37.7749 + (Math.random() - 0.5) * 0.02,
-          longitude: -122.4194 + (Math.random() - 0.5) * 0.02,
-        }
-        
-        results.push({
-          success: true,
-          coin_id: `coin-${Date.now()}-${i}`,
-          spawn_location: location,
-          trigger_type: 'manual',
-          zone_id: targetZoneId,
-          spawned_at: new Date().toISOString(),
-        })
+
+      const response = await fetch('/api/v1/admin/dashboard/auto-distribution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'spawn_now', zone_id: targetZoneId, count }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Spawn failed')
       }
-      
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        coins_spawned_today: prev.coins_spawned_today + count,
-        last_spawn_time: new Date().toISOString(),
-      }))
-      
-      // Update zone status
-      setZoneStatuses(prev => prev.map(z => 
-        z.zone_id === targetZoneId
-          ? { ...z, current_coin_count: z.current_coin_count + count, needs_spawn: false }
-          : z
-      ))
-      
+
+      const results = ((payload.data?.results ?? []) as Array<{ data?: Record<string, unknown>; success?: boolean; error?: string }>).map((item) => {
+        const data = item.data ?? {}
+        return {
+          success: Boolean(item.success),
+          coin_id: (data.coin_id as string | undefined) ?? undefined,
+          error_message: item.error,
+          spawn_location: {
+            latitude: Number(data.latitude ?? 0),
+            longitude: Number(data.longitude ?? 0),
+          },
+          trigger_type: 'manual',
+          zone_id: (data.zone_id as string | null) ?? targetZoneId,
+          cell_id: (data.cell_id as string | null) ?? null,
+          spawned_at: new Date().toISOString(),
+        } as SpawnResult
+      })
+
+      await fetchData()
+      return results
     } catch (err) {
       console.error('Error spawning coins:', err)
-      results.push({
+      return [{
         success: false,
         error_message: err instanceof Error ? err.message : 'Spawn failed',
         spawn_location: { latitude: 0, longitude: 0 },
         trigger_type: 'manual',
         zone_id: targetZoneId,
         spawned_at: new Date().toISOString(),
-      })
+      }]
     } finally {
       setIsSpawning(false)
     }
-    
-    return results
-  }, [zoneStatuses])
+  }, [fetchData, zoneStatuses])
   
   /**
    * Preview spawn locations for a zone
@@ -410,21 +258,18 @@ export function useAutoDistribution(
     targetZoneId: string,
     configUpdate: Partial<Zone['auto_spawn_config']>
   ) => {
-    // Update local state
-    setZoneStatuses(prev => prev.map(z => {
-      if (z.zone_id !== targetZoneId) return z
-      
-      return {
-        ...z,
-        auto_spawn_enabled: configUpdate?.enabled ?? z.auto_spawn_enabled,
-        min_coins: configUpdate?.min_coins ?? z.min_coins,
-        max_coins: configUpdate?.max_coins ?? z.max_coins,
-      }
-    }))
-    
-    // TODO: Save to database when ready
-    console.log('Updating zone config:', targetZoneId, configUpdate)
-  }, [])
+    const response = await fetch(`/api/v1/admin/dashboard/zones/${targetZoneId}/auto-spawn`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(configUpdate),
+    })
+    const payload = await response.json()
+    if (!response.ok || !payload?.success) {
+      throw new Error(payload?.error ?? 'Failed to update zone config')
+    }
+
+    await fetchData()
+  }, [fetchData])
   
   /**
    * Refresh all data

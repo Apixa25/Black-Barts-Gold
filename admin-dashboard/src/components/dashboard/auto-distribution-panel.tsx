@@ -11,7 +11,7 @@
 
 import { useState } from "react"
 import { useAutoDistribution } from "@/hooks/use-auto-distribution"
-import type { ZoneDistributionStatus, SpawnQueueItem } from "@/types/database"
+import type { ZoneDistributionStatus } from "@/types/database"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -34,7 +34,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   DropdownMenu,
@@ -51,7 +50,6 @@ import {
   Settings,
   Zap,
   Clock,
-  TrendingUp,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -69,6 +67,24 @@ interface AutoDistributionPanelProps {
   compact?: boolean
 }
 
+function StatusIndicator({ systemStatus }: { systemStatus: "running" | "paused" | "stopped" | "error" }) {
+  const statusConfig = {
+    running: { color: 'bg-green-500', label: 'Running', icon: Play },
+    paused: { color: 'bg-yellow-500', label: 'Paused', icon: Pause },
+    stopped: { color: 'bg-gray-500', label: 'Stopped', icon: Square },
+    error: { color: 'bg-red-500', label: 'Error', icon: AlertTriangle },
+  }
+  const status = statusConfig[systemStatus]
+  const Icon = status.icon
+
+  return (
+    <Badge variant="outline" className={`${status.color === 'bg-green-500' ? 'text-green-600 border-green-600' : status.color === 'bg-yellow-500' ? 'text-yellow-600 border-yellow-600' : status.color === 'bg-red-500' ? 'text-red-600 border-red-600' : 'text-gray-600 border-gray-600'}`}>
+      <Icon className="w-3 h-3 mr-1" />
+      {status.label}
+    </Badge>
+  )
+}
+
 export function AutoDistributionPanel({ 
   className = "",
   compact = false 
@@ -77,36 +93,17 @@ export function AutoDistributionPanel({
     stats,
     zoneStatuses,
     spawnQueue,
-    config,
     isSpawning,
     error,
     dispatch,
     spawnCoinsForZone,
+    updateZoneConfig,
     refresh,
   } = useAutoDistribution()
   
   const [spawnDialogOpen, setSpawnDialogOpen] = useState(false)
   const [selectedZone, setSelectedZone] = useState<ZoneDistributionStatus | null>(null)
   const [spawnCount, setSpawnCount] = useState(3)
-  
-  // Status indicator component
-  const StatusIndicator = () => {
-    const statusConfig = {
-      running: { color: 'bg-green-500', label: 'Running', icon: Play },
-      paused: { color: 'bg-yellow-500', label: 'Paused', icon: Pause },
-      stopped: { color: 'bg-gray-500', label: 'Stopped', icon: Square },
-      error: { color: 'bg-red-500', label: 'Error', icon: AlertTriangle },
-    }
-    const status = statusConfig[stats.system_status]
-    const Icon = status.icon
-    
-    return (
-      <Badge variant="outline" className={`${status.color === 'bg-green-500' ? 'text-green-600 border-green-600' : status.color === 'bg-yellow-500' ? 'text-yellow-600 border-yellow-600' : status.color === 'bg-red-500' ? 'text-red-600 border-red-600' : 'text-gray-600 border-gray-600'}`}>
-        <Icon className="w-3 h-3 mr-1" />
-        {status.label}
-      </Badge>
-    )
-  }
   
   // Handle spawn action
   const handleSpawn = async () => {
@@ -121,7 +118,7 @@ export function AutoDistributionPanel({
       })
       
       setSpawnDialogOpen(false)
-    } catch (err) {
+    } catch {
       toast.error('Failed to spawn coins')
     }
   }
@@ -137,7 +134,7 @@ export function AutoDistributionPanel({
     // Compact version for sidebar/header
     return (
       <div className={`flex items-center gap-4 ${className}`}>
-        <StatusIndicator />
+        <StatusIndicator systemStatus={stats.system_status} />
         <div className="text-sm">
           <span className="font-medium">{stats.coins_spawned_today}</span>
           <span className="text-leather-light ml-1">spawned today</span>
@@ -164,7 +161,7 @@ export function AutoDistributionPanel({
               <div>
                 <CardTitle className="text-saddle-dark flex items-center gap-2">
                   Auto-Distribution
-                  <StatusIndicator />
+                  <StatusIndicator systemStatus={stats.system_status} />
                 </CardTitle>
                 <CardDescription>
                   Automatic coin spawning and management
@@ -278,9 +275,15 @@ export function AutoDistributionPanel({
                   <TableCell className="text-center">
                     <Switch
                       checked={zone.auto_spawn_enabled}
-                      onCheckedChange={(checked) => {
-                        // TODO: Update zone config
-                        toast.info(`Auto-spawn ${checked ? 'enabled' : 'disabled'}`)
+                      onCheckedChange={async (checked) => {
+                        try {
+                          await updateZoneConfig(zone.zone_id, { enabled: checked })
+                          toast.success(`Auto-spawn ${checked ? 'enabled' : 'disabled'}`, {
+                            description: zone.zone_name,
+                          })
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : 'Failed to update auto-spawn')
+                        }
                       }}
                     />
                   </TableCell>
