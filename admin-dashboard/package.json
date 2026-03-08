@@ -47,6 +47,7 @@
     "react-hook-form": "^7.71.1",
     "react-map-gl": "^8.1.0",
     "recharts": "^3.7.0",
+    "s2js": "^1.44.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.5"

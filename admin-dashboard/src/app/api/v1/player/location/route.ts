@@ -34,6 +34,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { getSpatialCellContext } from '@/lib/geo/s2'
 
 // Request body type (camelCase from Unity)
 interface LocationUpdateRequest {
@@ -51,6 +52,31 @@ interface LocationUpdateRequest {
   isArActive?: boolean
   isMockLocation?: boolean
   clientTimestamp?: string
+}
+
+interface PlayerLocationListRow {
+  id: string
+  user_id: string
+  latitude: number
+  longitude: number
+  accuracy_meters: number
+  heading: number | null
+  is_ar_active: boolean
+  movement_type: string
+  current_zone_id: string | null
+  updated_at: string
+}
+
+interface PlayerProfileSummary {
+  id: string
+  full_name: string | null
+  email: string | null
+  avatar_url: string | null
+}
+
+interface ZoneNameSummary {
+  id: string
+  name: string
 }
 
 // Speed thresholds for movement type detection (km/h)
@@ -130,6 +156,7 @@ export async function POST(request: NextRequest) {
     
     // Determine movement type
     const movementType = getMovementType(body.speedMps, body.isMockLocation || false)
+    const spatialCellContext = getSpatialCellContext(body.latitude, body.longitude)
     
     // Build the location data for upsert
     const locationData = {
@@ -147,6 +174,8 @@ export async function POST(request: NextRequest) {
       is_ar_active: body.isArActive || false,
       is_mock_location: body.isMockLocation || false,
       movement_type: movementType,
+      s2_cell_token_l17: spatialCellContext.s2CellTokenL17,
+      s2_cell_token_l14: spatialCellContext.s2CellTokenL14,
       client_timestamp: body.clientTimestamp || new Date().toISOString(),
       server_timestamp: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -225,6 +254,8 @@ export async function POST(request: NextRequest) {
       success: true,
       locationId: data?.id,
       movementType,
+      spatialCellL17: spatialCellContext.s2CellTokenL17,
+      spatialCellL14: spatialCellContext.s2CellTokenL14,
       timestamp: new Date().toISOString(),
     })
     
@@ -294,27 +325,27 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const rows = locations || []
+    const rows: PlayerLocationListRow[] = (locations || []) as PlayerLocationListRow[]
     if (rows.length === 0) {
       return NextResponse.json({ success: true, players: [] })
     }
 
-    const uniqueUserIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))]
-    const uniqueZoneIds = [...new Set(rows.map((r: any) => r.current_zone_id).filter(Boolean))]
+    const uniqueUserIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))]
+    const uniqueZoneIds = [...new Set(rows.map((r) => r.current_zone_id).filter(Boolean))] as string[]
 
     const [{ data: profiles }, { data: zones }] = await Promise.all([
       uniqueUserIds.length > 0
         ? supabase.from('profiles').select('id, full_name, email, avatar_url').in('id', uniqueUserIds)
-        : Promise.resolve({ data: [] as any[] }),
+        : Promise.resolve({ data: [] as PlayerProfileSummary[] }),
       uniqueZoneIds.length > 0
         ? supabase.from('zones').select('id, name').in('id', uniqueZoneIds)
-        : Promise.resolve({ data: [] as any[] }),
+        : Promise.resolve({ data: [] as ZoneNameSummary[] }),
     ])
 
-    const profilesMap = new Map((profiles || []).map((p: any) => [p.id, p]))
-    const zonesMap = new Map((zones || []).map((z: any) => [z.id, z]))
+    const profilesMap = new Map((profiles || []).map((p) => [p.id, p]))
+    const zonesMap = new Map((zones || []).map((z) => [z.id, z]))
 
-    const players = rows.map((location: any) => {
+    const players = rows.map((location) => {
       const profile = profilesMap.get(location.user_id)
       const zone = zonesMap.get(location.current_zone_id)
       const updatedAtMs = new Date(location.updated_at).getTime()

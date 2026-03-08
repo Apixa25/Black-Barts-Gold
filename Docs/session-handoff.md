@@ -205,6 +205,60 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 
 ---
 
+### Session: 2026-03-08 — S2 Phase 1-3 Implementation
+
+**What we implemented:**
+- Began the actual S2 migration work for the admin backend
+- Installed the backend S2 dependency in `admin-dashboard/package.json`:
+  - `s2js`
+- Added shared spatial helper:
+  - `admin-dashboard/src/lib/geo/s2.ts`
+- Added named-zone overlay helper:
+  - `admin-dashboard/src/lib/geo/named-zone-membership.ts`
+- Added additive migration:
+  - `admin-dashboard/supabase/migrations/017_s2_spatial_context.sql`
+
+**Schema additions introduced by the migration:**
+- `player_locations.s2_cell_token_l17`
+- `player_locations.s2_cell_token_l14`
+- `coins.s2_cell_token_l17`
+- `coins.s2_cell_token_l14`
+- `spawn_history.s2_cell_token_l17`
+- `spawn_history.s2_cell_token_l14`
+
+**Route changes completed:**
+- Updated `admin-dashboard/src/app/api/v1/player/location/route.ts`
+  - computes canonical S2 spatial context from incoming lat/lng
+  - stamps `L17` and `L14` cell tokens on every location upsert
+  - returns `spatialCellL17` and `spatialCellL14` in the response
+
+**Type updates completed:**
+- Updated `admin-dashboard/src/types/database.ts`
+  - `Coin` now includes S2 spatial token fields
+  - `PlayerLocation` now includes S2 spatial token fields
+  - `current_zone_id` comments now reflect named-zone overlay semantics rather than canonical geography
+
+**Verification:**
+- Targeted lints for changed files passed:
+  - `src/app/api/v1/player/location/route.ts`
+  - `src/lib/geo/s2.ts`
+  - `src/lib/geo/named-zone-membership.ts`
+  - `src/types/database.ts`
+- Full repo lint still has many unrelated pre-existing dashboard/script issues; they were not introduced by this S2 slice
+
+**What is now true:**
+- The backend has its first real canonical spatial write path
+- New player location writes can carry S2 `L17` + `L14` truth
+- The repo now has the helper layer needed for coin stamping, backfills, and cell-based hunt pressure
+
+**Best next coding step:**
+- Implement the next S2 slice:
+  - stamp coin creation paths (`/api/v1/coins/hide`)
+  - add backfill script for legacy rows
+  - then migrate hunt pressure to use cell-based aggregation
+
+---
+
 ### Session: 2026-03-08 — Zone Implementation Plan
 
 **What we did:**

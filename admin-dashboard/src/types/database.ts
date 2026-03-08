@@ -51,6 +51,10 @@ export interface Coin {
   multi_find: boolean
   finds_remaining: number
   description: string | null
+  /** Canonical S2 Level 17 pressure cell token for the coin location. Added in Migration 017. */
+  s2_cell_token_l17: string | null
+  /** Canonical S2 Level 14 parent summary cell token for the coin location. Added in Migration 017. */
+  s2_cell_token_l14: string | null
   /** Which coin model/graphic to use in AR (bb_gold = Black Bart, prize_race = Prize Race). Optional until migration 011 applied. */
   coin_model?: CoinModel
   /** Who/what created this coin. Added in Migration 014. */
@@ -585,8 +589,12 @@ export interface PlayerLocation {
   movement_type: PlayerMovementType
   distance_traveled_session: number  // Total meters this session
   
-  // Zone context
-  current_zone_id: string | null // Zone player is currently in
+  // Canonical spatial context
+  s2_cell_token_l17: string | null // Canonical S2 Level 17 pressure cell token
+  s2_cell_token_l14: string | null // Canonical S2 Level 14 parent summary cell token
+  
+  // Named-zone overlay context
+  current_zone_id: string | null // Optional named-zone overlay membership, not canonical geography
   
   // Timestamps
   client_timestamp: string       // When device recorded position
