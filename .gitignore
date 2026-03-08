@@ -156,3 +156,5 @@ replace-token.ps1
 
 # Mapbox token (copy from MapboxToken.example.txt and add your pk.* token)
 BlackBartsGold/Assets/Resources/MapboxToken.txt
+
+.vercel
