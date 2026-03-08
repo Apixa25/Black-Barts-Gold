@@ -97,7 +97,7 @@ A Next.js app deployed to Vercel at `https://admin.blackbartsgold.com`.
 | AI API routes | ✅ Live in production | All 7 routes deployed to Vercel |
 | AI Governor page | ✅ Live in production | `/ai-governor` |
 | Database migrations 014/015 | ✅ Applied to remote DB | Verified working |
-| Migration 016 (pg_cron) | ❌ Not applied | Must substitute `YOUR_PROJECT_REF` and `YOUR_SERVICE_ROLE_KEY` placeholders first |
+| Migration 016 (pg_cron) | ✅ Applied to remote DB | Cron jobs created successfully on 2026-03-08 |
 | Spawn Governor Edge Function | ❌ Not deployed | Run: `supabase functions deploy spawn-governor --no-verify-jwt` |
 | MCP Server | ❌ Not live-tested | Code written, needs `npm install` in `mcp-server/` and end-to-end test |
 | Supabase secrets for Edge Function | ❌ Not set | Run: `supabase secrets set ADMIN_API_BASE_URL=... AI_AGENT_API_KEY=...` |
@@ -115,20 +115,10 @@ npx supabase secrets set AI_AGENT_API_KEY=<generate a strong random key>
 ```
 Then set `AI_AGENT_API_KEY` in Vercel environment variables to the same value.
 
-### Step 2 — Apply Migration 016 (pg_cron jobs)
-Open `admin-dashboard/supabase/migrations/016_spawn_governor_cron.sql`, replace:
-- `YOUR_PROJECT_REF` → your Supabase project ref (from the Supabase dashboard URL)
-- `YOUR_SERVICE_ROLE_KEY` → from Supabase dashboard → Settings → API
+### Step 2 — Test the "Summon Black Bart" button
+Once Step 1 is done, click "Summon Black Bart" in the `/ai-governor` page. You should see a toast showing coins spawned, coins recycled, and cost.
 
-Then run:
-```bash
-npx supabase db push
-```
-
-### Step 3 — Test the "Summon Black Bart" button
-Once Steps 1-2 are done, click "Summon Black Bart" in the `/ai-governor` page. You should see a toast showing coins spawned, coins recycled, and cost.
-
-### Step 4 — Test the MCP Server with Cursor
+### Step 3 — Test the MCP Server with Cursor
 ```bash
 cd mcp-server
 npm install
@@ -139,7 +129,7 @@ Then in `.cursor/mcp.json`, fill in:
 
 Restart Cursor. In a new chat, you should be able to say "call get_economy_health" and have it execute against the live API.
 
-### Step 5 — Build the next player-facing AI experience
+### Step 4 — Build the next player-facing AI experience
 Good candidates (from `AI-integration.md`):
 - **Player Churn Prevention** — detect players who haven't played in 3 days, drop a high-value coin near them
 - **AI Game Master messages** — Black Bart sends in-app taunts and hints based on player behavior
@@ -202,6 +192,43 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 ## 📅 Session Log
 
 > Update this section at the end of each productive session. Keep the most recent entry at the top.
+
+---
+
+### Session: 2026-03-08 — S2 Coin Stamping + Remote Migration Push
+
+**What we implemented:**
+- Continued the S2 rollout by updating the manual/player coin creation path:
+  - `admin-dashboard/src/app/api/v1/coins/hide/route.ts`
+- Coin creation now computes and stores:
+  - `s2_cell_token_l17`
+  - `s2_cell_token_l14`
+- Added logging that includes the canonical `L17` pressure cell token for hidden coins
+
+**Supabase work completed:**
+- Successfully ran remote migration push from `admin-dashboard/`
+- `supabase db push` applied:
+  - `016_spawn_governor_cron.sql`
+  - `017_s2_spatial_context.sql`
+
+**Important outcome:**
+- The remote database now has the new S2 spatial columns
+- The remote database also now has the Spawn Governor cron migrations applied
+- Both player location writes and coin hide writes can stamp canonical S2 cells
+
+**Verification:**
+- Targeted lint for `admin-dashboard/src/app/api/v1/coins/hide/route.ts` passed
+- The changed S2 files remain lint-clean
+- Full repo lint still contains unrelated historical issues outside this slice
+
+**What is now true:**
+- New player location writes can store S2 `L17` + `L14`
+- New manually hidden/player-hidden coins can store S2 `L17` + `L14`
+- The schema needed for cell-based hunt pressure is now present on the remote DB
+
+**Best next coding step:**
+- Build the backfill script for legacy rows
+- Then migrate `GET /api/v1/admin/ai/hunt-pressure` from zone-based aggregation to cell-based aggregation
 
 ---
 

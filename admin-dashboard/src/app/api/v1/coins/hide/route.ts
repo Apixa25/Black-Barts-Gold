@@ -25,6 +25,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { keysToCamelCase } from '@/lib/api-utils'
+import { getSpatialCellContext } from '@/lib/geo/s2'
 import type { CoinType, CoinTier } from '@/types/database'
 
 interface HideCoinRequest {
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
     const hiderId = body.hiderId || body.hider_id || null
     const description = body.message || body.description || null
     const locationName = body.locationName || body.location_name || null
+    const spatialCellContext = getSpatialCellContext(latitude, longitude)
     
     const coinData = {
       coin_type: coinType,
@@ -112,6 +114,8 @@ export async function POST(request: NextRequest) {
       description,
       status: 'hidden' as const,
       hider_id: hiderId,
+      s2_cell_token_l17: spatialCellContext.s2CellTokenL17,
+      s2_cell_token_l14: spatialCellContext.s2CellTokenL14,
       hidden_at: new Date().toISOString(),
       multi_find: false,
       finds_remaining: 1,
@@ -132,7 +136,9 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    console.log(`[API] Coin hidden: ${coin.id}, value: $${value.toFixed(2)} at (${latitude}, ${longitude})`)
+    console.log(
+      `[API] Coin hidden: ${coin.id}, value: $${value.toFixed(2)} at (${latitude}, ${longitude}), cell=${spatialCellContext.s2CellTokenL17}`
+    )
     
     // Convert to camelCase for Unity compatibility
     const camelCaseCoin = keysToCamelCase(coin)
