@@ -26,8 +26,8 @@ MonoBehaviour:
   lockedColor: {r: 0.94, g: 0.27, b: 0.27, a: 1}
   baseScale: 0.3
   collectibleScaleMultiplier: 1.1
-  scaleAtFar: 0.05
-  scaleAtNear: 1.2
+  scaleAtFar: 0.1
+  scaleAtNear: 2.4
   metersPerStep: 10
   finalMetersForScaleRamp: 10
   scaleAtCollectionMultiplier: 2

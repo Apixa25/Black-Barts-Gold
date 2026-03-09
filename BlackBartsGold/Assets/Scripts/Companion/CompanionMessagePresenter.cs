@@ -16,7 +16,7 @@ namespace BlackBartsGold.Companion
         private int _lastPriority = -1;
         private string _lastMessageId;
 
-        public CompanionMessagePresenter(float cooldownSeconds = 4f, float messageDurationSeconds = 4.5f)
+        public CompanionMessagePresenter(float cooldownSeconds = 4f, float messageDurationSeconds = 60f)
         {
             _cooldownSeconds = cooldownSeconds;
             _messageDurationSeconds = messageDurationSeconds;

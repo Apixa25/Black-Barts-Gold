@@ -2373,7 +2373,7 @@ namespace BlackBartsGold.UI
             panelRect.anchorMax = new Vector2(0.5f, 0f);
             panelRect.pivot = new Vector2(0.5f, 0f);
             panelRect.anchoredPosition = new Vector2(0f, 430f);
-            panelRect.sizeDelta = new Vector2(760f, 120f);
+            panelRect.sizeDelta = new Vector2(860f, 180f);
 
             var canvasGroup = panel.AddComponent<CanvasGroup>();
             canvasGroup.alpha = 0f;
@@ -2391,11 +2391,11 @@ namespace BlackBartsGold.UI
             labelRect.anchorMax = new Vector2(1f, 1f);
             labelRect.pivot = new Vector2(0.5f, 1f);
             labelRect.anchoredPosition = new Vector2(0f, -10f);
-            labelRect.sizeDelta = new Vector2(-28f, 28f);
+            labelRect.sizeDelta = new Vector2(-32f, 36f);
 
             var labelText = labelGO.AddComponent<TextMeshProUGUI>();
             labelText.text = "Black Bart";
-            labelText.fontSize = 20;
+            labelText.fontSize = 28;
             labelText.color = GoldColor;
             labelText.alignment = TextAlignmentOptions.Center;
             labelText.fontStyle = FontStyles.Bold;
@@ -2406,12 +2406,12 @@ namespace BlackBartsGold.UI
             var textRect = textGO.AddComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
             textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(20f, 14f);
-            textRect.offsetMax = new Vector2(-20f, -36f);
+            textRect.offsetMin = new Vector2(28f, 20f);
+            textRect.offsetMax = new Vector2(-28f, -48f);
 
             var tmpText = textGO.AddComponent<TextMeshProUGUI>();
             tmpText.text = string.Empty;
-            tmpText.fontSize = 30;
+            tmpText.fontSize = 52;
             tmpText.color = Color.white;
             tmpText.alignment = TextAlignmentOptions.Center;
             tmpText.enableWordWrapping = true;

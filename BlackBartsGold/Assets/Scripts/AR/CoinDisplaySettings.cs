@@ -112,8 +112,8 @@ namespace BlackBartsGold.AR
         public float scaleAtFar = 0.05f;
         
         [Tooltip("Scale multiplier at 10m (closest before collection - full size). Step 10 of 10.")]
-        [Range(0.5f, 2f)]
-        public float scaleAtNear = 1.2f;
+        [Range(0.5f, 4f)]
+        public float scaleAtNear = 2.4f;
         
         [Tooltip("Number of meters per scale step")]
         [Range(5f, 20f)]
