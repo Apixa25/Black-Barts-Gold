@@ -191,11 +191,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'action is required' }, { status: 400 })
   }
 
+  const requestedAction = body.action
+
   try {
     const playerContext = await getPlayerContext(authenticatedPlayer.id, body)
     playerContext.display_name = authenticatedPlayer.displayName
 
-    if (body.action === 'start_session') {
+    if (requestedAction === 'start_session') {
       const selectedCoin = await getSelectedCoinContext(body.selectedCoinId)
       const pack = buildStartSessionResponse({
         player: playerContext,
@@ -228,7 +230,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (body.action === 'submit_intent') {
+    if (requestedAction === 'submit_intent') {
       if (!body.intentType || !getQuickPromptDefinition(body.intentType)) {
         return NextResponse.json({ success: false, error: 'intentType must be a supported quick prompt' }, { status: 400 })
       }
@@ -274,7 +276,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (body.action === 'report_event') {
+    if (requestedAction === 'report_event') {
       if (!body.eventType || typeof body.eventType !== 'string') {
         return NextResponse.json({ success: false, error: 'eventType is required' }, { status: 400 })
       }
@@ -316,7 +318,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ success: false, error: `Unsupported action: ${body.action}` }, { status: 400 })
+    return NextResponse.json({ success: false, error: `Unsupported action: ${requestedAction}` }, { status: 400 })
   } catch (error) {
     console.error('[player/companion] Error:', error)
     return NextResponse.json(
