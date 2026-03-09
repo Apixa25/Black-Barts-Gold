@@ -9,7 +9,7 @@
 
 import { useState } from "react"
 import { useTimedReleases } from "@/hooks/use-timed-releases"
-import type { ReleaseSchedule, ReleaseQueueItem, Zone } from "@/types/database"
+import type { ReleaseSchedule, Zone } from "@/types/database"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -53,9 +53,7 @@ import {
   RefreshCw,
   Plus,
   MoreVertical,
-  Loader2,
   MapPin,
-  Coins,
   CheckCircle,
   XCircle,
 } from "lucide-react"
@@ -139,7 +137,7 @@ export function TimedReleasesPanel({ className = "", zones = [] }: TimedReleases
         releaseIntervalSeconds: 60,
         startTime: "",
       })
-    } catch (e) {
+    } catch {
       toast.error("Failed to create schedule")
     }
   }

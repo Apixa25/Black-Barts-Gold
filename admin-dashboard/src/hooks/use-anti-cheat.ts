@@ -15,8 +15,6 @@ import type {
   CheatFlag, 
   FlaggedPlayer, 
   AntiCheatStats,
-  CheatReason,
-  CheatSeverity,
   PlayerAction,
   CheatFlagStatus,
   PlayerMovementType

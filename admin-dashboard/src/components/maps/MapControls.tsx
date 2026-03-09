@@ -16,16 +16,12 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select"
 import { 
   ZoomIn, 
   ZoomOut, 
   Maximize2, 
   Layers, 
-  MapPin,
-  Eye,
-  EyeOff,
   Locate,
   Filter
 } from "lucide-react"
@@ -72,8 +68,6 @@ export function MapControls({
   currentStyle,
   visibleStatuses,
   onStatusFilterChange,
-  showLabels = true,
-  onToggleLabels,
   coinCount,
 }: MapControlsProps) {
   const [filterOpen, setFilterOpen] = useState(false)

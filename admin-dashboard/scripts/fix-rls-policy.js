@@ -3,42 +3,39 @@
  * Run: node scripts/fix-rls-policy.js
  */
 
-const { createClient } = require('@supabase/supabase-js')
-const fs = require('fs')
-const path = require('path')
+async function loadEnv() {
+  const fs = await import('node:fs/promises')
+  const path = await import('node:path')
+  const envPath = path.join(process.cwd(), '.env.local')
+  const envContent = await fs.readFile(envPath, 'utf-8')
+  const envVars = {}
 
-// Load .env.local
-const envPath = path.join(__dirname, '..', '.env.local')
-const envContent = fs.readFileSync(envPath, 'utf-8')
-const envVars = {}
+  envContent.split('\n').forEach((rawLine) => {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) return
+    const match = line.match(/^([A-Z_]+)=(.*)$/)
+    if (!match) return
 
-envContent.split('\n').forEach(line => {
-  line = line.trim()
-  if (!line || line.startsWith('#')) return
-  const match = line.match(/^([A-Z_]+)=(.*)$/)
-  if (match) {
     const key = match[1].trim()
     let value = match[2].trim()
-    if ((value.startsWith('"') && value.endsWith('"')) || 
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1)
     }
     envVars[key] = value
-  }
-})
+  })
 
-const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceKey = envVars.SUPABASE_SERVICE_ROLE_KEY
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('❌ Missing environment variables!')
-  process.exit(1)
+  return envVars
 }
 
-// Use service role to bypass RLS
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
 async function fixRLSPolicy() {
+  const envVars = await loadEnv()
+  const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = envVars.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+  }
+
   console.log('🔧 Fixing RLS policy for player_locations...\n')
   
   const sql = `

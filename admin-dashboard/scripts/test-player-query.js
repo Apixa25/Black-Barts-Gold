@@ -3,42 +3,41 @@
  * Run: node scripts/test-player-query.js
  */
 
-const { createClient } = require('@supabase/supabase-js')
-const fs = require('fs')
-const path = require('path')
+async function loadEnv() {
+  const fs = await import('node:fs/promises')
+  const path = await import('node:path')
+  const envPath = path.join(process.cwd(), '.env.local')
+  const envContent = await fs.readFile(envPath, 'utf-8')
+  const envVars = {}
 
-// Load .env.local
-const envPath = path.join(__dirname, '..', '.env.local')
-const envContent = fs.readFileSync(envPath, 'utf-8')
-const envVars = {}
+  envContent.split('\n').forEach((rawLine) => {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) return
+    const match = line.match(/^([A-Z_]+)=(.*)$/)
+    if (!match) return
 
-envContent.split('\n').forEach(line => {
-  line = line.trim()
-  if (!line || line.startsWith('#')) return
-  const match = line.match(/^([A-Z_]+)=(.*)$/)
-  if (match) {
     const key = match[1].trim()
     let value = match[2].trim()
-    if ((value.startsWith('"') && value.endsWith('"')) || 
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1)
     }
     envVars[key] = value
-  }
-})
+  })
 
-const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing environment variables!')
-  process.exit(1)
+  return envVars
 }
 
-// Use anon key (like the frontend does)
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
 async function testQuery() {
+  const { createClient } = await import('@supabase/supabase-js')
+  const envVars = await loadEnv()
+  const supabaseUrl = envVars.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = envVars.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey)
   console.log('🔍 Testing player_locations query...\n')
   
   // Test 1: Simple select
@@ -59,7 +58,7 @@ async function testQuery() {
   
   // Test 2: Check if table exists
   console.log('\nTest 2: Check table exists')
-  const { data: data2, error: error2 } = await supabase
+  const { error: error2 } = await supabase
     .rpc('check_table_exists', { table_name: 'player_locations' })
     .single()
   

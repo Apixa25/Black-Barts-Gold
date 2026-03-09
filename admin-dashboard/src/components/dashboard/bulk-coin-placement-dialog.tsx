@@ -28,7 +28,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
 import { Coins, MapPin, DollarSign, Loader2 } from "lucide-react"
 import {
   DEFAULT_BULK_PLACEMENT_CONFIG,
