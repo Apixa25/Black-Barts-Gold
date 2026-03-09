@@ -1604,6 +1604,7 @@ namespace BlackBartsGold.UI
                 _radarZoomRadarUI = radarUI;
                 SetupRadarContent(radar, radarUI);
                 radarUI.SetMiniMapScale(_miniMapUiScale);
+                radarUI.SetMapProjectionZoom(_radarZoom);
                 radarUI.SetOrientationMode(RadarUI.MiniMapOrientationMode.NorthUp);
                 SetupRadarZoomControls(radarUI);
                 radar.gameObject.SetActive(true);
@@ -3116,6 +3117,11 @@ namespace BlackBartsGold.UI
             if (zoomChanged)
             {
                 _radarZoom = desiredZoom;
+            }
+
+            if (_radarZoomRadarUI != null)
+            {
+                _radarZoomRadarUI.SetMapProjectionZoom(_radarZoom);
             }
 
             bool needsUpdate = timeSince >= 2f &&

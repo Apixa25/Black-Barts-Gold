@@ -181,6 +181,8 @@ namespace BlackBartsGold.UI
 
         private const float BaseRadarRadiusPixels = 60f;
         private const float BaseDotSizePixels = 16f;
+        private const float MiniMapTileRequestPixels = 400f;
+        private const float WebMercatorTileSize = 512f;
         private const float MinRadarRangeMeters = 15f;
         private const float MaxRadarRangeMeters = 200f;
         private const float AutoZoomPaddingMultiplier = 1.35f;
@@ -197,6 +199,7 @@ namespace BlackBartsGold.UI
         private const float TapHealthCheckInterval = 1f;
         private float _lastFallbackTapTime = -10f;
         private const float FallbackTapCooldownSeconds = 0.35f;
+        private int currentMiniMapZoom = 19;
         
         #endregion
         
@@ -624,13 +627,13 @@ namespace BlackBartsGold.UI
             // Update or create the target dot
             // For radar, we can show it even if beyond radar range (just at the edge)
             float displayDistance = Mathf.Min(distance, radarRange * 0.95f);
-            UpdateCoinDot(targetData, displayDistance, bearing, targetCoin.IsLocked, targetCoin.IsInRange);
+            UpdateCoinDot(targetData, displayDistance, bearing, targetCoin.IsLocked, targetCoin.IsInRange, playerLocation);
         }
         
         /// <summary>
         /// Update or create a coin dot
         /// </summary>
-        private void UpdateCoinDot(Coin coin, float distance, float bearing, bool isLocked, bool isInRange)
+        private void UpdateCoinDot(Coin coin, float distance, float bearing, bool isLocked, bool isInRange, LocationData playerLocation)
         {
             RectTransform dot;
             
@@ -654,13 +657,20 @@ namespace BlackBartsGold.UI
             
             float bearingRad = adjustedBearing * Mathf.Deg2Rad;
             float normalizedDistance = distance / radarRange;
-            float pixelDistance = normalizedDistance * radarRadius;
-            
-            // Position (0,0 is center, up is north/forward)
-            float x = Mathf.Sin(bearingRad) * pixelDistance;
-            float y = Mathf.Cos(bearingRad) * pixelDistance;
-            
-            dot.anchoredPosition = new Vector2(x, y);
+
+            if (TryProjectCoinToMiniMap(coin, playerLocation, out Vector2 projectedPosition))
+            {
+                dot.anchoredPosition = projectedPosition;
+            }
+            else
+            {
+                float pixelDistance = normalizedDistance * radarRadius;
+
+                // Fallback radar projection when map projection context is unavailable.
+                float x = Mathf.Sin(bearingRad) * pixelDistance;
+                float y = Mathf.Cos(bearingRad) * pixelDistance;
+                dot.anchoredPosition = new Vector2(x, y);
+            }
             
             // Set color based on state
             Image dotImage = dot.GetComponent<Image>();
@@ -905,6 +915,16 @@ namespace BlackBartsGold.UI
         }
 
         /// <summary>
+        /// Set the Mapbox zoom level currently used by the mini-map background tile.
+        /// Coin markers must use the same zoom so they stay aligned with real map geography.
+        /// </summary>
+        public void SetMapProjectionZoom(int zoom)
+        {
+            currentMiniMapZoom = Mathf.Clamp(zoom, 0, 22);
+            UpdateRadar();
+        }
+
+        /// <summary>
         /// Enable/disable automatic radar range adaptation.
         /// </summary>
         public void SetAutoZoomEnabled(bool enabled)
@@ -991,6 +1011,58 @@ namespace BlackBartsGold.UI
 
             // Fallback for early lifecycle frames before layout is resolved.
             radarRadius = BaseRadarRadiusPixels * miniMapScale;
+        }
+
+        private bool TryProjectCoinToMiniMap(Coin coin, LocationData playerLocation, out Vector2 anchoredPosition)
+        {
+            anchoredPosition = Vector2.zero;
+
+            if (coin == null || playerLocation == null || radarContainer == null)
+            {
+                return false;
+            }
+
+            float width = radarContainer.rect.width;
+            float height = radarContainer.rect.height;
+            if (width <= 1f || height <= 1f)
+            {
+                return false;
+            }
+
+            Vector2 centerPixels = ProjectMercator(playerLocation.latitude, playerLocation.longitude, currentMiniMapZoom);
+            Vector2 coinPixels = ProjectMercator(coin.latitude, coin.longitude, currentMiniMapZoom);
+            Vector2 deltaPixels = coinPixels - centerPixels;
+
+            // Mapbox static tile is requested at 400x400 CSS pixels, then stretched into the radar container.
+            float scaleX = width / MiniMapTileRequestPixels;
+            float scaleY = height / MiniMapTileRequestPixels;
+            Vector2 displayOffset = new Vector2(deltaPixels.x * scaleX, -deltaPixels.y * scaleY);
+
+            if (orientationMode == MiniMapOrientationMode.ForwardUp)
+            {
+                displayOffset = Quaternion.Euler(0f, 0f, currentHeading) * displayOffset;
+            }
+
+            float maxX = (width * 0.5f) * 0.95f;
+            float maxY = (height * 0.5f) * 0.95f;
+            anchoredPosition = new Vector2(
+                Mathf.Clamp(displayOffset.x, -maxX, maxX),
+                Mathf.Clamp(displayOffset.y, -maxY, maxY)
+            );
+
+            return true;
+        }
+
+        private static Vector2 ProjectMercator(double latitude, double longitude, int zoom)
+        {
+            double worldSize = WebMercatorTileSize * System.Math.Pow(2d, zoom);
+            double x = (longitude + 180d) / 360d * worldSize;
+
+            double latRad = latitude * System.Math.PI / 180d;
+            double sinLat = System.Math.Sin(latRad);
+            double y = (0.5d - System.Math.Log((1d + sinLat) / (1d - sinLat)) / (4d * System.Math.PI)) * worldSize;
+
+            return new Vector2((float)x, (float)y);
         }
         
         #endregion
