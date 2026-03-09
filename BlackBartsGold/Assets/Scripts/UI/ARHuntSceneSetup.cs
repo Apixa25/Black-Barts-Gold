@@ -82,7 +82,7 @@ namespace BlackBartsGold.UI
         private TextMeshProUGUI _sensorStatusText;
         private Transform _sensorStatusPanel;
         private const bool EnableRuntimeDevConsole = false;
-        private const bool EnableRuntimeSensorDebugHud = true;
+        private const bool EnableRuntimeSensorDebugHud = false;
         private const string SensorHudPanelName = "SensorDebugHudPanel";
         private const string SensorHudTextName = "SensorDebugHudText";
         
@@ -130,6 +130,7 @@ namespace BlackBartsGold.UI
 
             RemoveDevelopmentConsolePanel();
             SetupMessagePanel();
+            SetupCompanionMessagePanel();
             SetupCompanionIntentPanel();
             SetupLockedPopup();
             SetupCollectionPopup();
@@ -2354,6 +2355,70 @@ namespace BlackBartsGold.UI
 
             panel.SetActive(true);
             DiagnosticLog.Log("Setup", "MessagePanel created");
+        }
+
+        /// <summary>
+        /// Create a dedicated Black Bart companion message panel above the prompt buttons.
+        /// This keeps companion lines visible even when the generic ARHUD message lane changes.
+        /// </summary>
+        private void SetupCompanionMessagePanel()
+        {
+            var existing = transform.Find("CompanionMessagePanel");
+            if (existing != null) return;
+
+            var panel = new GameObject("CompanionMessagePanel");
+            panel.transform.SetParent(transform, false);
+            var panelRect = panel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 0f);
+            panelRect.anchorMax = new Vector2(0.5f, 0f);
+            panelRect.pivot = new Vector2(0.5f, 0f);
+            panelRect.anchoredPosition = new Vector2(0f, 430f);
+            panelRect.sizeDelta = new Vector2(760f, 120f);
+
+            var canvasGroup = panel.AddComponent<CanvasGroup>();
+            canvasGroup.alpha = 0f;
+            canvasGroup.blocksRaycasts = false;
+            canvasGroup.interactable = false;
+
+            var bgImage = panel.AddComponent<Image>();
+            bgImage.color = new Color(0.12f, 0.06f, 0.02f, 0.88f);
+            bgImage.raycastTarget = false;
+
+            var labelGO = new GameObject("CompanionSpeaker");
+            labelGO.transform.SetParent(panel.transform, false);
+            var labelRect = labelGO.AddComponent<RectTransform>();
+            labelRect.anchorMin = new Vector2(0f, 1f);
+            labelRect.anchorMax = new Vector2(1f, 1f);
+            labelRect.pivot = new Vector2(0.5f, 1f);
+            labelRect.anchoredPosition = new Vector2(0f, -10f);
+            labelRect.sizeDelta = new Vector2(-28f, 28f);
+
+            var labelText = labelGO.AddComponent<TextMeshProUGUI>();
+            labelText.text = "Black Bart";
+            labelText.fontSize = 20;
+            labelText.color = GoldColor;
+            labelText.alignment = TextAlignmentOptions.Center;
+            labelText.fontStyle = FontStyles.Bold;
+            labelText.enableWordWrapping = false;
+
+            var textGO = new GameObject("CompanionMessageText");
+            textGO.transform.SetParent(panel.transform, false);
+            var textRect = textGO.AddComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(20f, 14f);
+            textRect.offsetMax = new Vector2(-20f, -36f);
+
+            var tmpText = textGO.AddComponent<TextMeshProUGUI>();
+            tmpText.text = string.Empty;
+            tmpText.fontSize = 30;
+            tmpText.color = Color.white;
+            tmpText.alignment = TextAlignmentOptions.Center;
+            tmpText.enableWordWrapping = true;
+
+            panel.AddComponent<CompanionMessageOverlay>();
+            panel.SetActive(true);
+            DiagnosticLog.Log("Setup", "CompanionMessagePanel created");
         }
 
         /// <summary>

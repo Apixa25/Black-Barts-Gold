@@ -5,7 +5,7 @@ using BlackBartsGold.UI;
 namespace BlackBartsGold.Companion
 {
     /// <summary>
-    /// Sends companion lines into the existing ARHUD message lane with light spam protection.
+    /// Sends companion lines into a dedicated overlay with fallback to the legacy ARHUD lane.
     /// </summary>
     public class CompanionMessagePresenter
     {
@@ -34,13 +34,11 @@ namespace BlackBartsGold.Companion
                 return false;
             }
 
-            if (ARHUD.Instance == null)
+            if (!ShowLine(reply.messageText))
             {
-                Debug.LogWarning("[CompanionMessagePresenter] ARHUD not available for reply.");
                 return false;
             }
 
-            ARHUD.Instance.ShowMessage(FormatForHud(reply.messageText), _messageDurationSeconds);
             RememberShown(reply.messageId, reply.priority);
             return true;
         }
@@ -57,13 +55,11 @@ namespace BlackBartsGold.Companion
                 return false;
             }
 
-            if (ARHUD.Instance == null)
+            if (!ShowLine(candidate.messageText))
             {
-                Debug.LogWarning("[CompanionMessagePresenter] ARHUD not available for candidate.");
                 return false;
             }
 
-            ARHUD.Instance.ShowMessage(FormatForHud(candidate.messageText), _messageDurationSeconds);
             RememberShown(candidate.messageId, candidate.priority);
             return true;
         }
@@ -99,6 +95,26 @@ namespace BlackBartsGold.Companion
         private string FormatForHud(string line)
         {
             return $"Black Bart: {line}";
+        }
+
+        private bool ShowLine(string line)
+        {
+            string formatted = FormatForHud(line);
+
+            if (CompanionMessageOverlay.Exists)
+            {
+                CompanionMessageOverlay.Instance.ShowMessage(formatted, _messageDurationSeconds);
+                return true;
+            }
+
+            if (ARHUD.Instance != null)
+            {
+                ARHUD.Instance.ShowMessage(formatted, _messageDurationSeconds);
+                return true;
+            }
+
+            Debug.LogWarning("[CompanionMessagePresenter] No companion overlay or ARHUD available.");
+            return false;
         }
     }
 }
