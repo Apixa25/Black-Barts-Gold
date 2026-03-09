@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import type { Sponsor, SponsorStatus } from "@/types/database"
@@ -25,20 +25,38 @@ interface SponsorDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+interface SponsorFormState {
+  company_name: string
+  contact_name: string
+  contact_email: string
+  contact_phone: string
+  website_url: string
+  logo_url: string
+  description: string
+  status: SponsorStatus
+}
+
 const statusOptions: { value: SponsorStatus; label: string; color: string }[] = [
   { value: "active", label: "Active", color: "bg-green-100 text-green-700" },
   { value: "pending", label: "Pending", color: "bg-yellow-100 text-yellow-700" },
   { value: "inactive", label: "Inactive", color: "bg-gray-100 text-gray-600" },
 ]
 
-export function SponsorDialog({ sponsor, open, onOpenChange }: SponsorDialogProps) {
-  const router = useRouter()
-  const supabase = createClient()
-  const [isSaving, setIsSaving] = useState(false)
-  
-  const isEditing = !!sponsor
-  
-  const [form, setForm] = useState({
+function buildSponsorFormState(sponsor?: Sponsor | null): SponsorFormState {
+  if (sponsor) {
+    return {
+      company_name: sponsor.company_name,
+      contact_name: sponsor.contact_name || "",
+      contact_email: sponsor.contact_email,
+      contact_phone: sponsor.contact_phone || "",
+      website_url: sponsor.website_url || "",
+      logo_url: sponsor.logo_url || "",
+      description: sponsor.description || "",
+      status: sponsor.status,
+    }
+  }
+
+  return {
     company_name: "",
     contact_name: "",
     contact_email: "",
@@ -46,36 +64,23 @@ export function SponsorDialog({ sponsor, open, onOpenChange }: SponsorDialogProp
     website_url: "",
     logo_url: "",
     description: "",
-    status: "pending" as SponsorStatus,
-  })
+    status: "pending",
+  }
+}
 
-  // Reset form when dialog opens/closes or sponsor changes
-  useEffect(() => {
-    if (open && sponsor) {
-      setForm({
-        company_name: sponsor.company_name,
-        contact_name: sponsor.contact_name || "",
-        contact_email: sponsor.contact_email,
-        contact_phone: sponsor.contact_phone || "",
-        website_url: sponsor.website_url || "",
-        logo_url: sponsor.logo_url || "",
-        description: sponsor.description || "",
-        status: sponsor.status,
-      })
-    } else if (open && !sponsor) {
-      // Reset to defaults for new sponsor
-      setForm({
-        company_name: "",
-        contact_name: "",
-        contact_email: "",
-        contact_phone: "",
-        website_url: "",
-        logo_url: "",
-        description: "",
-        status: "pending",
-      })
-    }
-  }, [open, sponsor])
+export function SponsorDialog({ sponsor, open, onOpenChange }: SponsorDialogProps) {
+  const router = useRouter()
+  const supabase = createClient()
+  const [isSaving, setIsSaving] = useState(false)
+  
+  const isEditing = !!sponsor
+  const formKey = useMemo(() => sponsor?.id ?? "new", [sponsor?.id])
+  const defaultForm = useMemo(() => buildSponsorFormState(sponsor), [sponsor])
+  const [drafts, setDrafts] = useState<Record<string, SponsorFormState>>({})
+  const form = drafts[formKey] ?? defaultForm
+  const setForm = (nextForm: SponsorFormState) => {
+    setDrafts((prev) => ({ ...prev, [formKey]: nextForm }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -129,6 +134,11 @@ export function SponsorDialog({ sponsor, open, onOpenChange }: SponsorDialogProp
 
     toast.success(`Sponsor ${isEditing ? "updated" : "created"}! 🏢`, {
       description: sponsorData.company_name,
+    })
+    setDrafts((prev) => {
+      const next = { ...prev }
+      delete next[formKey]
+      return next
     })
     onOpenChange(false)
     router.refresh()

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import type { Coin, CoinType, CoinTier, CoinStatus, CoinModel } from "@/types/database"
@@ -38,6 +38,20 @@ interface CoinDialogProps {
   onDelete?: (coin: Coin) => void
 }
 
+interface CoinFormState {
+  coin_type: CoinType
+  coin_model: CoinModel
+  value: string
+  tier: CoinTier
+  latitude: string
+  longitude: string
+  location_name: string
+  description: string
+  is_mythical: boolean
+  multi_find: boolean
+  finds_remaining: string
+}
+
 const tierOptions: { value: CoinTier; label: string; emoji: string }[] = [
   { value: "gold", label: "Gold", emoji: "🥇" },
   { value: "silver", label: "Silver", emoji: "🥈" },
@@ -60,6 +74,41 @@ const coinModelOptions: { value: CoinModel; label: string }[] = [
   { value: "prize_race", label: "Prize Race" },
 ]
 
+function buildCoinFormState(
+  coin: Coin | null | undefined,
+  initialCoordinates?: { lat: number; lng: number } | null
+): CoinFormState {
+  if (coin) {
+    return {
+      coin_type: coin.coin_type,
+      coin_model: coin.coin_model ?? "color_bb",
+      value: coin.value.toString(),
+      tier: coin.tier,
+      latitude: coin.latitude.toString(),
+      longitude: coin.longitude.toString(),
+      location_name: coin.location_name || "",
+      description: coin.description || "",
+      is_mythical: coin.is_mythical,
+      multi_find: coin.multi_find,
+      finds_remaining: coin.finds_remaining.toString(),
+    }
+  }
+
+  return {
+    coin_type: "fixed",
+    coin_model: "color_bb",
+    value: "",
+    tier: "gold",
+    latitude: initialCoordinates?.lat?.toString() || "",
+    longitude: initialCoordinates?.lng?.toString() || "",
+    location_name: "",
+    description: "",
+    is_mythical: false,
+    multi_find: false,
+    finds_remaining: "1",
+  }
+}
+
 export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinates, onDelete }: CoinDialogProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -67,55 +116,21 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
   const [isDeleting, setIsDeleting] = useState(false)
   
   const isEditing = !!coin
-  
-  const [form, setForm] = useState({
-    coin_type: "fixed" as CoinType,
-    coin_model: "color_bb" as CoinModel,
-    value: "",
-    tier: "gold" as CoinTier,
-    latitude: "",
-    longitude: "",
-    location_name: "",
-    description: "",
-    is_mythical: false,
-    multi_find: false,
-    finds_remaining: "1",
-  })
-
-  // Reset form when dialog opens/closes or coin changes
-  useEffect(() => {
-    if (open && coin) {
-      // Editing existing coin
-      setForm({
-        coin_type: coin.coin_type,
-        coin_model: coin.coin_model ?? "color_bb",
-        value: coin.value.toString(),
-        tier: coin.tier,
-        latitude: coin.latitude.toString(),
-        longitude: coin.longitude.toString(),
-        location_name: coin.location_name || "",
-        description: coin.description || "",
-        is_mythical: coin.is_mythical,
-        multi_find: coin.multi_find,
-        finds_remaining: coin.finds_remaining.toString(),
-      })
-    } else if (open && !coin) {
-      // Creating new coin - use initialCoordinates if provided
-      setForm({
-        coin_type: "fixed",
-        coin_model: "color_bb",
-        value: "",
-        tier: "gold",
-        latitude: initialCoordinates?.lat?.toString() || "",
-        longitude: initialCoordinates?.lng?.toString() || "",
-        location_name: "",
-        description: "",
-        is_mythical: false,
-        multi_find: false,
-        finds_remaining: "1",
-      })
-    }
-  }, [open, coin, initialCoordinates])
+  const formKey = useMemo(
+    () =>
+      coin?.id ??
+      `new:${initialCoordinates?.lat ?? ""}:${initialCoordinates?.lng ?? ""}`,
+    [coin?.id, initialCoordinates?.lat, initialCoordinates?.lng]
+  )
+  const defaultForm = useMemo(
+    () => buildCoinFormState(coin, initialCoordinates),
+    [coin, initialCoordinates]
+  )
+  const [drafts, setDrafts] = useState<Record<string, CoinFormState>>({})
+  const form = drafts[formKey] ?? defaultForm
+  const setForm = (nextForm: CoinFormState) => {
+    setDrafts((prev) => ({ ...prev, [formKey]: nextForm }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -196,6 +211,11 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
 
     toast.success(`Coin ${isEditing ? "updated" : "created"}! 🪙`, {
       description: `$${coinData.value.toFixed(2)} ${coinData.tier} coin`,
+    })
+    setDrafts((prev) => {
+      const next = { ...prev }
+      delete next[formKey]
+      return next
     })
     onOpenChange(false)
     router.refresh()

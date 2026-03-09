@@ -22,8 +22,6 @@ import {
   Wifi, 
   WifiOff, 
   Eye,
-  MapPin,
-  Activity,
   AlertTriangle,
   Loader2,
   Maximize2
@@ -46,6 +44,32 @@ const MapView = dynamic(
 interface LivePlayersMapProps {
   height?: number
   showFullScreenLink?: boolean
+}
+
+function ConnectionIndicator({ connectionStatus }: { connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error' }) {
+  switch (connectionStatus) {
+    case 'connected':
+      return (
+        <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
+          <Wifi className="w-3 h-3 mr-1" />
+          Live
+        </Badge>
+      )
+    case 'connecting':
+      return (
+        <Badge variant="outline" className="text-yellow-600 border-yellow-600 bg-yellow-50">
+          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+          Connecting
+        </Badge>
+      )
+    default:
+      return (
+        <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50">
+          <WifiOff className="w-3 h-3 mr-1" />
+          Offline
+        </Badge>
+      )
+  }
 }
 
 export function LivePlayersMap({ 
@@ -83,33 +107,6 @@ export function LivePlayersMap({
     console.log("Track player:", player.user_id)
   }, [])
   
-  // Connection status indicator
-  const ConnectionIndicator = () => {
-    switch (connectionStatus) {
-      case 'connected':
-        return (
-          <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
-            <Wifi className="w-3 h-3 mr-1" />
-            Live
-          </Badge>
-        )
-      case 'connecting':
-        return (
-          <Badge variant="outline" className="text-yellow-600 border-yellow-600 bg-yellow-50">
-            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            Connecting
-          </Badge>
-        )
-      default:
-        return (
-          <Badge variant="outline" className="text-red-600 border-red-600 bg-red-50">
-            <WifiOff className="w-3 h-3 mr-1" />
-            Offline
-          </Badge>
-        )
-    }
-  }
-  
   return (
     <Card className="border-saddle-light/30">
       <CardHeader className="pb-2">
@@ -118,7 +115,7 @@ export function LivePlayersMap({
             <CardTitle className="text-saddle-dark flex items-center gap-2">
               <Users className="h-5 w-5 text-gold" />
               Live Players
-              <ConnectionIndicator />
+              <ConnectionIndicator connectionStatus={connectionStatus} />
             </CardTitle>
             <CardDescription>
               Real-time player locations on the map

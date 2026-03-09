@@ -10,6 +10,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/client"
 import type { 
   ActivePlayer, 
@@ -243,14 +244,14 @@ export function usePlayerTracking(
     const channel = supabase
       .channel('player-tracking')
       .on(
-        'postgres_changes' as any,
+        'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'player_locations',
           ...(zoneId ? { filter: `current_zone_id=eq.${zoneId}` } : {}),
-        } as any,
-        () => {
+        },
+        (_payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           // Always re-fetch enriched rows so popups have real names/avatars.
           fetchPlayers()
         }

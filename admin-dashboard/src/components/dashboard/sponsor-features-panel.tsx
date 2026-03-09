@@ -7,9 +7,9 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useMemo, useEffect, useState } from "react"
 import { useSponsorAnalytics } from "@/hooks/use-sponsor-analytics"
-import type { Zone, Sponsor } from "@/types/database"
+import type { Zone } from "@/types/database"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -44,7 +44,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { toast } from "sonner"
-import { formatPerformanceScore, calculateROI } from "@/components/maps/sponsor-config"
+import { formatPerformanceScore } from "@/components/maps/sponsor-config"
 import { BulkCoinPlacementDialog } from "./bulk-coin-placement-dialog"
 import { SponsorZoneDialog } from "./sponsor-zone-dialog"
 
@@ -67,31 +67,29 @@ export function SponsorFeaturesPanel({ className = "", zones = [] }: SponsorFeat
   const [selectedSponsorId, setSelectedSponsorId] = useState<string>("")
   const [bulkPlacementOpen, setBulkPlacementOpen] = useState(false)
   const [createZoneOpen, setCreateZoneOpen] = useState(false)
+  const fallbackSponsorId = useMemo(
+    () => (sponsors.find(s => s.status === 'active') || sponsors[0])?.id ?? "",
+    [sponsors]
+  )
+  const effectiveSelectedSponsorId = selectedSponsorId || fallbackSponsorId
 
-  // Auto-select first sponsor on load
+  // Load analytics for the current effective sponsor selection
   useEffect(() => {
-    if (sponsors.length > 0 && !selectedSponsorId) {
-      const firstActive = sponsors.find(s => s.status === 'active') || sponsors[0]
-      if (firstActive) {
-        setSelectedSponsorId(firstActive.id)
-        fetchAnalytics(firstActive.id)
-      }
+    if (effectiveSelectedSponsorId) {
+      fetchAnalytics(effectiveSelectedSponsorId)
     }
-  }, [sponsors, selectedSponsorId, fetchAnalytics])
+  }, [effectiveSelectedSponsorId, fetchAnalytics])
 
   // Handle sponsor selection
   const handleSponsorChange = (sponsorId: string) => {
     setSelectedSponsorId(sponsorId)
-    if (sponsorId) {
-      fetchAnalytics(sponsorId)
-    }
   }
 
   // Get selected sponsor
-  const selectedSponsor = sponsors.find(s => s.id === selectedSponsorId)
+  const selectedSponsor = sponsors.find(s => s.id === effectiveSelectedSponsorId)
 
   // Get sponsor zones
-  const sponsorZones = zones.filter(z => z.sponsor_id === selectedSponsorId)
+  const sponsorZones = zones.filter(z => z.sponsor_id === effectiveSelectedSponsorId)
 
   if (error) {
     return (
@@ -136,7 +134,7 @@ export function SponsorFeaturesPanel({ className = "", zones = [] }: SponsorFeat
               <Button
                 size="sm"
                 onClick={() => setCreateZoneOpen(true)}
-                disabled={!selectedSponsorId}
+                disabled={!effectiveSelectedSponsorId}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Create Zone
@@ -144,7 +142,7 @@ export function SponsorFeaturesPanel({ className = "", zones = [] }: SponsorFeat
               <Button
                 size="sm"
                 onClick={() => setBulkPlacementOpen(true)}
-                disabled={!selectedSponsorId || sponsorZones.length === 0}
+                disabled={!effectiveSelectedSponsorId || sponsorZones.length === 0}
               >
                 <Coins className="mr-2 h-4 w-4" />
                 Bulk Place Coins
@@ -159,7 +157,7 @@ export function SponsorFeaturesPanel({ className = "", zones = [] }: SponsorFeat
               Select Sponsor
             </label>
             <Select
-              value={selectedSponsorId}
+              value={effectiveSelectedSponsorId}
               onValueChange={handleSponsorChange}
               disabled={loading}
             >

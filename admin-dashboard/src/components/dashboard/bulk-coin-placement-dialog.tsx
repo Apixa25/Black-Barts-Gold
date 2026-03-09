@@ -322,7 +322,7 @@ export function BulkCoinPlacementDialog({
               <div className="space-y-0.5">
                 <Label>Avoid Existing Coins</Label>
                 <p className="text-xs text-leather-light">
-                  Don't place coins too close to existing ones
+                  Do not place coins too close to existing ones
                 </p>
               </div>
               <Switch

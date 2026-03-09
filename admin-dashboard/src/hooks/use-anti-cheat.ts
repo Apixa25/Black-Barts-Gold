@@ -9,6 +9,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/client"
 import type { 
   CheatFlag, 
@@ -621,17 +622,17 @@ export function useAntiCheat(): UseAntiCheatReturn {
     const channel = supabase
       .channel('anti-cheat-flags')
       .on(
-        'postgres_changes' as any,
+        'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'cheat_flags',
-        } as any,
-        (payload: { eventType: string; new?: CheatFlag; old?: CheatFlag }) => {
+        },
+        (payload: RealtimePostgresChangesPayload<CheatFlag>) => {
           console.log('Cheat flag change:', payload)
 
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const newFlag = payload.new as CheatFlag
+            const newFlag = payload.new
             setFlags(prev => {
               const index = prev.findIndex(f => f.id === newFlag.id)
               if (index >= 0) {
@@ -649,7 +650,7 @@ export function useAntiCheat(): UseAntiCheatReturn {
             // Refresh to update flagged players and stats
             fetchData()
           } else if (payload.eventType === 'DELETE') {
-            const oldFlag = payload.old as CheatFlag
+            const oldFlag = payload.old
             setFlags(prev => prev.filter(f => f.id !== oldFlag.id))
             // Refresh to update flagged players and stats
             fetchData()
