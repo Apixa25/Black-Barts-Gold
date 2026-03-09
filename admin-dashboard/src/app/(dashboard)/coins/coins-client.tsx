@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, Suspense, useCallback } from "react"
+import { useState, Suspense, useCallback, useMemo } from "react"
 import dynamic from "next/dynamic"
-import type { Coin } from "@/types/database"
+import type { Coin, Zone } from "@/types/database"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CoinsTable } from "@/components/dashboard/coins-table"
@@ -29,6 +29,7 @@ const MapView = dynamic(
 
 interface CoinsPageClientProps {
   coins: Coin[]
+  zones: Zone[]
   userId: string
   error?: string
   hasFilters: boolean
@@ -38,6 +39,7 @@ interface CoinsPageClientProps {
 
 export function CoinsPageClient({ 
   coins, 
+  zones,
   userId, 
   error, 
   hasFilters, 
@@ -58,6 +60,32 @@ export function CoinsPageClient({
   
   const router = useRouter()
   const supabase = createClient()
+
+  const initialCenter = useMemo(() => {
+    if (coins.length > 0) {
+      return undefined
+    }
+
+    const circleZone = zones.find((zone) => zone.geometry.type === "circle" && zone.geometry.center)
+    if (circleZone?.geometry.center) {
+      return {
+        latitude: circleZone.geometry.center.latitude,
+        longitude: circleZone.geometry.center.longitude,
+        zoom: 14,
+      }
+    }
+
+    const polygonPoint = zones.find((zone) => zone.geometry.polygon?.length)?.geometry.polygon?.[0]
+    if (polygonPoint) {
+      return {
+        latitude: polygonPoint.latitude,
+        longitude: polygonPoint.longitude,
+        zoom: 14,
+      }
+    }
+
+    return undefined
+  }, [coins.length, zones])
 
   const handleCreateClick = () => {
     setEditingCoin(null)
@@ -300,6 +328,7 @@ export function CoinsPageClient({
               ) : (
                 <MapView
                   coins={coins}
+                  zones={zones}
                   height={1000}
                   onCoinClick={handleCoinClick}
                   onCoinEdit={handleEditCoin}
@@ -309,6 +338,7 @@ export function CoinsPageClient({
                   selectedCoinId={selectedCoinId}
                   placementMode={placementMode}
                   enableDrag={dragMode}
+                  initialCenter={initialCenter}
                   className="rounded-b-lg"
                 />
               )}
@@ -404,6 +434,7 @@ export function CoinsPageClient({
               ) : (
                 <MapView
                   coins={coins}
+                  zones={zones}
                   height="min(80vh, 1200px)"
                   onCoinClick={handleCoinClick}
                   onCoinEdit={handleEditCoin}
@@ -413,6 +444,7 @@ export function CoinsPageClient({
                   selectedCoinId={selectedCoinId}
                   placementMode={placementMode}
                   enableDrag={dragMode}
+                  initialCenter={initialCenter}
                   className="rounded-b-lg"
                 />
               )}

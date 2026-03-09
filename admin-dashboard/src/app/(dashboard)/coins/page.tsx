@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Coins, Eye, CheckCircle, DollarSign, Sparkles } from "lucide-react"
 import { CoinsPageClient } from "./coins-client"
+import type { Zone } from "@/types/database"
 
 // Force dynamic rendering - this page needs real data from Supabase
 export const dynamic = 'force-dynamic'
@@ -41,6 +42,24 @@ export default async function CoinsPage({ searchParams }: CoinsPageProps) {
 
   // Get all coins for stats (unfiltered)
   const { data: allCoins } = await supabase.from("coins").select("status, value, tier, is_mythical")
+  const { data: zonesData, error: zonesError } = await supabase
+    .from("zones")
+    .select("*")
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+
+  if (zonesError) {
+    console.error("Failed to load zones for coins map:", zonesError)
+  }
+
+  const zones: Zone[] = ((zonesData ?? []) as Zone[]).map((zone) => ({
+    ...zone,
+    auto_spawn_config: zone.auto_spawn_config ?? null,
+    timed_release_config: zone.timed_release_config ?? null,
+    hunt_config: zone.hunt_config ?? null,
+    metadata: zone.metadata ?? null,
+    opacity: zone.opacity ?? 0.3,
+  }))
 
   // Calculate stats
   type CoinRow = { status?: string; value?: number; is_mythical?: boolean }
@@ -136,6 +155,7 @@ export default async function CoinsPage({ searchParams }: CoinsPageProps) {
       {/* Client Component handles search and table */}
       <CoinsPageClient 
         coins={coins || []} 
+        zones={zones}
         userId={userId}
         error={error?.message}
         hasFilters={!!hasFilters}

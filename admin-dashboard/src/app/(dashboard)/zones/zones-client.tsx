@@ -11,6 +11,7 @@
 
 import { useState, useCallback, useMemo } from "react"
 import dynamic from "next/dynamic"
+import { useRouter } from "next/navigation"
 import type { Zone, ZoneType, ZoneGeometry, Coin } from "@/types/database"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -34,6 +35,7 @@ import {
   Building2
 } from "lucide-react"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 import { ZoneDialog } from "@/components/maps/ZoneDialog"
 import { AutoDistributionPanel } from "@/components/dashboard/auto-distribution-panel"
 import { TimedReleasesPanel } from "@/components/dashboard/timed-releases-panel"
@@ -65,6 +67,8 @@ interface ZonesPageClientProps {
 }
 
 export function ZonesPageClient({ zones, userId }: ZonesPageClientProps) {
+  const router = useRouter()
+  const supabase = createClient()
   const [activeTab, setActiveTab] = useState<string>("map")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingZone, setEditingZone] = useState<Zone | null>(null)
@@ -191,12 +195,43 @@ export function ZonesPageClient({ zones, userId }: ZonesPageClientProps) {
 
   // Save zone handler
   const handleSaveZone = async (zoneData: Partial<Zone>) => {
-    // TODO: Save to database
-    console.log("Saving zone:", zoneData)
-    toast.success("Zone saved! 🗺️", {
-      description: zoneData.name,
-    })
+    const payload = {
+      name: zoneData.name,
+      description: zoneData.description ?? null,
+      zone_type: zoneData.zone_type ?? "player",
+      status: zoneData.status ?? "active",
+      geometry: zoneData.geometry,
+      owner_id: zoneData.owner_id ?? userId,
+      sponsor_id: zoneData.sponsor_id ?? null,
+      auto_spawn_config: zoneData.auto_spawn_config ?? null,
+      timed_release_config: zoneData.timed_release_config ?? null,
+      hunt_config: zoneData.hunt_config ?? null,
+      start_time: zoneData.start_time ?? null,
+      end_time: zoneData.end_time ?? null,
+      coins_placed: editingZone?.coins_placed ?? 0,
+      coins_collected: editingZone?.coins_collected ?? 0,
+      total_value_distributed: editingZone?.total_value_distributed ?? 0,
+      active_players: editingZone?.active_players ?? 0,
+      fill_color: zoneData.fill_color ?? null,
+      border_color: zoneData.border_color ?? null,
+      opacity: zoneData.opacity ?? 0.3,
+      metadata: zoneData.metadata ?? null,
+    }
+
+    const query = editingZone
+      ? supabase.from("zones").update(payload).eq("id", editingZone.id)
+      : supabase.from("zones").insert(payload)
+
+    const { error } = await query
+
+    if (error) {
+      throw error
+    }
+
+    setEditingZone(null)
+    setInitialGeometry(null)
     setZonePreview(null)
+    router.refresh()
   }
 
   // Zone type filter

@@ -17,98 +17,6 @@ import type { Zone } from "@/types/database"
 // Force dynamic rendering - this page needs real data from Supabase
 export const dynamic = 'force-dynamic'
 
-// Mock zones for development (until database table is created)
-const mockZones: Zone[] = [
-  {
-    id: "zone-1",
-    name: "Downtown SF",
-    description: "Main downtown area with high foot traffic",
-    zone_type: "player",
-    status: "active",
-    geometry: {
-      type: "circle",
-      center: { latitude: 37.7749, longitude: -122.4194 },
-      radius_meters: 1609, // 1 mile
-    },
-    owner_id: null,
-    sponsor_id: null,
-    auto_spawn_config: {
-      enabled: true,
-      min_coins: 3,
-      max_coins: 10,
-      coin_type: "pool",
-      min_value: 0.10,
-      max_value: 5.00,
-      tier_weights: { gold: 10, silver: 30, bronze: 60 },
-      respawn_delay_seconds: 60,
-    },
-    timed_release_config: null,
-    hunt_config: {
-      hunt_type: "direct_navigation",
-      show_distance: true,
-      enable_compass: true,
-      map_marker_type: "exact",
-      vibration_mode: "all",
-      multi_find_enabled: false,
-    },
-    start_time: null,
-    end_time: null,
-    coins_placed: 5,
-    coins_collected: 12,
-    total_value_distributed: 45.50,
-    active_players: 3,
-    fill_color: null,
-    border_color: null,
-    opacity: 0.3,
-    metadata: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "zone-2",
-    name: "Golden Gate Park",
-    description: "Park area with nature trails",
-    zone_type: "hunt",
-    status: "active",
-    geometry: {
-      type: "circle",
-      center: { latitude: 37.7694, longitude: -122.4862 },
-      radius_meters: 2500,
-    },
-    owner_id: null,
-    sponsor_id: null,
-    auto_spawn_config: null,
-    timed_release_config: {
-      enabled: true,
-      total_coins: 50,
-      release_interval_seconds: 120,
-      coins_per_release: 5,
-      start_time: new Date().toISOString(),
-    },
-    hunt_config: {
-      hunt_type: "timed_release",
-      show_distance: true,
-      enable_compass: true,
-      map_marker_type: "zone_only",
-      vibration_mode: "last_100m",
-      multi_find_enabled: true,
-      max_finders: 3,
-    },
-    start_time: new Date().toISOString(),
-    end_time: null,
-    coins_placed: 25,
-    coins_collected: 18,
-    total_value_distributed: 125.00,
-    active_players: 8,
-    fill_color: null,
-    border_color: null,
-    opacity: 0.3,
-    metadata: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-]
-
 export default async function ZonesPage() {
   const supabase = await createClient()
   
@@ -132,13 +40,23 @@ export default async function ZonesPage() {
     redirect("/")
   }
 
-  // TODO: Fetch zones from database when table is created
-  // const { data: zones, error: zonesError } = await supabase
-  //   .from("zones")
-  //   .select("*")
-  //   .order("created_at", { ascending: false })
+  const { data: zonesData, error: zonesError } = await supabase
+    .from("zones")
+    .select("*")
+    .order("created_at", { ascending: false })
 
-  const zones = mockZones
+  if (zonesError) {
+    console.error("Failed to load zones:", zonesError)
+  }
+
+  const zones: Zone[] = ((zonesData ?? []) as Zone[]).map((zone) => ({
+    ...zone,
+    auto_spawn_config: zone.auto_spawn_config ?? null,
+    timed_release_config: zone.timed_release_config ?? null,
+    hunt_config: zone.hunt_config ?? null,
+    metadata: zone.metadata ?? null,
+    opacity: zone.opacity ?? 0.3,
+  }))
 
   // Calculate stats
   const stats = {

@@ -236,22 +236,7 @@ export function MapView({
     )
   }
 
-  // Show message if no coins, no zones, AND no players (all empty)
-  if (coins.length === 0 && zones.length === 0 && players.length === 0) {
-    return (
-      <Card className={`border-saddle-light/30 ${className}`} style={{ height }}>
-        <CardContent className="flex flex-col items-center justify-center h-full gap-4">
-          <MapPin className="h-12 w-12 text-leather-light" />
-          <div className="text-center">
-            <h3 className="font-bold text-saddle-dark">No Items Yet</h3>
-            <p className="text-sm text-leather-light mt-1">
-              Create coins or zones to see them on the map
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
+  const isEmptyState = coins.length === 0 && zones.length === 0 && players.length === 0
 
   return (
     <div 
@@ -380,6 +365,22 @@ export function MapView({
         onStatusFilterChange={setVisibleStatuses}
         coinCount={filteredCoins.length}
       />
+
+      {isEmptyState && (
+        <div className="pointer-events-none absolute inset-x-4 top-4 z-10 flex justify-center">
+          <Card className="border-saddle-light/40 bg-white/95 shadow-lg">
+            <CardContent className="flex items-center gap-3 px-4 py-3">
+              <MapPin className="h-5 w-5 shrink-0 text-gold" />
+              <div className="text-sm">
+                <p className="font-semibold text-saddle-dark">Map is ready for your first placement</p>
+                <p className="text-leather-light">
+                  Use Locate to jump to your area, then click Place and tap the map to create a coin.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-2 shadow-lg text-xs">
