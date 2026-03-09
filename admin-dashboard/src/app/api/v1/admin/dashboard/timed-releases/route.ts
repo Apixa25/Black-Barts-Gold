@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
 
     const queue = schedules
       .map((schedule) => buildReleaseQueuePreview(schedule))
-      .filter(Boolean)
+      .filter((item): item is NonNullable<ReturnType<typeof buildReleaseQueuePreview>> => item !== null)
       .sort((a, b) => a.time_until_seconds - b.time_until_seconds)
 
     const dueNow = queue.filter((item) => item.time_until_seconds <= 0).length
