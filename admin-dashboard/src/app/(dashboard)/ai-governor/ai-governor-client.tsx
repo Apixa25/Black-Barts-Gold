@@ -27,7 +27,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   Bot, Zap, DollarSign, Coins, Activity, TrendingUp, TrendingDown,
   RefreshCw, AlertTriangle, CheckCircle2, XCircle, Clock,
-  Users, Flame, Snowflake, BarChart3, Heart,
+  Users, Flame, Snowflake, BarChart3, Heart, MessageSquare,
 } from 'lucide-react'
 import type { AiAction, CellHuntPressure, EconomyStatus } from '@/types/database'
 
@@ -161,6 +161,28 @@ function tierBadge(tier: string): string {
   return map[tier] ?? 'bg-parchment text-leather'
 }
 
+function readRecordString(record: Record<string, unknown> | null | undefined, key: string): string | null {
+  if (!record) return null
+  const value = record[key]
+  return typeof value === 'string' && value.trim().length > 0 ? value : null
+}
+
+function isCompanionAction(action: AiAction): boolean {
+  return action.agent_id === 'ai_game_master' && action.tool_called.startsWith('player_companion_')
+}
+
+function getCompanionReplyText(action: AiAction): string | null {
+  return readRecordString(action.result, 'reply_now')
+}
+
+function getCompanionIntentType(action: AiAction): string | null {
+  return readRecordString(action.parameters, 'intent_type')
+}
+
+function getCompanionEventType(action: AiAction): string | null {
+  return readRecordString(action.parameters, 'event_type')
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function AiGovernorClient({
@@ -179,6 +201,7 @@ export function AiGovernorClient({
   const [isTriggering, setIsTriggering] = useState(false)
   const [isTogglingKillSwitch, setIsTogglingKillSwitch] = useState(false)
   const [secondsSinceRefresh, setSecondsSinceRefresh] = useState(0)
+  const [actionFeedFilter, setActionFeedFilter] = useState<'all' | 'companion'>('all')
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // ── Data fetching ─────────────────────────────────────────────────────────
@@ -188,7 +211,7 @@ export function AiGovernorClient({
       const [economyRes, pressureRes, actionsRes] = await Promise.all([
         fetch('/api/v1/admin/ai/economy-health'),
         fetch('/api/v1/admin/ai/hunt-pressure'),
-        fetch('/api/v1/admin/ai/actions?limit=30'),
+        fetch('/api/v1/admin/ai/actions?limit=50'),
       ])
 
       if (economyRes.ok) setEconomy(await economyRes.json())
@@ -297,6 +320,31 @@ export function AiGovernorClient({
     ?? 0
 
   const alerts = economy?.meta.alerts ?? []
+  const companionActions = recentActions.filter(isCompanionAction)
+  const companionReplies = companionActions
+    .map(action => ({
+      id: action.id,
+      reply: getCompanionReplyText(action),
+      createdAt: action.created_at,
+    }))
+    .filter((entry): entry is { id: string; reply: string; createdAt: string } => !!entry.reply)
+    .slice(0, 4)
+
+  const companionIntentCounts = companionActions.reduce<Record<string, number>>((acc, action) => {
+    const intentType = getCompanionIntentType(action)
+    if (!intentType) return acc
+    acc[intentType] = (acc[intentType] ?? 0) + 1
+    return acc
+  }, {})
+
+  const topCompanionPrompts = Object.entries(companionIntentCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+
+  const companionSessionsToday = companionActions.filter(action => action.tool_called === 'player_companion_session_start').length
+  const companionReplyCount = companionActions.filter(action => action.tool_called === 'player_companion_reply').length
+  const companionMessageShownCount = companionActions.filter(action => getCompanionEventType(action) === 'message_shown').length
+  const displayedActions = actionFeedFilter === 'companion' ? companionActions : recentActions
 
   return (
     <>
@@ -661,6 +709,73 @@ export function AiGovernorClient({
         </div>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="border-purple-200 bg-purple-50/40">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-saddle-dark flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-purple-700" />
+              Companion Activity
+            </CardTitle>
+            <CardDescription>
+              Black Bart companion traffic riding on the existing `ai_actions` audit lane
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg border border-purple-200 bg-white/70 p-3">
+                <p className="text-xs uppercase tracking-wide text-leather-light">Sessions</p>
+                <p className="mt-1 text-2xl font-bold text-saddle-dark">{companionSessionsToday}</p>
+              </div>
+              <div className="rounded-lg border border-purple-200 bg-white/70 p-3">
+                <p className="text-xs uppercase tracking-wide text-leather-light">Replies</p>
+                <p className="mt-1 text-2xl font-bold text-saddle-dark">{companionReplyCount}</p>
+              </div>
+              <div className="rounded-lg border border-purple-200 bg-white/70 p-3">
+                <p className="text-xs uppercase tracking-wide text-leather-light">Shown</p>
+                <p className="mt-1 text-2xl font-bold text-saddle-dark">{companionMessageShownCount}</p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-leather-light">Top Prompt Types</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {topCompanionPrompts.length > 0 ? topCompanionPrompts.map(([promptType, count]) => (
+                  <Badge key={promptType} variant="outline" className="border-purple-200 bg-white/80 text-purple-800">
+                    {promptType} · {count}
+                  </Badge>
+                )) : (
+                  <span className="text-sm text-leather-light">No player prompt replies logged yet today.</span>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-purple-200 bg-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-saddle-dark flex items-center gap-2">
+              <Bot className="h-5 w-5 text-purple-700" />
+              Recent Companion Lines
+            </CardTitle>
+            <CardDescription>
+              Latest reply text captured from `player_companion_reply`
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {companionReplies.length > 0 ? companionReplies.map(entry => (
+              <div key={entry.id} className="rounded-lg border border-saddle-light/20 bg-parchment-light/40 px-3 py-2">
+                <p className="text-sm text-saddle-dark">{entry.reply}</p>
+                <p className="mt-1 text-xs text-leather-light">{timeAgo(entry.createdAt)}</p>
+              </div>
+            )) : (
+              <div className="rounded-lg border border-dashed border-saddle-light/30 px-4 py-6 text-center text-sm text-leather-light">
+                Companion reply lines will appear here once players start asking Black Bart for help.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* ── Action feed ───────────────────────────────────────────────────── */}
       <Card className="border-saddle-light/30">
         <CardHeader className="pb-3">
@@ -669,23 +784,55 @@ export function AiGovernorClient({
               <Activity className="h-5 w-5 text-gold" />
               What Black Bart Did Today
             </CardTitle>
-            <CardDescription className="text-xs">
-              {recentActions.length} actions shown · auto-updates every {POLL_INTERVAL_MS / 1000}s
-            </CardDescription>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center rounded-md border border-saddle-light/20 bg-parchment-light/60 p-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={actionFeedFilter === 'all' ? 'default' : 'ghost'}
+                  className={actionFeedFilter === 'all' ? 'bg-saddle-dark text-white hover:bg-saddle-dark/90' : 'text-leather'}
+                  onClick={() => setActionFeedFilter('all')}
+                >
+                  All
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={actionFeedFilter === 'companion' ? 'default' : 'ghost'}
+                  className={actionFeedFilter === 'companion' ? 'bg-purple-700 text-white hover:bg-purple-700/90' : 'text-leather'}
+                  onClick={() => setActionFeedFilter('companion')}
+                >
+                  Companion
+                </Button>
+              </div>
+              <CardDescription className="text-xs">
+                {displayedActions.length} actions shown · auto-updates every {POLL_INTERVAL_MS / 1000}s
+              </CardDescription>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {recentActions.length === 0 ? (
+          {displayedActions.length === 0 ? (
             <div className="py-12 text-center text-leather-light">
               <Bot className="h-8 w-8 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No AI actions yet today</p>
-              <p className="text-sm mt-1">Black Bart&apos;s decisions will appear here in real time</p>
+              <p className="font-medium">
+                {actionFeedFilter === 'companion' ? 'No companion actions yet today' : 'No AI actions yet today'}
+              </p>
+              <p className="text-sm mt-1">
+                {actionFeedFilter === 'companion'
+                  ? 'Player-facing Black Bart companion events will appear here in real time'
+                  : 'Black Bart&apos;s decisions will appear here in real time'}
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-saddle-light/15">
-              {recentActions.map((action, idx) => {
+              {displayedActions.map((action, idx) => {
                 const agent = agentConfig(action.agent_id)
                 const isCycleSummary = action.tool_called === 'spawn_governor_cycle'
+                const companion = isCompanionAction(action)
+                const companionReply = getCompanionReplyText(action)
+                const companionIntent = getCompanionIntentType(action)
+                const companionEvent = getCompanionEventType(action)
 
                 return (
                   <div
@@ -720,6 +867,12 @@ export function AiGovernorClient({
                           </Badge>
                         )}
 
+                        {companion && (
+                          <Badge variant="outline" className="text-xs border-purple-200 text-purple-700">
+                            companion
+                          </Badge>
+                        )}
+
                         {/* Error code */}
                         {action.error_code && (
                           <Badge variant="outline" className="text-xs border-red-200 text-red-600">
@@ -729,9 +882,21 @@ export function AiGovernorClient({
                       </div>
 
                       {/* Reasoning */}
-                      {action.reasoning && (
+                      {companionReply && (
+                        <p className="text-sm text-saddle-dark truncate" title={companionReply}>
+                          {companionReply}
+                        </p>
+                      )}
+
+                      {!companionReply && action.reasoning && (
                         <p className="text-sm text-leather truncate" title={action.reasoning}>
                           {action.reasoning}
+                        </p>
+                      )}
+
+                      {(companionIntent || companionEvent) && (
+                        <p className="text-xs text-leather-light">
+                          {companionIntent ? `intent: ${companionIntent}` : `event: ${companionEvent}`}
                         </p>
                       )}
 

@@ -16,6 +16,7 @@ using BlackBartsGold.Core;
 using BlackBartsGold.Core.Models;
 using BlackBartsGold.Location;
 using BlackBartsGold.AR;
+using BlackBartsGold.Companion;
 using BlackBartsGold.Utils;
 namespace BlackBartsGold.UI
 {
@@ -226,6 +227,8 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
+            BlackBartCompanionService.EnsureInstance();
+
             // Subscribe to events
             SubscribeToEvents();
             

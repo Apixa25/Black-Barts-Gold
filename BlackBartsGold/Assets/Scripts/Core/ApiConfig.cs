@@ -362,6 +362,7 @@ namespace BlackBartsGold.Core
             /// Update player location (POST) or remove from tracking (DELETE)
             /// </summary>
             public const string LOCATION = "/player/location";
+            public const string COMPANION = "/player/companion";
             
             /// <summary>
             /// Build DELETE URL with userId parameter

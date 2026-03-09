@@ -20,6 +20,7 @@ using BlackBartsGold.Location;
 using BlackBartsGold.Core;
 using BlackBartsGold.Utils;
 using BlackBartsGold.AR;
+using BlackBartsGold.Companion;
 
 namespace BlackBartsGold.UI
 {
@@ -129,6 +130,7 @@ namespace BlackBartsGold.UI
 
             RemoveDevelopmentConsolePanel();
             SetupMessagePanel();
+            SetupCompanionIntentPanel();
             SetupLockedPopup();
             SetupCollectionPopup();
             SetupCoinInfoPanel();
@@ -2352,6 +2354,25 @@ namespace BlackBartsGold.UI
 
             panel.SetActive(true);
             DiagnosticLog.Log("Setup", "MessagePanel created");
+        }
+
+        /// <summary>
+        /// Create the quick-prompt panel that lets players ask Black Bart short questions during AR hunt.
+        /// The panel builds its buttons in code and subscribes to the companion service for prompt updates.
+        /// </summary>
+        private void SetupCompanionIntentPanel()
+        {
+            var existing = transform.Find("CompanionIntentPanel");
+            if (existing != null) return;
+
+            var panel = new GameObject("CompanionIntentPanel");
+            panel.transform.SetParent(transform, false);
+            panel.AddComponent<RectTransform>();
+            panel.AddComponent<CanvasGroup>();
+            panel.AddComponent<Image>();
+            panel.AddComponent<CompanionIntentPanel>();
+
+            DiagnosticLog.Log("Setup", "CompanionIntentPanel created");
         }
 
         /// <summary>

@@ -29,13 +29,13 @@ export default async function AiGovernorPage() {
       .eq('id', '00000000-0000-0000-0000-000000000001')
       .single(),
 
-    // Recent AI actions (last 30 today)
+    // Recent AI actions (last 50 today)
     supabase
       .from('ai_actions')
       .select('*')
       .gte('created_at', todayISO)
       .order('created_at', { ascending: false })
-      .limit(30),
+      .limit(50),
 
     // AI actions aggregate for today
     supabase
