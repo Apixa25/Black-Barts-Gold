@@ -46,7 +46,7 @@ namespace BlackBartsGold.Companion
             rect.anchorMax = new Vector2(0.5f, 0f);
             rect.pivot = new Vector2(0.5f, 0f);
             rect.anchoredPosition = new Vector2(0f, 220f);
-            rect.sizeDelta = new Vector2(760f, 190f);
+            rect.sizeDelta = new Vector2(860f, 250f);
 
             _canvasGroup = GetComponent<CanvasGroup>();
             if (_canvasGroup == null) _canvasGroup = gameObject.AddComponent<CanvasGroup>();
@@ -65,12 +65,12 @@ namespace BlackBartsGold.Companion
             titleRect.anchorMax = new Vector2(1f, 1f);
             titleRect.pivot = new Vector2(0.5f, 1f);
             titleRect.anchoredPosition = new Vector2(0f, -12f);
-            titleRect.sizeDelta = new Vector2(-24f, 34f);
+            titleRect.sizeDelta = new Vector2(-28f, 46f);
 
             _titleText = titleGo.GetComponent<TextMeshProUGUI>();
             if (_titleText == null) _titleText = titleGo.AddComponent<TextMeshProUGUI>();
             _titleText.text = "Ask Black Bart";
-            _titleText.fontSize = 22f;
+            _titleText.fontSize = 34f;
             _titleText.color = new Color(1f, 0.84f, 0f, 1f);
             _titleText.alignment = TextAlignmentOptions.Center;
             _titleText.enableWordWrapping = false;
@@ -80,15 +80,15 @@ namespace BlackBartsGold.Companion
             var gridRect = gridGo.GetComponent<RectTransform>();
             gridRect.anchorMin = new Vector2(0f, 0f);
             gridRect.anchorMax = new Vector2(1f, 1f);
-            gridRect.offsetMin = new Vector2(18f, 16f);
-            gridRect.offsetMax = new Vector2(-18f, -52f);
+            gridRect.offsetMin = new Vector2(24f, 20f);
+            gridRect.offsetMax = new Vector2(-24f, -64f);
 
             _buttonGrid = gridGo.GetComponent<GridLayoutGroup>();
             if (_buttonGrid == null) _buttonGrid = gridGo.AddComponent<GridLayoutGroup>();
             _buttonGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             _buttonGrid.constraintCount = 3;
-            _buttonGrid.cellSize = new Vector2(220f, 46f);
-            _buttonGrid.spacing = new Vector2(12f, 12f);
+            _buttonGrid.cellSize = new Vector2(250f, 72f);
+            _buttonGrid.spacing = new Vector2(16f, 16f);
             _buttonGrid.childAlignment = TextAnchor.UpperCenter;
             _buttonGrid.startAxis = GridLayoutGroup.Axis.Horizontal;
 
@@ -168,11 +168,11 @@ namespace BlackBartsGold.Companion
             var labelRect = labelGo.GetComponent<RectTransform>();
             labelRect.anchorMin = Vector2.zero;
             labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(8f, 4f);
-            labelRect.offsetMax = new Vector2(-8f, -4f);
+            labelRect.offsetMin = new Vector2(12f, 8f);
+            labelRect.offsetMax = new Vector2(-12f, -8f);
 
             var label = labelGo.GetComponent<TextMeshProUGUI>();
-            label.fontSize = 19f;
+            label.fontSize = 34f;
             label.color = new Color(1f, 0.96f, 0.86f, 1f);
             label.alignment = TextAlignmentOptions.Center;
             label.enableWordWrapping = false;

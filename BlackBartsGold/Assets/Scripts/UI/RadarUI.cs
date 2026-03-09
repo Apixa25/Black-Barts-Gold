@@ -1097,6 +1097,13 @@ namespace BlackBartsGold.UI
         [ContextMenu("Debug: Add Test Dots")]
         public void DebugAddTestDots()
         {
+            LocationData playerLocation = GetPlayerLocation();
+            if (playerLocation == null)
+            {
+                Debug.LogWarning("[RadarUI] DebugAddTestDots skipped: player location unavailable");
+                return;
+            }
+
             // Create test coins at various bearings
             float[] bearings = { 0, 45, 90, 135, 180, 225, 270, 315 };
             float[] distances = { 10, 20, 30, 40, 25, 35, 15, 45 };
@@ -1106,7 +1113,7 @@ namespace BlackBartsGold.UI
                 Coin testCoin = Coin.CreateTestCoin((i + 1) * 1.00f);
                 testCoin.id = $"test-{i}";
                 
-                UpdateCoinDot(testCoin, distances[i], bearings[i], i == 3, i == 0);
+                UpdateCoinDot(testCoin, distances[i], bearings[i], i == 3, i == 0, playerLocation);
             }
         }
         
