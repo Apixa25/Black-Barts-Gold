@@ -132,12 +132,12 @@ Players can only find coins up to a certain value based on what they've hidden:
 
 ## 🔗 Related Documents
 
-- [Prize Finder Details](./prize-finder-details.md)
-- [Economy & Currency](./economy-and-currency.md)
-- [Treasure Hunt Types](./treasure-hunt-types.md)
-- [Coins & Collection](./coins-and-collection.md)
-- [User Accounts & Security](./user-accounts-security.md)
-- [Social Features](./social-features.md)
+- [Prize Finder Details](../prize-finder-details.md)
+- [Economy & Currency](../economy-and-currency.md)
+- [Treasure Hunt Types](../treasure-hunt-types.md)
+- [Coins & Collection](../coins-and-collection.md)
+- [User Accounts & Security](../user-accounts-security.md)
+- [Social Features](../social-features.md)
 - [Admin Dashboard](./admin-dashboard.md)
-- [Safety & Legal Research](./safety-and-legal-research.md)
-- [Dynamic Coin Distribution](./dynamic-coin-distribution.md)
+- [Safety & Legal Research](../safety-and-legal-research.md)
+- [Dynamic Coin Distribution](../dynamic-coin-distribution.md)

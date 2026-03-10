@@ -71,4 +71,4 @@ M4 has a zones dependency; use the modified M4 (no `zones` FK) if `zones` does n
 ## Additional Resources
 
 - Full setup guide: `admin-dashboard/SUPABASE-SETUP.md`
-- Map integration (Realtime, M4/M8): `Docs/MAP-INTEGRATION-PROGRESS.md`
+- Map integration history (Realtime, M4/M8): `Docs/archive/MAP-INTEGRATION-PROGRESS.md`

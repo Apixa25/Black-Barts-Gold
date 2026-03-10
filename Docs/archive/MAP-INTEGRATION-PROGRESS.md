@@ -554,7 +554,7 @@ When starting a new chat session, do the following:
 
 ### 1. Read This Document
 ```
-Read: Docs/MAP-INTEGRATION-PROGRESS.md
+Read: Docs/archive/MAP-INTEGRATION-PROGRESS.md
 ```
 
 ### 2. Check Current Phase Status
@@ -617,11 +617,11 @@ Sponsor Features will require:
 
 | Document | Description |
 |----------|-------------|
-| [DEVELOPMENT-LOG.md](./DEVELOPMENT-LOG.md) | Unity app progress (Sprints 1-8) |
-| [ADMIN-DASHBOARD-BUILD-GUIDE.md](./ADMIN-DASHBOARD-BUILD-GUIDE.md) | Dashboard build phases |
-| [dynamic-coin-distribution.md](./dynamic-coin-distribution.md) | Auto-distribution specs |
-| [treasure-hunt-types.md](./treasure-hunt-types.md) | Hunt configurations |
-| [coins-and-collection.md](./coins-and-collection.md) | Coin mechanics |
+| [DEVELOPMENT-LOG.md](../DEVELOPMENT-LOG.md) | Unity app progress (Sprints 1-8) |
+| [ADMIN-DASHBOARD-BUILD-GUIDE.md](../ADMIN-DASHBOARD-BUILD-GUIDE.md) | Dashboard build phases |
+| [dynamic-coin-distribution.md](../dynamic-coin-distribution.md) | Auto-distribution specs |
+| [treasure-hunt-types.md](../treasure-hunt-types.md) | Hunt configurations |
+| [coins-and-collection.md](../coins-and-collection.md) | Coin mechanics |
 
 ---
 

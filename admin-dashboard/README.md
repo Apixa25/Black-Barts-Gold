@@ -68,7 +68,7 @@ admin-dashboard/
 ## Related Documentation
 
 - [Brand Guide](../Docs/brand-guide.md) - 🤠 **READ FIRST**
-- [Admin Dashboard Requirements](../Docs/admin-dashboard.md)
+- [Archived Admin Dashboard Requirements](../Docs/archive/admin-dashboard.md)
 - [Build Guide](../Docs/ADMIN-DASHBOARD-BUILD-GUIDE.md)
 
 ---

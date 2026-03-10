@@ -235,7 +235,7 @@ See [Dynamic Coin Distribution](./dynamic-coin-distribution.md) for full details
 
 ## 🔗 Related Documents
 
-- [Project Scope](./project-scope.md)
+- [Project Scope](./archive/project-scope.md)
 - [Dynamic Coin Distribution](./dynamic-coin-distribution.md)
 - [Coins & Collection](./coins-and-collection.md)
 - [User Accounts & Security](./user-accounts-security.md)

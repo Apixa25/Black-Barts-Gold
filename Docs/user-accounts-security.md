@@ -205,4 +205,4 @@ With 24-hour pending:
 
 - [Economy & Currency](./economy-and-currency.md)
 - [Safety & Legal Research](./safety-and-legal-research.md)
-- [Admin Dashboard](./admin-dashboard.md)
+- [Admin Dashboard](./archive/admin-dashboard.md)

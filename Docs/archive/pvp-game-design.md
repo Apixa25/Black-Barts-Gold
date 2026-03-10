@@ -542,12 +542,12 @@ expires_at:        timestamp      -- For time-limited coins (time bombs, saddleb
 ## 🔗 Related Documents
 
 - [Game Mechanics Design](./game-mechanics-design.md) — Perks, streaks, contracts, battle pass, competitive systems
-- [AI Integration Plan](./AI-integration.md) — The AI architecture powering all PvP balancing and events
-- [Coins & Collection](./coins-and-collection.md) — Base coin mechanics and visual design
-- [Treasure Hunt Types](./treasure-hunt-types.md) — Hunt configurations
-- [Safety & Legal Research](./safety-and-legal-research.md) — Legal considerations for wager/PvP modes
-- [Economy & Currency](./economy-and-currency.md) — BBG, gas, find limits
-- [Social Features](./social-features.md) — Friends, guilds, leaderboards
+- [AI Integration Plan](../AI-integration.md) — The AI architecture powering all PvP balancing and events
+- [Coins & Collection](../coins-and-collection.md) — Base coin mechanics and visual design
+- [Treasure Hunt Types](../treasure-hunt-types.md) — Hunt configurations
+- [Safety & Legal Research](../safety-and-legal-research.md) — Legal considerations for wager/PvP modes
+- [Economy & Currency](../economy-and-currency.md) — BBG, gas, find limits
+- [Social Features](../social-features.md) — Friends, guilds, leaderboards
 
 ---
 

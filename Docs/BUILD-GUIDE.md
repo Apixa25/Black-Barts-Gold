@@ -1726,14 +1726,14 @@ Fix critical issues.
 |----------|---------|
 | [brand-guide.md](./brand-guide.md) | 🤠 **READ FIRST** - Character identity, visual style, voice |
 | [project-vision.md](./project-vision.md) | Overall concept, tech decisions |
-| [project-scope.md](./project-scope.md) | Features, phases, business model |
+| [archive/project-scope.md](./archive/project-scope.md) | Archived business model and phase planning |
 | [prize-finder-details.md](./prize-finder-details.md) | AR UI layout, HUD design |
 | [coins-and-collection.md](./coins-and-collection.md) | Coin mechanics, collection |
 | [economy-and-currency.md](./economy-and-currency.md) | BBG, gas, find limits |
 | [treasure-hunt-types.md](./treasure-hunt-types.md) | Hunt configurations |
 | [user-accounts-security.md](./user-accounts-security.md) | Auth, anti-cheat |
 | [social-features.md](./social-features.md) | Friends, leaderboards |
-| [admin-dashboard.md](./admin-dashboard.md) | Admin tools |
+| [archive/admin-dashboard.md](./archive/admin-dashboard.md) | Archived admin tools requirements |
 | [dynamic-coin-distribution.md](./dynamic-coin-distribution.md) | Coin distribution |
 | [safety-and-legal-research.md](./safety-and-legal-research.md) | Legal |
 

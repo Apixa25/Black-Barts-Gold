@@ -300,4 +300,4 @@ System: "Time for a $2-5 coin to keep it exciting"
 
 - [Economy & Currency](./economy-and-currency.md)
 - [Coins & Collection](./coins-and-collection.md)
-- [Project Scope](./project-scope.md)
+- [Project Scope](./archive/project-scope.md)

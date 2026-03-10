@@ -290,7 +290,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 
 **What we did:**
 - Turned the S2 zone architecture decision into a concrete implementation sequence
-- Wrote `Docs/zone-implementation-plan.md` as the build guide for the spatial migration
+- Wrote `Docs/archive/zone-implementation-plan.md` as the build guide for the spatial migration
 - Chose **S2 cell tokens stored as text** as the canonical backend spatial identifier format
 - Recommended `s2js` as the initial backend TypeScript S2 library
 
@@ -338,7 +338,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - backend/admin `zones` = geographic spawn and analytics areas
   - design language = "player in a zone" without canonical runtime assignment
 - Reviewed Pokémon GO-style spatial partitioning patterns and aligned on **S2 cells** as the correct canonical backend geography
-- Wrote `Docs/zone-architecture-proposal.md` as the new source-of-truth design proposal
+- Wrote `Docs/archive/zone-architecture-proposal.md` as the new source-of-truth design proposal
 
 **Key decision:**
 - **S2 cells are the canonical backend world partition**

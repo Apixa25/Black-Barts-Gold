@@ -1,8 +1,8 @@
 # 🤠 Zone Implementation Plan
 
 > **Status**: Proposed build sequence  
-> **Purpose**: Translate `Docs/zone-architecture-proposal.md` into an additive, concrete migration and implementation plan  
-> **Related docs**: `Docs/zone-architecture-proposal.md`, `Docs/project-vision.md`, `Docs/AI-integration.md`, `Docs/AI-INTEGRATION-SPEC.md`, `Docs/session-handoff.md`
+> **Purpose**: Translate `Docs/archive/zone-architecture-proposal.md` into an additive, concrete migration and implementation plan  
+> **Related docs**: `Docs/archive/zone-architecture-proposal.md`, `Docs/project-vision.md`, `Docs/AI-integration.md`, `Docs/AI-INTEGRATION-SPEC.md`, `Docs/session-handoff.md`
 
 ---
 
@@ -192,8 +192,8 @@ Lock the minimum implementation decisions before touching schema.
 
 ### Deliverables
 
-- `Docs/zone-architecture-proposal.md`
-- `Docs/zone-implementation-plan.md`
+- `Docs/archive/zone-architecture-proposal.md`
+- `Docs/archive/zone-implementation-plan.md`
 
 ### Exit criteria
 

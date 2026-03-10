@@ -152,4 +152,4 @@ Need to research:
 
 - [Prize Finder Details](./prize-finder-details.md)
 - [Treasure Hunt Types](./treasure-hunt-types.md)
-- [Project Scope](./project-scope.md)
+- [Project Scope](./archive/project-scope.md)

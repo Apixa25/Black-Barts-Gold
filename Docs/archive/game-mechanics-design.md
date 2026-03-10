@@ -316,12 +316,12 @@ Every coin collection should feel incredible (CoD hit markers → BBG collection
 
 ## 🔗 Related Documents
 
-- [AI Integration Plan](./AI-integration.md) — The AI architecture that powers all of these systems
+- [AI Integration Plan](../AI-integration.md) — The AI architecture that powers all of these systems
 - [PvP Game Design](./pvp-game-design.md) — Player-vs-player interaction, coin types, player-as-coin modes
-- [Coins & Collection](./coins-and-collection.md) — Base coin mechanics
-- [Treasure Hunt Types](./treasure-hunt-types.md) — Hunt configurations
-- [Economy & Currency](./economy-and-currency.md) — BBG, gas, find limits
-- [Social Features](./social-features.md) — Friends & leaderboards
+- [Coins & Collection](../coins-and-collection.md) — Base coin mechanics
+- [Treasure Hunt Types](../treasure-hunt-types.md) — Hunt configurations
+- [Economy & Currency](../economy-and-currency.md) — BBG, gas, find limits
+- [Social Features](../social-features.md) — Friends & leaderboards
 
 ---
 

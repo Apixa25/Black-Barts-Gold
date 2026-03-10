@@ -333,7 +333,7 @@ When building the admin dashboard, apply these principles:
 |----------|---------|
 | [Black Bart's Story.markdown](./Black%20Bart's%20Story.markdown) | Full mascot backstory and narrative |
 | [project-vision.md](./project-vision.md) | Overall project vision and tech stack |
-| [admin-dashboard.md](./admin-dashboard.md) | Admin dashboard feature requirements |
+| [archive/admin-dashboard.md](./archive/admin-dashboard.md) | Archived admin dashboard feature requirements |
 
 ---
 

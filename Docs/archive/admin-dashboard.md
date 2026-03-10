@@ -212,6 +212,6 @@ User: suspicious_player_42
 
 ## 🔗 Related Documents
 
-- [Safety & Legal Research](./safety-and-legal-research.md)
-- [Economy & Currency](./economy-and-currency.md)
-- [User Accounts & Security](./user-accounts-security.md)
+- [Safety & Legal Research](../safety-and-legal-research.md)
+- [Economy & Currency](../economy-and-currency.md)
+- [User Accounts & Security](../user-accounts-security.md)

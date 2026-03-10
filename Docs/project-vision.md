@@ -341,7 +341,7 @@ Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect �
 
 When working on this project:
 
-1. **Always read first**: Start sessions by reading this file and `DEVELOPMENT-LOG.md`
+1. **Always read first**: Start sessions by reading this file, `DOCS-POLICY.md`, and `DEVELOPMENT-LOG.md`
 2. **Use BUILD-GUIDE.md**: Follow sprint prompts for structured development
 3. **Change safety policy**:
    - Prefer minimal-risk changes
@@ -373,25 +373,23 @@ Assets/Scripts/AR/CoinController.cs
 |----------|---------|
 | **brand-guide.md** | 🤠 **READ FIRST** - Character & brand identity guide |
 | **project-vision.md** | This file - overview & decisions |
+| **DOCS-POLICY.md** | Source-of-truth hierarchy, archive rules, and docs organization policy |
 | **BUILD-GUIDE.md** | Unity mobile app - sprint-by-sprint prompts |
 | **ADMIN-DASHBOARD-BUILD-GUIDE.md** | 🖥️ Web admin dashboard - build guide |
 | **DEVELOPMENT-LOG.md** | Progress tracking |
 | **PROMPT-GUIDE.md** | AI assistant templates |
-| **project-scope.md** | Business model & phases |
 | **economy-and-currency.md** | BBG, gas, find limits |
 | **coins-and-collection.md** | Coin mechanics |
 | **prize-finder-details.md** | AR HUD design |
 | **treasure-hunt-types.md** | Hunt configurations |
 | **user-accounts-security.md** | Auth & anti-cheat |
 | **social-features.md** | Friends & leaderboards |
-| **admin-dashboard.md** | Admin tools |
 | **session-handoff.md** | 🔁 **READ SECOND** — Current build state, tactical next steps, vocabulary |
 | **AI-integration.md** | 🤖 AI Game Master — full integration plan |
 | **AI-INTEGRATION-SPEC.md** | 🔧 AI integration technical build spec — exact SQL, routes, MCP tools |
-| **game-mechanics-design.md** | 🎮 Perks, streaks, contracts, battle pass, competitive systems |
-| **pvp-game-design.md** | ⚔️ PvP interaction, coin types, player-as-coin modes, safety |
 | **dynamic-coin-distribution.md** | Coin spawning |
 | **safety-and-legal-research.md** | Legal considerations |
+| **archive/** | Historical plans, proposals, and future-design docs that no longer act as primary guidance |
 
 ---
 

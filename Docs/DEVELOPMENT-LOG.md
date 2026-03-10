@@ -1223,14 +1223,14 @@ New stack provides:
 | [project-vision.md](./project-vision.md) | Technical vision, architecture |
 | [BUILD-GUIDE.md](./BUILD-GUIDE.md) | Sprint prompts for Unity (8 sprints) |
 | [PROMPT-GUIDE.md](./PROMPT-GUIDE.md) | AI assistant guide |
-| [project-scope.md](./project-scope.md) | Business model, phases |
+| [archive/project-scope.md](./archive/project-scope.md) | Archived business model and phase planning |
 | [economy-and-currency.md](./economy-and-currency.md) | BBG, gas, find limits |
 | [coins-and-collection.md](./coins-and-collection.md) | Coin mechanics |
 | [prize-finder-details.md](./prize-finder-details.md) | AR HUD design |
 | [treasure-hunt-types.md](./treasure-hunt-types.md) | Hunt modes |
 | [user-accounts-security.md](./user-accounts-security.md) | Auth, anti-cheat |
 | [social-features.md](./social-features.md) | Friends, leaderboards |
-| [admin-dashboard.md](./admin-dashboard.md) | Admin tools |
+| [archive/admin-dashboard.md](./archive/admin-dashboard.md) | Archived admin tools requirements |
 | [dynamic-coin-distribution.md](./dynamic-coin-distribution.md) | Coin spawning |
 | [safety-and-legal-research.md](./safety-and-legal-research.md) | Legal |
 

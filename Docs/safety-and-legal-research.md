@@ -183,6 +183,6 @@ These items require external research before finalizing:
 
 ## 🔗 Related Documents
 
-- [Admin Dashboard](./admin-dashboard.md)
+- [Admin Dashboard](./archive/admin-dashboard.md)
 - [User Accounts & Security](./user-accounts-security.md)
-- [Project Scope](./project-scope.md)
+- [Project Scope](./archive/project-scope.md)
