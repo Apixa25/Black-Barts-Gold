@@ -106,16 +106,16 @@ export function CoinsTable({ coins, onEdit }: CoinsTableProps) {
     }
 
     setIsDeleting(coinId)
-    const { error } = await supabase
-      .from("coins")
-      .delete()
-      .eq("id", coinId)
 
+    const response = await fetch(`/api/v1/coins/${encodeURIComponent(coinId)}`, {
+      method: "DELETE",
+    })
+    const payload = await response.json().catch(() => null)
     setIsDeleting(null)
 
-    if (error) {
+    if (!response.ok || !payload?.success) {
       toast.error("Failed to delete coin", {
-        description: error.message,
+        description: payload?.details || payload?.error || "The server could not delete this coin.",
       })
       return
     }

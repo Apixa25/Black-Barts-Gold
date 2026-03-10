@@ -9,7 +9,7 @@ import { CoinsTable } from "@/components/dashboard/coins-table"
 import { CoinsSearch } from "@/components/dashboard/coins-search"
 import { CoinDialog } from "@/components/dashboard/coin-dialog"
 import { Button } from "@/components/ui/button"
-import { Map, Table2, Loader2, MapPin, MousePointerClick, X, Move, Maximize2 } from "lucide-react"
+import { Map, Table2, Loader2, MousePointerClick, X, Move, Maximize2 } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -167,15 +167,21 @@ export function CoinsPageClient({
   // Delete coin (from map, table, or edit dialog)
   const handleDeleteCoin = useCallback(
     async (coin: Coin) => {
-      const { error } = await supabase.from("coins").delete().eq("id", coin.id)
-      if (error) {
-        toast.error("Failed to delete coin", { description: error.message })
+      const response = await fetch(`/api/v1/coins/${encodeURIComponent(coin.id)}`, {
+        method: "DELETE",
+      })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok || !payload?.success) {
+        toast.error("Failed to delete coin", {
+          description: payload?.details || payload?.error || "The server could not delete this coin.",
+        })
         return
       }
       toast.success("Coin deleted", { description: "Removed from the database." })
       router.refresh()
     },
-    [supabase, router]
+    [router]
   )
 
   // Toggle drag mode

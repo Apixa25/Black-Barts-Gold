@@ -9,7 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdminSession } from '@/lib/admin-session'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { keysToCamelCase } from '@/lib/api-utils'
 
 interface RouteParams {
@@ -75,6 +76,8 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
+    await requireAdminSession()
+
     const { id } = await params
     
     if (!id) {
@@ -84,7 +87,7 @@ export async function DELETE(
       )
     }
     
-    const supabase = await createClient()
+    const supabase = createServiceRoleClient()
     
     // Check if coin exists first
     const { data: existingCoin, error: fetchError } = await supabase
@@ -108,6 +111,25 @@ export async function DELETE(
       )
     }
     
+    // Clear queue references first so auto-spawned coins can be deleted safely.
+    const { error: queueCleanupError } = await supabase
+      .from('spawn_queue')
+      .update({ spawned_coin_id: null })
+      .eq('spawned_coin_id', id)
+
+    if (queueCleanupError) {
+      console.error('[API] Error clearing spawn_queue references:', queueCleanupError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to clear spawn queue references before deleting coin',
+          code: 'QUEUE_REFERENCE_CLEAR_FAILED',
+          details: queueCleanupError.message,
+        },
+        { status: 500 }
+      )
+    }
+
     // Delete the coin
     const { error: deleteError } = await supabase
       .from('coins')
@@ -117,8 +139,13 @@ export async function DELETE(
     if (deleteError) {
       console.error('[API] Error deleting coin:', deleteError)
       return NextResponse.json(
-        { success: false, error: 'Failed to delete coin', code: 'DELETE_FAILED' },
-        { status: 500 }
+        {
+          success: false,
+          error: deleteError.message || 'Failed to delete coin',
+          code: 'DELETE_FAILED',
+          details: deleteError.details ?? null,
+        },
+        { status: deleteError.code === '23503' ? 409 : 500 }
       )
     }
     
