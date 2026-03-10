@@ -618,7 +618,7 @@ Sponsor Features will require:
 | Document | Description |
 |----------|-------------|
 | [DEVELOPMENT-LOG.md](../DEVELOPMENT-LOG.md) | Unity app progress (Sprints 1-8) |
-| [ADMIN-DASHBOARD-BUILD-GUIDE.md](../ADMIN-DASHBOARD-BUILD-GUIDE.md) | Dashboard build phases |
+| [Admin Dashboard README](../../admin-dashboard/README.md) | Current dashboard setup and local development |
 | [dynamic-coin-distribution.md](../dynamic-coin-distribution.md) | Auto-distribution specs |
 | [treasure-hunt-types.md](../treasure-hunt-types.md) | Hunt configurations |
 | [coins-and-collection.md](../coins-and-collection.md) | Coin mechanics |

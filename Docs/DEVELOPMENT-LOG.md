@@ -70,7 +70,7 @@ C:\Users\Admin\Black-Barts-Gold\
 │   ├── BUILD-GUIDE.md       # Unity sprint prompts (8 sprints)
 │   ├── DEVELOPMENT-LOG.md   # This file
 │   ├── project-vision.md    # Technical overview
-│   ├── PROMPT-GUIDE.md      # AI assistant templates
+│   ├── DOCS-POLICY.md       # Docs authority and archive rules
 │   └── [10 business docs]   # Economy, coins, hunts, etc.
 │
 ├── BlackBartsGold/          # Unity Project
@@ -1222,7 +1222,7 @@ New stack provides:
 |----------|-------------|
 | [project-vision.md](./project-vision.md) | Technical vision, architecture |
 | [BUILD-GUIDE.md](./BUILD-GUIDE.md) | Sprint prompts for Unity (8 sprints) |
-| [PROMPT-GUIDE.md](./PROMPT-GUIDE.md) | AI assistant guide |
+| [DOCS-POLICY.md](./DOCS-POLICY.md) | Docs authority, archive rules, and review hierarchy |
 | [archive/project-scope.md](./archive/project-scope.md) | Archived business model and phase planning |
 | [economy-and-currency.md](./economy-and-currency.md) | BBG, gas, find limits |
 | [coins-and-collection.md](./coins-and-collection.md) | Coin mechanics |

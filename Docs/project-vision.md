@@ -375,9 +375,8 @@ Assets/Scripts/AR/CoinController.cs
 | **project-vision.md** | This file - overview & decisions |
 | **DOCS-POLICY.md** | Source-of-truth hierarchy, archive rules, and docs organization policy |
 | **BUILD-GUIDE.md** | Unity mobile app - sprint-by-sprint prompts |
-| **ADMIN-DASHBOARD-BUILD-GUIDE.md** | 🖥️ Web admin dashboard - build guide |
+| **`admin-dashboard/README.md`** | 🖥️ Web admin dashboard - setup and local development guide |
 | **DEVELOPMENT-LOG.md** | Progress tracking |
-| **PROMPT-GUIDE.md** | AI assistant templates |
 | **economy-and-currency.md** | BBG, gas, find limits |
 | **coins-and-collection.md** | Coin mechanics |
 | **prize-finder-details.md** | AR HUD design |

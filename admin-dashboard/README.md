@@ -13,7 +13,7 @@ Web-based administration dashboard for managing the Black Bart's Gold treasure h
 
 ## Getting Started
 
-See the full build guide: [`../Docs/ADMIN-DASHBOARD-BUILD-GUIDE.md`](../Docs/ADMIN-DASHBOARD-BUILD-GUIDE.md)
+This README is the local setup guide. For current dashboard, AI stack, and deployment status, see [`../Docs/session-handoff.md`](../Docs/session-handoff.md).
 
 ### Quick Start
 
@@ -69,7 +69,7 @@ admin-dashboard/
 
 - [Brand Guide](../Docs/brand-guide.md) - 🤠 **READ FIRST**
 - [Archived Admin Dashboard Requirements](../Docs/archive/admin-dashboard.md)
-- [Build Guide](../Docs/ADMIN-DASHBOARD-BUILD-GUIDE.md)
+- [Session Handoff](../Docs/session-handoff.md) - Current dashboard and AI stack status
 
 ---
 

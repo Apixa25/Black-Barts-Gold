@@ -68,7 +68,7 @@ Black-Barts-Gold/
     ├── brand-guide.md      # 🤠 Character & brand identity
     ├── project-vision.md   # Project overview
     ├── BUILD-GUIDE.md      # Unity app build guide
-    ├── ADMIN-DASHBOARD-BUILD-GUIDE.md  # Web admin build guide
+    ├── DOCS-POLICY.md      # Docs authority and archive rules
     └── ...
 ```
 
@@ -80,7 +80,7 @@ See [`Docs/BUILD-GUIDE.md`](Docs/BUILD-GUIDE.md) for the complete Unity build gu
 
 ### Admin Dashboard (Web)
 
-See [`Docs/ADMIN-DASHBOARD-BUILD-GUIDE.md`](Docs/ADMIN-DASHBOARD-BUILD-GUIDE.md) for the complete web build guide.
+See [`admin-dashboard/README.md`](admin-dashboard/README.md) for admin dashboard setup and local development.
 
 ```bash
 cd admin-dashboard
@@ -95,7 +95,7 @@ npm run dev
 | [Brand Guide](Docs/brand-guide.md) | 🤠 **READ FIRST** - Character & visual identity |
 | [Project Vision](Docs/project-vision.md) | Full project overview and design |
 | [Build Guide (Unity)](Docs/BUILD-GUIDE.md) | Mobile app development guide |
-| [Build Guide (Admin)](Docs/ADMIN-DASHBOARD-BUILD-GUIDE.md) | Web admin development guide |
+| [Admin Dashboard README](admin-dashboard/README.md) | Web admin setup and local development |
 | [Development Log](Docs/DEVELOPMENT-LOG.md) | Sprint progress and history |
 
 ## 🎨 Design Theme
