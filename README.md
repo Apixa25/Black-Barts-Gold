@@ -90,6 +90,8 @@ npm run dev
 
 ## 📖 Documentation
 
+Start with the [Docs Index](Docs/README.md) for the fastest overview of canonical docs, active references, and archived material.
+
 | Document | Purpose |
 |----------|---------|
 | [Brand Guide](Docs/brand-guide.md) | 🤠 **READ FIRST** - Character & visual identity |
