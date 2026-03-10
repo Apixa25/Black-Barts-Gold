@@ -111,6 +111,25 @@ export async function DELETE(
       )
     }
     
+    // Preserve transaction history while allowing admin cleanup of coin records.
+    const { error: transactionCleanupError } = await supabase
+      .from('transactions')
+      .update({ coin_id: null })
+      .eq('coin_id', id)
+
+    if (transactionCleanupError) {
+      console.error('[API] Error clearing transaction references:', transactionCleanupError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Failed to clear transaction references before deleting coin',
+          code: 'TRANSACTION_REFERENCE_CLEAR_FAILED',
+          details: transactionCleanupError.message,
+        },
+        { status: 500 }
+      )
+    }
+
     // Clear queue references first so auto-spawned coins can be deleted safely.
     const { error: queueCleanupError } = await supabase
       .from('spawn_queue')
