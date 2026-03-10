@@ -1,6 +1,6 @@
 # 🤠 Black Bart's Gold
 
-**An AR Treasure Hunting Mobile Game**
+## An AR Treasure Hunting Mobile Game
 
 Hunt for virtual coins with real cryptocurrency value in the real world using augmented reality!
 
@@ -19,7 +19,7 @@ Black Bart (Charles E. Boles, 1829-1888) was a legendary **Wild West stagecoach 
 ### Mobile App (Unity)
 
 | Component | Technology |
-|-----------|------------|
+| --------- | ---------- |
 | **Game Engine** | Unity 6 (6000.x LTS) |
 | **AR Framework** | AR Foundation 6.x |
 | **Android AR** | ARCore XR Plugin |
@@ -29,7 +29,7 @@ Black Bart (Charles E. Boles, 1829-1888) was a legendary **Wild West stagecoach 
 ### Admin Dashboard (Web)
 
 | Component | Technology |
-|-----------|------------|
+| --------- | ---------- |
 | **Framework** | Next.js 14+ (App Router) |
 | **Language** | TypeScript |
 | **Styling** | Tailwind CSS + shadcn/ui |
@@ -48,7 +48,7 @@ Black Bart (Charles E. Boles, 1829-1888) was a legendary **Wild West stagecoach 
 
 ## 🏗️ Project Structure (Monorepo)
 
-```
+```text
 Black-Barts-Gold/
 ├── BlackBartsGold/         # Unity mobile app
 │   ├── Assets/
@@ -74,11 +74,11 @@ Black-Barts-Gold/
 
 ## 🚀 Getting Started
 
-### Mobile App (Unity)
+### Run Mobile App (Unity)
 
 See [`Docs/BUILD-GUIDE.md`](Docs/BUILD-GUIDE.md) for the complete Unity build guide.
 
-### Admin Dashboard (Web)
+### Run Admin Dashboard (Web)
 
 See [`admin-dashboard/README.md`](admin-dashboard/README.md) for admin dashboard setup and local development.
 
@@ -93,7 +93,7 @@ npm run dev
 Start with the [Docs Index](Docs/README.md) for the fastest overview of canonical docs, active references, and archived material.
 
 | Document | Purpose |
-|----------|---------|
+| -------- | ------- |
 | [Brand Guide](Docs/brand-guide.md) | 🤠 **READ FIRST** - Character & visual identity |
 | [Project Vision](Docs/project-vision.md) | Full project overview and design |
 | [Build Guide (Unity)](Docs/BUILD-GUIDE.md) | Mobile app development guide |
@@ -105,7 +105,7 @@ Start with the [Docs Index](Docs/README.md) for the fastest overview of canonica
 **Wild West + Steampunk** (NOT pirate!)
 
 | Color | Hex | Usage |
-|-------|-----|-------|
+| ----- | --- | ----- |
 | **Treasure Gold** | #FFD700 | Primary - coins, buttons |
 | **Saddle Brown** | #8B4513 | Secondary - headers |
 | **Dark Leather** | #3D2914 | Text, backgrounds |
@@ -116,10 +116,12 @@ Start with the [Docs Index](Docs/README.md) for the fastest overview of canonica
 ## 📱 Supported Devices
 
 ### Android
+
 - ARCore compatible devices
 - Android 7.0+ (API 24+)
 
 ### iOS
+
 - ARKit compatible devices
 - iOS 11.0+
 - iPhone 6s and newer

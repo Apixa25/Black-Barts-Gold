@@ -7,9 +7,9 @@
 ## 📋 Quick Reference
 
 | Item | Value |
-|------|-------|
+| ---- | ----- |
 | **Project Path** | `C:\Users\Admin\Black-Barts-Gold` |
-| **Repository** | https://github.com/Apixa25/Black-Barts-Gold.git |
+| **Repository** | [github.com/Apixa25/Black-Barts-Gold.git](https://github.com/Apixa25/Black-Barts-Gold.git) |
 | **Engine** | Unity 6 (6000.3.4f1 LTS) |
 | **Current Sprint** | 🎉 **PHASE 1 MVP COMPLETE!** 🏴‍☠️ |
 | **Current Status** | Backend Integration Done! API Client, Offline Support, Network Status |
@@ -25,12 +25,14 @@
 ### Why Unity?
 
 This project was **migrated from React Native + ViroReact** due to:
+
 1. ViroReact library instability with React Native 0.81+
 2. Fabric architecture incompatibility (ClassCastException crashes on AR exit)
 3. Limited community support for ViroReact
 4. Need for production-quality AR at scale (millions of users)
 
 **Unity + AR Foundation** was chosen because:
+
 - Industry standard (Pokémon Go, Harry Potter: Wizards Unite use Unity)
 - Native ARCore/ARKit performance
 - Cross-platform from single codebase
@@ -38,11 +40,13 @@ This project was **migrated from React Native + ViroReact** due to:
 - Asset Store ecosystem
 
 ### Core Mechanics
+
 - **Gas System**: $10 = 30 days of play (~$0.33/day consumed)
 - **Find Limits**: Can only find coins ≤ your limit; hide bigger coins to unlock bigger finds
 - **Default Limit**: $1.00 (hide $5 coin → unlock $5 finds)
 
 ### Key Files to Read First
+
 1. `project-vision.md` - Full project philosophy and tech decisions
 2. `BUILD-GUIDE.md` - Step-by-step sprint prompts for Unity (8 sprints!)
 3. This file - Current progress and patterns
@@ -52,7 +56,7 @@ This project was **migrated from React Native + ViroReact** due to:
 ## 🛠️ Tech Stack
 
 | Component | Technology | Version |
-|-----------|------------|---------|
+| --------- | ---------- | ------- |
 | **Game Engine** | Unity | 6 (6000.3.4f1 LTS) |
 | **AR Framework** | AR Foundation | 5.x |
 | **Android AR** | Google ARCore XR Plugin | Latest |
@@ -64,7 +68,7 @@ This project was **migrated from React Native + ViroReact** due to:
 
 ## 📁 Project Structure
 
-```
+```text
 C:\Users\Admin\Black-Barts-Gold\
 ├── Docs/                    # Documentation
 │   ├── BUILD-GUIDE.md       # Unity sprint prompts (8 sprints)
@@ -108,7 +112,7 @@ C:\Users\Admin\Black-Barts-Gold\
 ### Scripts Created To Date
 
 | Sprint | Folder | Scripts | Lines (approx) |
-|--------|--------|---------|----------------|
+| ------ | ------ | ------- | -------------- |
 | **Sprint 1** | `Scripts/Core/` | 5 scripts | ~1,600 |
 | **Sprint 1** | `Scripts/Core/Models/` | 6 scripts | ~1,900 |
 | **Sprint 2** | `Scripts/AR/` | 3 scripts | ~1,150 |
@@ -127,7 +131,7 @@ C:\Users\Admin\Black-Barts-Gold\
 
 ### Complete File Inventory
 
-```
+```text
 Assets/Scripts/
 ├── Core/                          # Sprint 1 + Sprint 6 + Sprint 8
 │   ├── GameManager.cs             (412 lines) - Game state, scene management (+auth check)
@@ -199,7 +203,7 @@ Assets/Scripts/
 ### Key Systems Implemented
 
 | System | Status | Key Classes |
-|--------|--------|-------------|
+| ------ | ------ | ----------- |
 | **Game State** | ✅ | `GameManager` (singleton, DontDestroyOnLoad) |
 | **Scene Loading** | ✅ | `SceneLoader` (sync/async with progress) |
 | **Data Persistence** | ✅ | `SaveSystem` (JSON + backup) |
@@ -250,6 +254,7 @@ Assets/Scripts/
 ## 🎨 Design System
 
 ### Colors (Pirate Theme)
+
 ```csharp
 public static class Colors
 {
@@ -274,8 +279,9 @@ public static class Colors
 ```
 
 ### Find Limit Tiers
+
 | Tier | Limit | Name |
-|------|-------|------|
+| ---- | ----- | ---- |
 | 1 | $1.00 | Cabin Boy |
 | 2 | $5.00 | Deck Hand |
 | 3 | $10.00 | Treasure Hunter |
@@ -292,6 +298,7 @@ public static class Colors
 #### Sprint 0: Foundation Setup - COMPLETE ✅
 
 **Environment Setup:**
+
 - [x] Unity Hub installed
 - [x] Unity 6 (6000.3.4f1 LTS) installed
 - [x] Android Build Support module installed
@@ -299,12 +306,14 @@ public static class Colors
 - [x] Git repository created and pushed
 
 **AR Foundation Setup:**
+
 - [x] AR Foundation 5.x package installed
 - [x] Google ARCore XR Plugin installed
 - [x] Apple ARKit XR Plugin installed
 - [x] XR Plug-in Management configured (ARCore enabled for Android)
 
 **Android Build Configuration:**
+
 - [x] Platform switched to Android
 - [x] Package name: `com.blackbart.gold`
 - [x] Minimum API Level: **Android 10.0 (API 29)** ⚠️ Required for ARCore+Vulkan
@@ -312,6 +321,7 @@ public static class Colors
 - [x] Target Architecture: ARM64
 
 **AR Test Scene:**
+
 - [x] Created `ARTest.unity` scene
 - [x] Added AR Session
 - [x] Added XR Origin (AR) with camera
@@ -319,12 +329,14 @@ public static class Colors
 - [x] Created gold material
 
 **Build & Deploy:**
+
 - [x] Fixed Gradle build issue (set User Home to `C:\gradle-home`)
 - [x] Successfully built APK
 - [x] Deployed to OnePlus 9 Pro
 - [x] **AR WORKING!** Golden cube visible in real-world AR! 🎉
 
 **Documentation:**
+
 - [x] All 13 documentation files in place
 - [x] BUILD-GUIDE.md completely rewritten for Unity (8 sprints)
 - [x] DEVELOPMENT-LOG.md updated
@@ -353,7 +365,8 @@ public static class Colors
 - [x] `SaveSystem.cs` - JSON serialization to persistent storage
 
 **Files Created (10 total):**
-```
+
+```text
 Assets/Scripts/Core/
 ├── GameManager.cs         # Game state & scene management
 ├── SceneLoader.cs         # Scene loading utilities
@@ -387,6 +400,7 @@ Assets/Scripts/Core/
 #### Sprint 2: AR Foundation Setup - COMPLETE ✅
 
 **Prompt 2.1 - AR Session Setup:**
+
 - [x] `ARSessionManager.cs` - Singleton managing AR session lifecycle
   - Tracks ARSessionState (None, Initializing, Tracking, etc.)
   - Events: OnStateChanged, OnTrackingEstablished, OnTrackingLost, OnError
@@ -394,6 +408,7 @@ Assets/Scripts/Core/
   - User-friendly messages ("Looking for surfaces...", "Ready!")
 
 **Prompt 2.2 - AR Plane Detection:**
+
 - [x] `PlaneVisualizer.cs` - Debug visualization for AR planes
   - Different colors for horizontal (green) vs vertical (blue) planes
   - Boundary line rendering
@@ -402,6 +417,7 @@ Assets/Scripts/Core/
   - Get largest plane, plane at position utilities
 
 **Prompt 2.3 - AR Raycast System:**
+
 - [x] `ARRaycastController.cs` - Crosshairs targeting system
   - Raycasts from screen center each frame
   - Detects coins (Physics raycast) and planes (AR raycast)
@@ -409,6 +425,7 @@ Assets/Scripts/Core/
   - Tap detection for coin selection
 
 **UI Components:**
+
 - [x] `CrosshairsController.cs` - Visual crosshairs feedback
   - States: Normal (white), Hovering (gold), InRange (green), Locked (red)
   - Pulse animation when targeting
@@ -422,7 +439,8 @@ Assets/Scripts/Core/
   - Pirate-themed messages! 🏴‍☠️
 
 **Files Created (5 total):**
-```
+
+```text
 Assets/Scripts/AR/
 ├── ARSessionManager.cs    # AR session lifecycle management
 ├── ARRaycastController.cs # Crosshairs targeting/raycasting
@@ -471,21 +489,25 @@ Assets/Scripts/UI/
 
 ### Unity Project Location
 The Unity project is in a **subfolder**: `BlackBartsGold/` within the repo.
-```
+
+```text
 C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
 ```
 
 ### File Naming (Unity Standard)
+
 - Scripts: `PascalCase.cs`
 - Scenes: `PascalCase.unity`
 - Prefabs: `PascalCase.prefab`
 - Materials: `PascalCase.mat`
 
 ### Build Settings Reminder
+
 - **Minimum API:** 29 (Android 10) - Required for ARCore + Vulkan
 - **Gradle User Home:** `C:\gradle-home` - Fixes Windows build issues
 
 ### User Preferences (from project-vision.md)
+
 - ✅ Include file paths in code blocks
 - ✅ Long, clear explanations
 - ✅ Use emojis for engagement 🎯
@@ -494,6 +516,7 @@ C:\Users\Admin\Black-Barts-Gold\BlackBartsGold\  ← Unity project root
 - ✅ AI handles git commits (user preference!)
 
 ### Development Philosophy (IMPORTANT)
+
 - ⭐ **ALWAYS build market-standard implementations** - Never take shortcuts
 - ⭐ **Structurally sound over fast** - Build it right the first time
 - ⭐ **No quick fixes** - If we'll need to refactor later, build it properly now
@@ -1149,11 +1172,14 @@ Assets/Scripts/AR/
 ## 🚀 Development Commands
 
 ### Build Android APK (Unity 6)
-```
+
+```text
 File → Build and Run
 ```
+
 Or for just building:
-```
+
+```text
 File → Build Profiles → Build
 ```
 
@@ -1168,6 +1194,7 @@ adb devices
 ```
 
 ### Git Commands (handled by AI assistant)
+
 ```powershell
 cd "C:\Users\Admin\Black-Barts-Gold"
 git add -A
@@ -1180,7 +1207,7 @@ git push origin main
 ## 📝 Important Decisions Made
 
 | Date | Decision | Reason |
-|------|----------|--------|
+| ---- | -------- | ------ |
 | 2026-01-17 | Migrate to Unity | ViroReact crashes, limited support, not production-ready |
 | 2026-01-17 | Unity 6 LTS | Latest stable with best AR Foundation support |
 | 2026-01-17 | AR Foundation 5.x | Cross-platform, production-proven |
@@ -1219,7 +1246,7 @@ New stack provides:
 ## 📚 Related Documents
 
 | Document | Description |
-|----------|-------------|
+| -------- | ----------- |
 | [project-vision.md](./project-vision.md) | Technical vision, architecture |
 | [BUILD-GUIDE.md](./BUILD-GUIDE.md) | Sprint prompts for Unity (8 sprints) |
 | [DOCS-POLICY.md](./DOCS-POLICY.md) | Docs authority, archive rules, and review hierarchy |
@@ -1239,7 +1266,7 @@ New stack provides:
 ## 🏆 Milestones
 
 | Date | Milestone | Status |
-|------|-----------|--------|
+| ---- | --------- | ------ |
 | 2026-01-17 | Unity environment setup | ✅ |
 | 2026-01-17 | AR Foundation configured | ✅ |
 | 2026-01-17 | First AR build on device | ✅ |

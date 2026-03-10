@@ -53,7 +53,7 @@ This dashboard uses the **Western Gold & Brown** color palette:
 
 ## Project Structure
 
-```
+```text
 admin-dashboard/
 ├── src/
 │   ├── app/           # Next.js App Router pages

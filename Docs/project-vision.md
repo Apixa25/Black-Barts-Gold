@@ -11,9 +11,11 @@ Black Bart's Gold is an augmented reality mobile game where players hunt for vir
 ## 🎯 The Vision
 
 ### The Hook
+
 "What if you could walk around your neighborhood and find real money just lying on the ground?"
 
 ### The Experience
+
 1. **Open the app** → See a pirate-themed interface
 2. **Start hunting** → AR camera activates with HUD overlay
 3. **Explore** → Walk around your real environment
@@ -23,6 +25,7 @@ Black Bart's Gold is an augmented reality mobile game where players hunt for vir
 7. **Profit** → Real BBG (Black Bart's Gold) added to your wallet
 
 ### What Makes It Special
+
 - **Real Value**: Coins convert to Bitcoin, not just points
 - **Physical Activity**: Must walk to find treasure
 - **Social Competition**: Leaderboards, friends, guilds
@@ -46,7 +49,7 @@ The philosophy: **design the app for the AI, and it becomes better for humans to
 Think of the full system as a working ranch:
 
 | Layer | Ranch Analogy | Tech Equivalent |
-|-------|--------------|-----------------|
+| ----- | ------------- | --------------- |
 | **The Land** | Terrain, water, grass | Supabase database |
 | **The Ranch House** | Operations hub, records | Admin dashboard (Next.js) |
 | **The Foreman** | Makes daily decisions autonomously | Spawn Governor (Edge Function) |
@@ -67,7 +70,7 @@ Every AI-facing feature in this project follows these five rules:
 
 ### The 4-Layer Technical Stack (AI path)
 
-```
+```text
 Claude / GPT / any LLM
         ↓  (calls tool by name)
 MCP Server (mcp-server/)          ← tool definitions, input schemas
@@ -87,6 +90,7 @@ Supabase PostgreSQL                ← source of truth
 ### The Black Bart Command Center (Admin UI)
 
 The human-facing window into what the AI is doing:
+
 - **5 KPI cards** — economy status, hourly spend, actions today, active coins, kill switch toggle
 - **Hunt pressure grid** — per-zone live pressure scores (players ÷ coins), color coded hot/warm/cool
 - **Economy health panel** — supply/demand ratio, net margin, spawn/collect/recycle counts
@@ -101,7 +105,7 @@ The human-facing window into what the AI is doing:
 ### Why Unity + AR Foundation?
 
 | Factor | ViroReact (Previous) | Unity + AR Foundation |
-|--------|---------------------|----------------------|
+| ------ | -------------------- | --------------------- |
 | **Stability** | ❌ Crashes with React Native 0.81+ | ✅ Production-proven |
 | **Community** | ⚠️ Small, limited support | ✅ Massive ecosystem |
 | **Performance** | ⚠️ JavaScript bridge overhead | ✅ Native C++ core |
@@ -111,7 +115,7 @@ The human-facing window into what the AI is doing:
 ### Tech Stack Details
 
 | Layer | Technology | Why |
-|-------|------------|-----|
+| ----- | ---------- | --- |
 | **Game Engine** | Unity 6 (2024 LTS) | Latest stable, best AR support |
 | **AR Framework** | AR Foundation 5.x | Unity's cross-platform AR abstraction |
 | **Android AR** | ARCore XR Plugin | Google's AR SDK, native performance |
@@ -123,7 +127,7 @@ The human-facing window into what the AI is doing:
 ### Platform Support
 
 | Platform | Status | Requirements |
-|----------|--------|--------------|
+| -------- | ------ | ------------ |
 | **Android** | Primary | Android 7.0+, ARCore compatible |
 | **iOS** | Secondary | iOS 11.0+, ARKit compatible (A9+) |
 
@@ -132,7 +136,8 @@ The human-facing window into what the AI is doing:
 ## 🎮 Core Game Systems
 
 ### 1. AR Treasure Hunt
-```
+
+```text
 Player Position (GPS) ──► AR Scene ──► Coins at relative positions
         │                    │                    │
         ▼                    ▼                    ▼
@@ -146,7 +151,7 @@ Player Position (GPS) ──► AR Scene ──► Coins at relative positions
 
 ### 2. Economy System
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │                    $10 Purchase                      │
 ├─────────────────────────────────────────────────────┤
@@ -160,7 +165,7 @@ Player Position (GPS) ──► AR Scene ──► Coins at relative positions
 
 ### 3. Find Limit System
 
-```
+```text
 Your Find Limit = Highest coin you've ever hidden
 
 ┌────────────┬─────────────┬──────────────────┐
@@ -182,7 +187,7 @@ Coins above your limit appear LOCKED (red, can't collect)
 ### Color Palette (Western Treasure Theme)
 
 | Color | Hex | Usage |
-|-------|-----|-------|
+| ----- | --- | ----- |
 | **Treasure Gold** | #FFD700 | Primary - coins, buttons, highlights |
 | **Saddle Brown** | #8B4513 | Secondary - headers, navigation |
 | **Dark Leather** | #3D2914 | Tertiary - text, deep backgrounds |
@@ -198,7 +203,7 @@ Coins above your limit appear LOCKED (red, can't collect)
 
 ### AR HUD Layout
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │ [🧭 N]                           [Find: $5.00]  │
 │  ↖ 47m                                          │
@@ -220,7 +225,7 @@ GAS = Gas meter (days remaining)
 ### Coin Visual States
 
 | State | Appearance |
-|-------|------------|
+| ----- | ---------- |
 | **Normal** | Gold, spinning, sparkles |
 | **Pool** | Silver, shows "?" for value |
 | **Locked** | Red tint, lock overlay |
@@ -232,17 +237,20 @@ GAS = Gas meter (days remaining)
 ## 📱 User Flow
 
 ### First Launch
-```
+
+```text
 Install → Onboarding → Create Account → Tutorial Hunt → Main Menu
 ```
 
 ### Daily Play
-```
+
+```text
 Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect → Wallet
 ```
 
 ### Hunt Flow
-```
+
+```text
 1. Check gas (block if empty)
 2. Start AR camera
 3. Get GPS position
@@ -259,6 +267,7 @@ Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect �
 ## 🗓️ Development Phases
 
 ### Phase 0: Foundation (Current)
+
 - [x] Unity Hub installed
 - [x] Unity 6 installed with Android Build Support
 - [x] Documentation complete
@@ -267,6 +276,7 @@ Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect �
 - [ ] Basic AR test
 
 ### Phase 1: MVP (Sprints 1-8)
+
 - [ ] Scene navigation
 - [ ] AR camera with coin rendering
 - [ ] GPS tracking
@@ -276,12 +286,14 @@ Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect �
 - [ ] Backend integration
 
 ### Phase 2: Enhanced Features
+
 - [ ] Multiple hunt types
 - [ ] Social features
 - [ ] Coin hiding
 - [ ] Polish & audio
 
 ### Phase 3: Advanced
+
 - [ ] Guilds
 - [ ] Sponsor hunts
 - [ ] iOS release
@@ -292,12 +304,14 @@ Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect �
 ## 📊 Success Metrics
 
 ### Technical
+
 - 60 FPS AR rendering
 - < 3 second GPS lock
 - < 100ms tap response
 - 99.9% crash-free sessions
 
 ### User Experience
+
 - < 30 seconds to first coin visible
 - Clear tutorial completion
 - Daily active return rate
@@ -307,18 +321,21 @@ Launch → Auto-login → Main Menu → Start Hunting → AR View → Collect �
 ## 🔄 Migration from React Native
 
 ### What We Learned
+
 1. **ViroReact limitations**: Not production-ready for complex apps
 2. **Architecture matters**: New arch (Fabric) broke libraries
 3. **Community support**: Small community = slow bug fixes
 4. **Choose proven tech**: Unity has decade of AR games
 
 ### What We're Keeping
+
 - All game design documents
 - Economy mechanics
 - UI/UX concepts
 - Backend API design
 
 ### What's New
+
 - Unity engine (C#)
 - AR Foundation framework
 - Native platform builds
@@ -358,8 +375,10 @@ When working on this project:
    - Use this file for collaboration context, personality preferences, and project intent
 
 ### File Path Convention
+
 Always include full paths in code blocks:
-```
+
+```text
 Assets/Scripts/AR/CoinController.cs
 ```
 
@@ -370,7 +389,7 @@ Assets/Scripts/AR/CoinController.cs
 > **🤠 IMPORTANT**: Always read **brand-guide.md** at the start of each session to ensure consistent character portrayal. Black Bart was a Wild West stagecoach robber, NOT a pirate!
 
 | Document | Purpose |
-|----------|---------|
+| -------- | ------- |
 | **brand-guide.md** | 🤠 **READ FIRST** - Character & brand identity guide |
 | **project-vision.md** | This file - overview & decisions |
 | **DOCS-POLICY.md** | Source-of-truth hierarchy, archive rules, and docs organization policy |
@@ -397,6 +416,7 @@ Assets/Scripts/AR/CoinController.cs
 > "I've labored long and hard for bread, for honor, and for riches..." — Black Bart
 
 This game is about:
+
 - **Adventure**: Get outside, explore
 - **Discovery**: Find hidden treasure
 - **Fairness**: Give to receive (hide to unlock higher limits)

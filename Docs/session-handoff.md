@@ -22,6 +22,7 @@ Steven is the founder and sole developer of Black Bart's Gold. He is **not a tra
 - **He makes additive progress.** He does not want big rewrites or deletions of working code. Every change should build on what exists.
 
 **Do not:**
+
 - Give short answers to architectural or "explain this to me" questions
 - Skip the "why" and jump straight to code
 - Suggest deleting or replacing large chunks of working code
@@ -32,9 +33,11 @@ Steven is the founder and sole developer of Black Bart's Gold. He is **not a tra
 ## 🗺️ What Has Been Built (Complete Inventory)
 
 ### The Admin Dashboard (`admin-dashboard/`)
+
 A Next.js app deployed to Vercel at `https://admin.blackbartsgold.com`.
 
 **Standard admin pages (all working in production):**
+
 - `/` — Dashboard overview with live stats
 - `/players` — Live player map
 - `/users` — User management
@@ -46,16 +49,19 @@ A Next.js app deployed to Vercel at `https://admin.blackbartsgold.com`.
 - `/settings` — App settings
 
 **AI Governor page (newly built, in production):**
+
 - `/ai-governor` — "Black Bart Command Center" — live AI activity dashboard
 
 ### The AI Stack (all code written, partial deployment)
 
 **Database migrations (in `admin-dashboard/supabase/migrations/`):**
+
 - `014_ai_schema.sql` — Adds `created_by`, `metadata` to `coins`; creates `ai_actions` table; adds `get_ai_spend_this_hour()` function; Realtime wiring
 - `015_repair_auto_distribution.sql` — Repairs missing tables (`zones`, `spawn_queue`, `spawn_history`, `distribution_config`, etc.) for databases where earlier migrations failed
 - `016_spawn_governor_cron.sql` — Sets up `pg_cron` jobs to trigger the Spawn Governor every 5 minutes and at midnight (**requires manual placeholder substitution before applying**)
 
 **Admin AI API routes (all deployed to Vercel, all working):**
+
 - `GET /api/v1/admin/ai/hunt-pressure` — Per-zone player/coin pressure scores
 - `GET /api/v1/admin/ai/economy-health` — Full economy financial snapshot
 - `GET /api/v1/admin/ai/actions` — AI audit log with filtering and pagination
@@ -65,23 +71,27 @@ A Next.js app deployed to Vercel at `https://admin.blackbartsgold.com`.
 - `POST /api/v1/admin/ai/trigger-governor` — Manually fire a governor cycle (admin session only)
 
 **MCP Server (`mcp-server/`):**
+
 - `src/game-mcp-server.ts` — 5 tools + 3 resources registered
 - `src/index.ts` — Entry point with stdio transport
 - `.cursor/mcp.json` — Cursor IDE integration config
 - **Status: Code written, not yet tested end-to-end with a live LLM**
 
 **Spawn Governor Edge Function (`admin-dashboard/supabase/functions/spawn-governor/index.ts`):**
+
 - Full 6-step autonomous decision loop (safety check → economy gate → spawn → recycle → log)
 - Realtime subscription to coin collection events
 - Handles `cron`, `coin_collected`, and `manual` trigger modes
 - **Status: Code written, NOT YET DEPLOYED to Supabase**
 
 **AI Auth (`admin-dashboard/src/lib/ai-auth.ts`):**
+
 - `isValidAiApiKey()` — synchronous, for write routes (AI agents only)
 - `isAuthorizedRequest()` — async dual-auth, accepts EITHER API key OR admin session cookie (allows human admin UI to call read routes directly)
 - `unauthorizedResponse()` / `forbiddenResponse()` — standard error responses
 
 **AI Guardrails (`admin-dashboard/src/lib/ai-guardrails.ts`):**
+
 - `AI_AUTONOMOUS_SPEND_LIMIT_USD = 10.00` — per hour
 - `AI_SINGLE_SPAWN_APPROVAL_THRESHOLD_USD = 50.00` — requires human approval above this
 - `AI_AGENT_IDS` — typed list of valid agent identifiers
@@ -92,7 +102,7 @@ A Next.js app deployed to Vercel at `https://admin.blackbartsgold.com`.
 ## 🚦 Deployment Status
 
 | Component | Status | Notes |
-|-----------|--------|-------|
+| --------- | ------ | ----- |
 | Admin dashboard | ✅ Live in production | `https://admin.blackbartsgold.com` |
 | AI API routes | ✅ Live in production | All 7 routes deployed to Vercel |
 | AI Governor page | ✅ Live in production | `/ai-governor` |
@@ -107,30 +117,38 @@ A Next.js app deployed to Vercel at `https://admin.blackbartsgold.com`.
 ## 📋 Tactical Next Steps (In Priority Order)
 
 ### Step 1 — Deploy the Spawn Governor Edge Function
+
 ```bash
 cd admin-dashboard
 npx supabase functions deploy spawn-governor --no-verify-jwt
 npx supabase secrets set ADMIN_API_BASE_URL=https://admin.blackbartsgold.com
 npx supabase secrets set AI_AGENT_API_KEY=<generate a strong random key>
 ```
+
 Then set `AI_AGENT_API_KEY` in Vercel environment variables to the same value.
 
 ### Step 2 — Test the "Summon Black Bart" button
+
 Once Step 1 is done, click "Summon Black Bart" in the `/ai-governor` page. You should see a toast showing coins spawned, coins recycled, and cost.
 
 ### Step 3 — Test the MCP Server with Cursor
+
 ```bash
 cd mcp-server
 npm install
 ```
+
 Then in `.cursor/mcp.json`, fill in:
+
 - `ADMIN_API_BASE_URL`: `https://admin.blackbartsgold.com`
 - `AI_AGENT_API_KEY`: the key from Step 1
 
 Restart Cursor. In a new chat, you should be able to say "call get_economy_health" and have it execute against the live API.
 
 ### Step 4 — Build the next player-facing AI experience
+
 Good candidates (from `AI-integration.md`):
+
 - **Player Churn Prevention** — detect players who haven't played in 3 days, drop a high-value coin near them
 - **AI Game Master messages** — Black Bart sends in-app taunts and hints based on player behavior
 - **Outlaw Territory Guild Wars** — zones "claimed" by guilds, AI creates cross-guild tension events
@@ -142,7 +160,7 @@ Good candidates (from `AI-integration.md`):
 Use this vocabulary in future sessions — Steven knows these terms and responds well to them.
 
 | Term | Meaning |
-|------|---------|
+| ---- | ------- |
 | **The Ranch** | The full system — database is the land, dashboard is the ranch house, AI is the Foreman, you are the Owner, guardrails are the fence |
 | **The Foreman** | The Spawn Governor AI agent — runs the ranch day-to-day without needing the Owner present |
 | **The Fence** | The guardrails — $10/hr cap, kill switch, idempotency keys. What makes irresponsible AI behavior architecturally impossible |
@@ -160,7 +178,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 ## 🔧 Key Files Quick Reference
 
 | Purpose | File |
-|---------|------|
+| ------- | ---- |
 | Brand voice, character guide | `Docs/brand-guide.md` |
 | Project overview + AI architecture | `Docs/project-vision.md` |
 | AI integration concept + behaviors | `Docs/AI-integration.md` |
@@ -198,6 +216,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 ### Session: 2026-03-08 — S2 Coin Stamping + Remote Migration Push
 
 **What we implemented:**
+
 - Continued the S2 rollout by updating the manual/player coin creation path:
   - `admin-dashboard/src/app/api/v1/coins/hide/route.ts`
 - Coin creation now computes and stores:
@@ -206,27 +225,32 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Added logging that includes the canonical `L17` pressure cell token for hidden coins
 
 **Supabase work completed:**
+
 - Successfully ran remote migration push from `admin-dashboard/`
 - `supabase db push` applied:
   - `016_spawn_governor_cron.sql`
   - `017_s2_spatial_context.sql`
 
 **Important outcome:**
+
 - The remote database now has the new S2 spatial columns
 - The remote database also now has the Spawn Governor cron migrations applied
 - Both player location writes and coin hide writes can stamp canonical S2 cells
 
 **Verification:**
+
 - Targeted lint for `admin-dashboard/src/app/api/v1/coins/hide/route.ts` passed
 - The changed S2 files remain lint-clean
 - Full repo lint still contains unrelated historical issues outside this slice
 
 **What is now true:**
+
 - New player location writes can store S2 `L17` + `L14`
 - New manually hidden/player-hidden coins can store S2 `L17` + `L14`
 - The schema needed for cell-based hunt pressure is now present on the remote DB
 
 **Best next coding step:**
+
 - Build the backfill script for legacy rows
 - Then migrate `GET /api/v1/admin/ai/hunt-pressure` from zone-based aggregation to cell-based aggregation
 
@@ -235,6 +259,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 ### Session: 2026-03-08 — S2 Phase 1-3 Implementation
 
 **What we implemented:**
+
 - Began the actual S2 migration work for the admin backend
 - Installed the backend S2 dependency in `admin-dashboard/package.json`:
   - `s2js`
@@ -246,6 +271,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - `admin-dashboard/supabase/migrations/017_s2_spatial_context.sql`
 
 **Schema additions introduced by the migration:**
+
 - `player_locations.s2_cell_token_l17`
 - `player_locations.s2_cell_token_l14`
 - `coins.s2_cell_token_l17`
@@ -254,18 +280,21 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - `spawn_history.s2_cell_token_l14`
 
 **Route changes completed:**
+
 - Updated `admin-dashboard/src/app/api/v1/player/location/route.ts`
   - computes canonical S2 spatial context from incoming lat/lng
   - stamps `L17` and `L14` cell tokens on every location upsert
   - returns `spatialCellL17` and `spatialCellL14` in the response
 
 **Type updates completed:**
+
 - Updated `admin-dashboard/src/types/database.ts`
   - `Coin` now includes S2 spatial token fields
   - `PlayerLocation` now includes S2 spatial token fields
   - `current_zone_id` comments now reflect named-zone overlay semantics rather than canonical geography
 
 **Verification:**
+
 - Targeted lints for changed files passed:
   - `src/app/api/v1/player/location/route.ts`
   - `src/lib/geo/s2.ts`
@@ -274,11 +303,13 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Full repo lint still has many unrelated pre-existing dashboard/script issues; they were not introduced by this S2 slice
 
 **What is now true:**
+
 - The backend has its first real canonical spatial write path
 - New player location writes can carry S2 `L17` + `L14` truth
 - The repo now has the helper layer needed for coin stamping, backfills, and cell-based hunt pressure
 
 **Best next coding step:**
+
 - Implement the next S2 slice:
   - stamp coin creation paths (`/api/v1/coins/hide`)
   - add backfill script for legacy rows
@@ -289,12 +320,14 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 ### Session: 2026-03-08 — Zone Implementation Plan
 
 **What we did:**
+
 - Turned the S2 zone architecture decision into a concrete implementation sequence
 - Wrote `Docs/archive/zone-implementation-plan.md` as the build guide for the spatial migration
 - Chose **S2 cell tokens stored as text** as the canonical backend spatial identifier format
 - Recommended `s2js` as the initial backend TypeScript S2 library
 
 **Key implementation decisions:**
+
 - Keep `public.zones` as a **named-zone overlay** system
 - Keep Unity `ProximityZone` untouched as local gameplay feedback
 - Add S2 fields to:
@@ -305,12 +338,14 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Migrate AI hunt pressure from `current_zone_id` / `spawn_history.zone_id` to **cell-based aggregation**
 
 **Most important architectural pivot:**
+
 - The AI Governor should stop depending on `spawn_coin(zone_id, ...)` as its primary world primitive
 - Add a new **cell-first** spawn path using explicit lat/lng:
   - recommended DB function: `spawn_coin_at_location(...)`
 - Keep legacy zone-based spawning alive for backward compatibility and overlay-driven flows
 
 **Recommended build order:**
+
 1. `017_s2_spatial_context.sql`
 2. `admin-dashboard/src/lib/geo/s2.ts`
 3. Update `POST /api/v1/player/location`
@@ -322,6 +357,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 9. Update Spawn Governor caller and dashboard consumers
 
 **Best next coding step:**
+
 - Implement Phase 1 + Phase 2 + Phase 3 together:
   - create `017_s2_spatial_context.sql`
   - add shared S2 helper module
@@ -332,6 +368,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 ### Session: 2026-03-08 — Zone Architecture Proposal
 
 **What we did:**
+
 - Researched how to define world geography for the AI Governor before implementing new backend zone logic
 - Confirmed the repo was using "zone" to mean multiple different things:
   - Unity `ProximityZone` = coin-distance feedback bands
@@ -341,11 +378,13 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Wrote `Docs/archive/zone-architecture-proposal.md` as the new source-of-truth design proposal
 
 **Key decision:**
+
 - **S2 cells are the canonical backend world partition**
 - The existing `zones` table should be treated as a **named zone overlay system**
 - Unity `ProximityZone` remains a **local gameplay concept**, separate from backend geography
 
 **What the proposal defines:**
+
 - Shared vocabulary: `SpatialCell`, `NamedZone`, `ProximityZone`
 - Recommended initial S2 hierarchy:
   - `L14` for macro summaries and territory rollups
@@ -360,12 +399,14 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - use named zones only as overlays, constraints, or modifiers
 
 **Why this matters:**
+
 - Gives the AI Governor a stable map grammar
 - Matches the AI-first direction already documented in `Docs/project-vision.md`
 - Aligns with the S2 direction already present in `Docs/AI-integration.md`
 - Avoids confusing Unity proximity logic with backend world partitioning
 
 **What's next:**
+
 - Write the implementation follow-up for S2 adoption:
   - exact schema additions
   - backend S2 computation strategy
@@ -377,6 +418,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 ### Session: 2026-03-07 — AI Governor Command Center
 
 **What we did:**
+
 - Built the full "Black Bart Command Center" UI at `/ai-governor`
   - 5 KPI cards (economy, spend, actions, coins, kill switch toggle)
   - Hunt pressure zone grid with hot/warm/cool color coding
@@ -392,11 +434,13 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Confirmed production deployment at `https://admin.blackbartsgold.com/ai-governor`
 
 **Steven's big insights this session:**
+
 - Understood deeply why AI-First makes any app more alive
 - Articulated the vision to apply this pattern across all his apps
 - Recognized that the "Command Center" pattern is the human-oversight layer that makes autonomous AI trustworthy
 
 **What's next:**
+
 - Deploy the Spawn Governor Edge Function (Step 1 in tactical next steps above)
 - Apply migration 016 (pg_cron jobs)
 - Test "Summon Black Bart" with the live Edge Function
