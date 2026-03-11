@@ -519,9 +519,9 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
     // ────────────────────────────────────────────────────────────────────────
     // STEP 6: Write cycle summary to ai_actions audit log
     // ────────────────────────────────────────────────────────────────────────
-    if (result.action !== 'aborted') {
-      await writeCycleSummary(result, trigger)
-    }
+    // Always record the outcome, including clean aborts like "no_active_players",
+    // so the dashboard can explain why nothing happened instead of appearing idle.
+    await writeCycleSummary(result, trigger)
 
     console.log(
       `[SpawnGov] Cycle complete — ` +

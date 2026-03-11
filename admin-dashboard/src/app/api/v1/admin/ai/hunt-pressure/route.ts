@@ -45,6 +45,10 @@ interface ActiveCoinRow {
   s2_cell_token_l14: string | null
 }
 
+interface LatestHeartbeatRow {
+  updated_at: string
+}
+
 interface HiddenTransactionRow {
   user_id: string
   amount: number
@@ -100,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceRoleClient()
 
-    const [zonesResult, configResult, spendResult] = await Promise.all([
+    const [zonesResult, configResult, spendResult, totalCoinsResult, latestHeartbeatResult] = await Promise.all([
       supabase
         .from('zones')
         .select('id, name, zone_type, geometry, auto_spawn_config, status')
@@ -111,10 +115,23 @@ export async function GET(request: NextRequest) {
         .eq('id', '00000000-0000-0000-0000-000000000001')
         .single(),
       supabase.rpc('get_ai_spend_this_hour', { p_agent_id: null }),
+      supabase
+        .from('coins')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['hidden', 'visible']),
+      supabase
+        .from('player_locations')
+        .select('updated_at')
+        .not('s2_cell_token_l17', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ])
 
     if (zonesResult.error) throw zonesResult.error
     if (configResult.error) throw configResult.error
+    if (totalCoinsResult.error) throw totalCoinsResult.error
+    if (latestHeartbeatResult.error) throw latestHeartbeatResult.error
 
     const activeZones = (zonesResult.data ?? []) as ActiveZoneRow[]
     const zoneMap = new Map(activeZones.map((zone) => [zone.id, zone]))
@@ -124,6 +141,8 @@ export async function GET(request: NextRequest) {
     const defaultMinCoins = configResult.data?.default_min_coins ?? 3
     const spendThisHour = (spendResult.data as number) ?? 0
     const spendRemaining = parseFloat((AI_AUTONOMOUS_SPEND_LIMIT_USD - spendThisHour).toFixed(4))
+    const totalLiveCoins = totalCoinsResult.count ?? 0
+    const latestPlayerHeartbeatAt = (latestHeartbeatResult.data as LatestHeartbeatRow | null)?.updated_at ?? null
 
     const cutoff = new Date(Date.now() - activeWindowMinutes * 60 * 1000).toISOString()
 
@@ -187,7 +206,14 @@ export async function GET(request: NextRequest) {
     ])]
 
     if (activeCellIds.length === 0) {
-      return buildEmptyResponse(killSwitchActive, spendThisHour, spendRemaining)
+      return buildEmptyResponse({
+        killSwitchActive,
+        spendThisHour,
+        spendRemaining,
+        totalLiveCoins,
+        latestPlayerHeartbeatAt,
+        activeWindowMinutes,
+      })
     }
 
     const maxHiddenByPlayer = new Map<string, number>()
@@ -265,6 +291,7 @@ export async function GET(request: NextRequest) {
     const cellsNeedingSpawn = cellResults.filter((cell) => cell.needs_spawn).length
     const totalActivePlayers = activePlayers.length
     const totalActiveCoins = activeCoins.length
+    const unstampedActiveCoins = Math.max(0, totalLiveCoins - totalActiveCoins)
     const overallPressure = parseFloat((totalActivePlayers / Math.max(totalActiveCoins, 1)).toFixed(2))
     const highPressureCells = cellResults
       .filter((cell) => cell.hunt_pressure > 5.0)
@@ -286,6 +313,10 @@ export async function GET(request: NextRequest) {
           cells_needing_spawn: cellsNeedingSpawn,
           total_active_players: totalActivePlayers,
           total_active_coins: totalActiveCoins,
+          total_live_coins: totalLiveCoins,
+          unstamped_active_coins: unstampedActiveCoins,
+          last_player_heartbeat_at: latestPlayerHeartbeatAt,
+          active_window_minutes: activeWindowMinutes,
           overall_hunt_pressure: overallPressure,
           // Compatibility aliases for older dashboard cards while naming migrates.
           total_active_zones: cellResults.length,
@@ -323,7 +354,23 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function buildEmptyResponse(killSwitchActive: boolean, spendThisHour: number, spendRemaining: number) {
+function buildEmptyResponse(params: {
+  killSwitchActive: boolean
+  spendThisHour: number
+  spendRemaining: number
+  totalLiveCoins: number
+  latestPlayerHeartbeatAt: string | null
+  activeWindowMinutes: number
+}) {
+  const {
+    killSwitchActive,
+    spendThisHour,
+    spendRemaining,
+    totalLiveCoins,
+    latestPlayerHeartbeatAt,
+    activeWindowMinutes,
+  } = params
+
   return NextResponse.json({
     success: true,
     data: {
@@ -333,6 +380,10 @@ function buildEmptyResponse(killSwitchActive: boolean, spendThisHour: number, sp
         cells_needing_spawn: 0,
         total_active_players: 0,
         total_active_coins: 0,
+        total_live_coins: totalLiveCoins,
+        unstamped_active_coins: totalLiveCoins,
+        last_player_heartbeat_at: latestPlayerHeartbeatAt,
+        active_window_minutes: activeWindowMinutes,
         overall_hunt_pressure: 0,
         total_active_zones: 0,
         zones_needing_spawn: 0,

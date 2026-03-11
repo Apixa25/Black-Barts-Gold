@@ -81,6 +81,10 @@ interface PressureResponse {
       cells_needing_spawn: number
       total_active_players: number
       total_active_coins: number
+      total_live_coins: number
+      unstamped_active_coins: number
+      last_player_heartbeat_at: string | null
+      active_window_minutes: number
       overall_hunt_pressure: number
       total_active_zones?: number
       zones_needing_spawn?: number
@@ -116,6 +120,26 @@ function timeAgo(isoString: string): string {
   if (secs < 60) return `${secs}s ago`
   if (mins < 60) return `${mins}m ago`
   return `${Math.floor(mins / 60)}h ago`
+}
+
+function formatElapsed(isoString: string | null): string {
+  if (!isoString) return 'No heartbeat recorded'
+  return timeAgo(isoString)
+}
+
+function formatAbortReason(reason: unknown): string {
+  if (typeof reason !== 'string' || reason.length === 0) return 'Governor cycle aborted'
+
+  const labels: Record<string, string> = {
+    no_active_players: 'No active players were visible to the governor',
+    kill_switch_active: 'Auto-spawn kill switch is active',
+    spend_limit_reached: 'Hourly AI spend limit is already exhausted',
+    margin_risk: 'Economy margin protection paused spawning',
+    hunt_pressure_api_error: 'The governor could not read hunt pressure',
+    oversupply: 'The board is oversupplied, so Bart only recycled stale coins',
+  }
+
+  return labels[reason] ?? reason.replace(/_/g, ' ')
 }
 
 function economyStatusConfig(status: EconomyStatus) {
@@ -287,10 +311,17 @@ export function AiGovernorClient({
       const data = await res.json()
       if (data.success) {
         const result = data.data
-        const msg = result?.coins_spawned != null
-          ? `Cycle complete: ${result.coins_spawned} spawned, ${result.coins_recycled} recycled ($${(result.total_cost_usd ?? 0).toFixed(2)})`
-          : 'Governor cycle completed'
-        toast.success(`🤠 ${msg}`)
+        if (result?.action === 'aborted') {
+          toast.warning(`🤠 ${formatAbortReason(result.aborted_reason)}`, {
+            description: 'Check the heartbeat and counted-coin diagnostics below.',
+            duration: 6000,
+          })
+        } else {
+          const msg = result?.coins_spawned != null
+            ? `Cycle complete: ${result.coins_spawned} spawned, ${result.coins_recycled} recycled ($${(result.total_cost_usd ?? 0).toFixed(2)})`
+            : 'Governor cycle completed'
+          toast.success(`🤠 ${msg}`)
+        }
         await fetchLiveData()
       } else if (data.code === 'EDGE_FUNCTION_NOT_CONFIGURED') {
         toast.error('Edge Function not deployed yet', {
@@ -315,6 +346,11 @@ export function AiGovernorClient({
   const spendThisHour = economy?.data.ai_spend_this_hour_usd ?? pressure?.meta.spend_this_hour_usd ?? 0
   const spendPct = Math.min((spendThisHour / SPEND_LIMIT_USD) * 100, 100)
   const totalActivePlayers = pressure?.data.summary.total_active_players ?? 0
+  const countedActiveCoins = pressure?.data.summary.total_active_coins ?? 0
+  const totalLiveCoins = pressure?.data.summary.total_live_coins ?? economy?.data.active_coins_total ?? stats.activeCoinsTotal
+  const unstampedActiveCoins = pressure?.data.summary.unstamped_active_coins ?? Math.max(0, totalLiveCoins - countedActiveCoins)
+  const lastHeartbeatAt = pressure?.data.summary.last_player_heartbeat_at ?? null
+  const activeWindowMinutes = pressure?.data.summary.active_window_minutes ?? 30
   const cellsNeedingSpawn = pressure?.data.summary.cells_needing_spawn
     ?? pressure?.data.summary.zones_needing_spawn
     ?? 0
@@ -497,10 +533,13 @@ export function AiGovernorClient({
           </CardHeader>
           <CardContent className="px-4 pb-4">
             <div className="text-2xl font-bold text-saddle-dark">
-              {economy?.data.active_coins_total ?? stats.activeCoinsTotal}
+              {totalLiveCoins}
             </div>
             <p className="text-xs text-leather-light mt-1">
               {economy?.data.coins_spawned_today ?? stats.coinsSpawnedToday} spawned today
+            </p>
+            <p className="text-xs text-leather-light mt-1">
+              Governor sees {countedActiveCoins} stamped coin{countedActiveCoins !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
@@ -706,6 +745,45 @@ export function AiGovernorClient({
               )}
             </CardContent>
           </Card>
+
+          <Card className="border-saddle-light/30">
+            <CardContent className="p-4 space-y-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-leather-light">Governor Visibility</p>
+                <p className="mt-1 text-sm font-medium text-saddle-dark">
+                  Last player heartbeat: {formatElapsed(lastHeartbeatAt)}
+                </p>
+                <p className="mt-1 text-xs text-leather-light">
+                  Players must ping within the last {activeWindowMinutes} minutes to count as active.
+                </p>
+              </div>
+
+              <Separator className="bg-saddle-light/20" />
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-leather-light">Counted pressure coins</span>
+                  <span className="font-medium text-saddle-dark">{countedActiveCoins}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-leather-light">All live board coins</span>
+                  <span className="font-medium text-saddle-dark">{totalLiveCoins}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-leather-light">Unstamped live coins</span>
+                  <span className={`font-medium ${unstampedActiveCoins > 0 ? 'text-amber-700' : 'text-green-600'}`}>
+                    {unstampedActiveCoins}
+                  </span>
+                </div>
+              </div>
+
+              {unstampedActiveCoins > 0 && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Some live coins are missing S2 cell stamps, so Black Bart cannot count them in hunt pressure yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -906,6 +984,10 @@ export function AiGovernorClient({
                           {(action.result as Record<string, unknown>).coins_spawned as number ?? 0} spawned ·{' '}
                           {(action.result as Record<string, unknown>).coins_recycled as number ?? 0} recycled ·{' '}
                           {((action.result as Record<string, unknown>).duration_ms as number ?? 0)}ms
+                          {typeof (action.result as Record<string, unknown>).aborted_reason === 'string'
+                            && (action.result as Record<string, unknown>).aborted_reason
+                            ? ` · ${formatAbortReason((action.result as Record<string, unknown>).aborted_reason)}`
+                            : ''}
                         </p>
                       )}
                     </div>
