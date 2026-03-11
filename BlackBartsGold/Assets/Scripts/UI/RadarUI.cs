@@ -799,10 +799,11 @@ private MiniMapOrientationMode orientationMode = MiniMapOrientationMode.ForwardU
         /// </summary>
         private void UpdateHeading()
         {
-            // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
+            // Use gameplay heading so the mini-map matches the same forward direction
+            // that the live AR target/coin system uses on device.
             if (DeviceCompass.IsAvailable)
             {
-                currentHeading = DeviceCompass.Heading;
+                currentHeading = DeviceCompass.GameplayHeading;
             }
             
             // Rotate north indicator only in ForwardUp mode.

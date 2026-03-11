@@ -384,10 +384,11 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void UpdateDeviceHeading()
         {
-            // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
+            // Match the AR target/coin system's heading source so the center-screen
+            // direction indicator points the same way the visible coin logic does.
             if (DeviceCompass.IsAvailable)
             {
-                deviceHeading = DeviceCompass.Heading;
+                deviceHeading = DeviceCompass.GameplayHeading;
             }
         }
         

@@ -81,7 +81,7 @@ namespace BlackBartsGold.Location
             {
                 if (!_initialized) Initialize();
                 UpdateHeading();
-                return _smoothedHeading;
+                return NormalizeHeading360(_smoothedHeading);
             }
         }
         
@@ -95,7 +95,36 @@ namespace BlackBartsGold.Location
             {
                 if (!_initialized) Initialize();
                 UpdateHeading();
-                return _currentHeading;
+                return NormalizeHeading360(_currentHeading);
+            }
+        }
+
+        /// <summary>
+        /// Heading tuned for moment-to-moment gameplay widgets.
+        /// Prefers attitude-based yaw so HUD guidance matches the live AR target behavior,
+        /// then falls back to the standard compass pipeline.
+        /// </summary>
+        public static float GameplayHeading
+        {
+            get
+            {
+                if (!_initialized) Initialize();
+
+                if (_attitudeSensor != null && _attitudeSensor.enabled)
+                {
+                    Quaternion attitude = _attitudeSensor.attitude.ReadValue();
+                    if (attitude.x != 0 || attitude.y != 0 || attitude.z != 0)
+                    {
+                        Quaternion rotFix = Quaternion.Euler(90f, 0f, 0f);
+                        Quaternion deviceRot = rotFix * new Quaternion(
+                            attitude.x, attitude.y, -attitude.z, -attitude.w
+                        );
+
+                        return NormalizeHeading360(deviceRot.eulerAngles.y);
+                    }
+                }
+
+                return Heading;
             }
         }
         
@@ -230,6 +259,7 @@ namespace BlackBartsGold.Location
                 _smoothedHeading, rawHeading, 
                 ref _headingSmoothVelocity, HEADING_SMOOTH_TIME
             );
+            _smoothedHeading = NormalizeHeading360(_smoothedHeading);
             
             // Diagnostic logging (throttled to every 5 seconds)
             _updateCount++;
@@ -241,6 +271,11 @@ namespace BlackBartsGold.Location
                           $"IsTrueNorth={IsTrueNorth}, Updates={_updateCount}");
                 _updateCount = 0;
             }
+        }
+
+        private static float NormalizeHeading360(float heading)
+        {
+            return Mathf.Repeat(heading, 360f);
         }
         
         /// <summary>

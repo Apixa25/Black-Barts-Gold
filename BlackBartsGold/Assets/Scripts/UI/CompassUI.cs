@@ -287,10 +287,11 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void UpdateDeviceHeading()
         {
-            // Uses DeviceCompass (New Input System) — legacy Input.compass broken on Android 16+
+            // Match the same heading source used by AR target placement so all
+            // hunt guidance widgets agree on what "forward" means.
             if (useDeviceCompass && DeviceCompass.IsAvailable)
             {
-                DeviceHeading = DeviceCompass.Heading;
+                DeviceHeading = DeviceCompass.GameplayHeading;
             }
             
             UpdateTargetRotation();
