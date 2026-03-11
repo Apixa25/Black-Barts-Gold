@@ -85,7 +85,7 @@ namespace BlackBartsGold.UI
         
         [SerializeField]
         [Tooltip("NorthUp = map stays north-up; ForwardUp = player-forward-up mini-map")]
-        private MiniMapOrientationMode orientationMode = MiniMapOrientationMode.NorthUp;
+private MiniMapOrientationMode orientationMode = MiniMapOrientationMode.ForwardUp;
         
         [SerializeField]
         [Tooltip("Sweep animation speed (degrees/second)")]
