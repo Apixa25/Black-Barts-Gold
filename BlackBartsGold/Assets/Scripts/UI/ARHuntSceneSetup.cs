@@ -1605,7 +1605,7 @@ namespace BlackBartsGold.UI
                 SetupRadarContent(radar, radarUI);
                 radarUI.SetMiniMapScale(_miniMapUiScale);
                 radarUI.SetMapProjectionZoom(_radarZoom);
-                radarUI.SetOrientationMode(RadarUI.MiniMapOrientationMode.NorthUp);
+                radarUI.SetOrientationMode(RadarUI.MiniMapOrientationMode.ForwardUp);
                 SetupRadarZoomControls(radarUI);
                 radar.gameObject.SetActive(true);
                 radarUI.Show();
@@ -3139,10 +3139,21 @@ namespace BlackBartsGold.UI
                     _lastLoggedRadarTileZoom = _radarZoom;
                     float range = _radarZoomRadarUI != null ? _radarZoomRadarUI.Range : -1f;
                     bool auto = _radarZoomRadarUI != null && _radarZoomRadarUI.AutoZoomEnabled;
-                    DiagnosticLog.Log("RadarTileZoom", $"Request tile zoom={_radarZoom} from range={range:F1}m auto={auto} lat={loc.latitude:F6} lng={loc.longitude:F6}");
+                    float tileBearing = (_radarZoomRadarUI != null &&
+                                         _radarZoomRadarUI.OrientationMode == RadarUI.MiniMapOrientationMode.ForwardUp &&
+                                         BlackBartsGold.Location.DeviceCompass.IsAvailable)
+                        ? BlackBartsGold.Location.DeviceCompass.GameplayHeading
+                        : 0f;
+                    DiagnosticLog.Log("RadarTileZoom", $"Request tile zoom={_radarZoom} from range={range:F1}m auto={auto} bearing={tileBearing:F1} mode={_radarZoomRadarUI?.OrientationMode} lat={loc.latitude:F6} lng={loc.longitude:F6}");
                 }
 
-                MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, _radarZoom, 0f, OnRadarMapTileReceived);
+                float liveTileBearing = (_radarZoomRadarUI != null &&
+                                         _radarZoomRadarUI.OrientationMode == RadarUI.MiniMapOrientationMode.ForwardUp &&
+                                         BlackBartsGold.Location.DeviceCompass.IsAvailable)
+                    ? BlackBartsGold.Location.DeviceCompass.GameplayHeading
+                    : 0f;
+
+                MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, _radarZoom, liveTileBearing, OnRadarMapTileReceived);
             }
         }
 

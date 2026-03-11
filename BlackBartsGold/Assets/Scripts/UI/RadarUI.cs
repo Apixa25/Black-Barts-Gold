@@ -200,6 +200,8 @@ private MiniMapOrientationMode orientationMode = MiniMapOrientationMode.ForwardU
         private float _lastFallbackTapTime = -10f;
         private const float FallbackTapCooldownSeconds = 0.35f;
         private int currentMiniMapZoom = 19;
+        private float _lastForwardUpVerifyLogTime = -10f;
+        private const float ForwardUpVerifyLogInterval = 2f;
         
         #endregion
         
@@ -697,6 +699,8 @@ private MiniMapOrientationMode orientationMode = MiniMapOrientationMode.ForwardU
             // Scale based on distance (closer = bigger)
             float scale = Mathf.Lerp(1.5f, 0.5f, normalizedDistance);
             dot.localScale = Vector3.one * scale;
+
+            MaybeLogForwardUpProjection(coin, bearing, adjustedBearing, dot.anchoredPosition);
         }
         
         /// <summary>
@@ -818,6 +822,8 @@ private MiniMapOrientationMode orientationMode = MiniMapOrientationMode.ForwardU
                     northIndicator.localRotation = Quaternion.identity;
                 }
             }
+
+            MaybeLogForwardUpHeading();
         }
         
         /// <summary>
@@ -1064,6 +1070,26 @@ private MiniMapOrientationMode orientationMode = MiniMapOrientationMode.ForwardU
             double y = (0.5d - System.Math.Log((1d + sinLat) / (1d - sinLat)) / (4d * System.Math.PI)) * worldSize;
 
             return new Vector2((float)x, (float)y);
+        }
+
+        private void MaybeLogForwardUpHeading()
+        {
+            if (orientationMode != MiniMapOrientationMode.ForwardUp) return;
+            if (Time.unscaledTime - _lastForwardUpVerifyLogTime < ForwardUpVerifyLogInterval) return;
+
+            _lastForwardUpVerifyLogTime = Time.unscaledTime;
+
+            float northZ = northIndicator != null ? northIndicator.localEulerAngles.z : float.NaN;
+            Debug.Log($"[BBG][Verify][Radar] heading={currentHeading:F1} mode={orientationMode} zoom={currentMiniMapZoom} range={radarRange:F1} northZ={northZ:F1}");
+        }
+
+        private void MaybeLogForwardUpProjection(Coin coin, float worldBearing, float adjustedBearing, Vector2 anchoredPosition)
+        {
+            if (orientationMode != MiniMapOrientationMode.ForwardUp) return;
+            if (coin == null) return;
+            if (Time.unscaledTime - _lastForwardUpVerifyLogTime > 0.25f) return;
+
+            Debug.Log($"[BBG][Verify][RadarDot] coin={coin.id} worldBearing={worldBearing:F1} adjustedBearing={adjustedBearing:F1} heading={currentHeading:F1} pos=({anchoredPosition.x:F1},{anchoredPosition.y:F1})");
         }
         
         #endregion
