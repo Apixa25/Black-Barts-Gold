@@ -408,7 +408,8 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
     // ────────────────────────────────────────────────────────────────────────
     // STEP 4: Spawn decisions
     // Iterate cells by hunt_pressure DESC (already sorted by the API).
-    // Stop when budget runs out or all target cells are handled.
+    // Top off each needy cell toward its target coin count, while still stopping
+    // immediately if budget runs out or the kill switch flips mid-cycle.
     // ────────────────────────────────────────────────────────────────────────
     const cellsNeedingSpawn = pressure.data.cells.filter((cell) => cell.needs_spawn)
     let spendRemaining = pressure.meta.spend_remaining_usd
@@ -421,65 +422,78 @@ async function runGovernorCycle(trigger: string): Promise<GovernorCycleResult> {
 
       // 5-minute window key — prevents duplicate spawns within the same cycle
       const windowKey = Math.floor(Date.now() / 300_000)
-      const idempotencyKey = `spawn_gov_${cell.cell_id}_${windowKey}`
+      const plannedSpawns = Math.max(1, cell.coins_to_spawn)
 
       console.log(
-        `[SpawnGov] Spawning ${cell.recommended_spawn_tier} in cell ${cell.cell_id} ` +
-        `(pressure ${cell.hunt_pressure}, ${cell.active_player_count} players)`
+        `[SpawnGov] Spawning up to ${plannedSpawns} ${cell.recommended_spawn_tier} coin(s) in cell ${cell.cell_id} ` +
+        `(pressure ${cell.hunt_pressure}, ${cell.active_player_count} players, ${cell.active_coin_count} counted coins)`
       )
 
-      const spawnRes = await callAdminApi<SpawnResponse>('/api/v1/admin/ai/spawn', {
-        method: 'POST',
-        body: JSON.stringify({
-          cell_id: cell.cell_id,
-          zone_id: cell.named_zone_overlays[0]?.zone_id ?? null,
-          tier: cell.recommended_spawn_tier,
-          agent_id: 'ai_spawn_governor',
-          reasoning:
-            `Cell ${cell.cell_id}: ` +
-            `${cell.active_player_count} players, ${cell.active_coin_count} coins, ` +
-            `pressure ${cell.hunt_pressure}. ` +
-            `Economy: ${economy.meta.economy_status}.`,
-          metadata: {
+      for (let spawnIndex = 0; spawnIndex < plannedSpawns; spawnIndex++) {
+        if (budgetExhausted || spendRemaining <= 0) break
+
+        const idempotencyKey = `spawn_gov_${cell.cell_id}_${windowKey}_${spawnIndex + 1}`
+        const spawnOrdinal = spawnIndex + 1
+
+        const spawnRes = await callAdminApi<SpawnResponse>('/api/v1/admin/ai/spawn', {
+          method: 'POST',
+          body: JSON.stringify({
             cell_id: cell.cell_id,
-            hunt_pressure: cell.hunt_pressure,
-            player_count: cell.active_player_count,
-            coin_count: cell.active_coin_count,
-            economy_status: economy.meta.economy_status,
-            supply_demand_ratio: economy.data.supply_demand_ratio,
-            trigger,
-          },
-          idempotency_key: idempotencyKey,
-        }),
-      })
+            zone_id: cell.named_zone_overlays[0]?.zone_id ?? null,
+            tier: cell.recommended_spawn_tier,
+            agent_id: 'ai_spawn_governor',
+            reasoning:
+              `Cell ${cell.cell_id}: ` +
+              `${cell.active_player_count} players, ${cell.active_coin_count} counted coins, ` +
+              `pressure ${cell.hunt_pressure}. ` +
+              `Top-off spawn ${spawnOrdinal} of ${plannedSpawns}. ` +
+              `Economy: ${economy.meta.economy_status}.`,
+            metadata: {
+              cell_id: cell.cell_id,
+              hunt_pressure: cell.hunt_pressure,
+              player_count: cell.active_player_count,
+              coin_count: cell.active_coin_count,
+              economy_status: economy.meta.economy_status,
+              supply_demand_ratio: economy.data.supply_demand_ratio,
+              trigger,
+              spawn_ordinal: spawnOrdinal,
+              planned_spawns: plannedSpawns,
+            },
+            idempotency_key: idempotencyKey,
+          }),
+        })
 
-      if (!spawnRes.success) {
-        if (spawnRes.code === 'SPEND_LIMIT_EXCEEDED') {
-          console.log('[SpawnGov] Spend limit hit — stopping spawn loop')
-          budgetExhausted = true
+        if (!spawnRes.success) {
+          if (spawnRes.code === 'SPEND_LIMIT_EXCEEDED') {
+            console.log('[SpawnGov] Spend limit hit — stopping spawn loop')
+            budgetExhausted = true
+            break
+          }
+          if (spawnRes.code === 'DISTRIBUTION_DISABLED') {
+            console.log('[SpawnGov] Kill switch activated mid-cycle — stopping')
+            result.action = 'aborted'
+            result.aborted_reason = 'kill_switch_active'
+            budgetExhausted = true
+            break
+          }
+          console.warn(
+            `[SpawnGov] Spawn ${spawnOrdinal}/${plannedSpawns} failed for cell ${cell.cell_id}: ${spawnRes.code ?? spawnRes.error}`
+          )
           break
         }
-        if (spawnRes.code === 'DISTRIBUTION_DISABLED') {
-          console.log('[SpawnGov] Kill switch activated mid-cycle — stopping')
-          result.action = 'aborted'
-          result.aborted_reason = 'kill_switch_active'
-          budgetExhausted = true
-          break
-        }
-        console.warn(`[SpawnGov] Spawn failed for cell ${cell.cell_id}: ${spawnRes.code ?? spawnRes.error}`)
-        continue
+
+        const coinValue = spawnRes.data?.value_usd ?? 0
+        result.coins_spawned++
+        result.total_cost_usd = parseFloat((result.total_cost_usd + coinValue).toFixed(4))
+        result.cells_processed++
+        spendRemaining = spawnRes.meta?.spend_remaining_usd ?? Math.max(0, spendRemaining - coinValue)
+
+        console.log(
+          `[SpawnGov] ✓ Spawned coin ${spawnRes.data?.coin_id} ` +
+          `($${coinValue}) in cell ${cell.cell_id} [${spawnOrdinal}/${plannedSpawns}] | ` +
+          `$${spendRemaining.toFixed(2)} remaining`
+        )
       }
-
-      const coinValue = spawnRes.data?.value_usd ?? 0
-      result.coins_spawned++
-      result.total_cost_usd = parseFloat((result.total_cost_usd + coinValue).toFixed(4))
-      result.cells_processed++
-      spendRemaining = spawnRes.meta?.spend_remaining_usd ?? Math.max(0, spendRemaining - coinValue)
-
-      console.log(
-        `[SpawnGov] ✓ Spawned coin ${spawnRes.data?.coin_id} ` +
-        `($${coinValue}) in cell ${cell.cell_id} | $${spendRemaining.toFixed(2)} remaining`
-      )
     }
 
     // ────────────────────────────────────────────────────────────────────────
