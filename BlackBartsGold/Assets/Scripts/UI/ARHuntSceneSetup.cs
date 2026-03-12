@@ -38,6 +38,7 @@ namespace BlackBartsGold.UI
         private bool _radarMapUpdatePending;
         private Texture2D _radarMapCurrentTile;
         private bool _radarMapTileIsOurCopy;
+        private float _lastRadarMapVisualHeading = float.NaN;
         private const float _radarControlsRefreshInterval = 0.25f;
         private const float _sensorConsoleRefreshInterval = 0.5f;
         private int _radarZoom = 19; // 19 = default (3 levels closer); 21 = zoomed in when hunting
@@ -194,6 +195,7 @@ namespace BlackBartsGold.UI
         {
             // Update radar map tile from Mapbox
             UpdateRadarMapTile();
+            ApplyRadarMapTileRotation();
 
             if (_tapTraceSamplesTaken < _tapTraceMaxSamples)
             {
@@ -2359,7 +2361,7 @@ namespace BlackBartsGold.UI
         }
 
         /// <summary>
-        /// Create a dedicated Black Bart companion message panel above the prompt buttons.
+        /// Create a dedicated Black Bart companion message panel above the compact Ask Black Bart launcher.
         /// This keeps companion lines visible even when the generic ARHUD message lane changes.
         /// </summary>
         private void SetupCompanionMessagePanel()
@@ -2373,7 +2375,7 @@ namespace BlackBartsGold.UI
             panelRect.anchorMin = new Vector2(0.5f, 0f);
             panelRect.anchorMax = new Vector2(0.5f, 0f);
             panelRect.pivot = new Vector2(0.5f, 0f);
-            panelRect.anchoredPosition = new Vector2(0f, 430f);
+            panelRect.anchoredPosition = new Vector2(0f, 460f);
             panelRect.sizeDelta = new Vector2(860f, 180f);
 
             var canvasGroup = panel.AddComponent<CanvasGroup>();
@@ -3139,21 +3141,37 @@ namespace BlackBartsGold.UI
                     _lastLoggedRadarTileZoom = _radarZoom;
                     float range = _radarZoomRadarUI != null ? _radarZoomRadarUI.Range : -1f;
                     bool auto = _radarZoomRadarUI != null && _radarZoomRadarUI.AutoZoomEnabled;
-                    float tileBearing = (_radarZoomRadarUI != null &&
-                                         _radarZoomRadarUI.OrientationMode == RadarUI.MiniMapOrientationMode.ForwardUp &&
-                                         BlackBartsGold.Location.DeviceCompass.IsAvailable)
+                    float visualHeading = (_radarZoomRadarUI != null &&
+                                           _radarZoomRadarUI.OrientationMode == RadarUI.MiniMapOrientationMode.ForwardUp &&
+                                           BlackBartsGold.Location.DeviceCompass.IsAvailable)
                         ? BlackBartsGold.Location.DeviceCompass.GameplayHeading
                         : 0f;
-                    DiagnosticLog.Log("RadarTileZoom", $"Request tile zoom={_radarZoom} from range={range:F1}m auto={auto} bearing={tileBearing:F1} mode={_radarZoomRadarUI?.OrientationMode} lat={loc.latitude:F6} lng={loc.longitude:F6}");
+                    DiagnosticLog.Log("RadarTileZoom", $"Request tile zoom={_radarZoom} from range={range:F1}m auto={auto} tileBearing=0.0 visualHeading={visualHeading:F1} mode={_radarZoomRadarUI?.OrientationMode} lat={loc.latitude:F6} lng={loc.longitude:F6}");
                 }
 
-                float liveTileBearing = (_radarZoomRadarUI != null &&
-                                         _radarZoomRadarUI.OrientationMode == RadarUI.MiniMapOrientationMode.ForwardUp &&
-                                         BlackBartsGold.Location.DeviceCompass.IsAvailable)
-                    ? BlackBartsGold.Location.DeviceCompass.GameplayHeading
-                    : 0f;
+                MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, _radarZoom, 0f, OnRadarMapTileReceived);
+            }
+        }
 
-                MapboxService.Instance.GetMiniMapTile(loc.latitude, loc.longitude, _radarZoom, liveTileBearing, OnRadarMapTileReceived);
+        private void ApplyRadarMapTileRotation()
+        {
+            if (_radarMapTileImage == null) return;
+
+            float visualHeading = 0f;
+            bool forwardUp = _radarZoomRadarUI != null &&
+                             _radarZoomRadarUI.OrientationMode == RadarUI.MiniMapOrientationMode.ForwardUp;
+
+            if (forwardUp && BlackBartsGold.Location.DeviceCompass.IsAvailable)
+            {
+                visualHeading = BlackBartsGold.Location.DeviceCompass.GameplayHeading;
+            }
+
+            _radarMapTileImage.rectTransform.localRotation = Quaternion.Euler(0f, 0f, visualHeading);
+
+            if (float.IsNaN(_lastRadarMapVisualHeading) || Mathf.Abs(Mathf.DeltaAngle(_lastRadarMapVisualHeading, visualHeading)) >= 10f)
+            {
+                _lastRadarMapVisualHeading = visualHeading;
+                DiagnosticLog.Log("RadarTileRotation", $"Applied map rotation={visualHeading:F1} mode={_radarZoomRadarUI?.OrientationMode}");
             }
         }
 
@@ -3202,6 +3220,7 @@ namespace BlackBartsGold.UI
             _radarMapTileImage.texture = _radarMapCurrentTile;
             _radarMapTileImage.enabled = true;
             _radarMapTileImage.color = Color.white;
+            ApplyRadarMapTileRotation();
             Canvas.ForceUpdateCanvases();
             _radarMapUpdatePending = false;
             Debug.Log("[ARHuntSceneSetup] Map tile applied to radar");
