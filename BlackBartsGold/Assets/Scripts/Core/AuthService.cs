@@ -92,6 +92,11 @@ namespace BlackBartsGold.Core
         /// PlayerPrefs key for last login time
         /// </summary>
         private const string LAST_LOGIN_KEY = "last_login";
+
+        /// <summary>
+        /// Development test account that should always have local gas available.
+        /// </summary>
+        private const string DEV_TEST_GAS_EMAIL = "test@gmail.com";
         
         #endregion
         
@@ -353,6 +358,7 @@ namespace BlackBartsGold.Core
                 
                 // Update PlayerData
                 PlayerData.Instance.SetUser(user, token);
+                EnsureDevGasForTestUser(user);
                 
                 // Update GameManager
                 if (GameManager.Instance != null)
@@ -517,6 +523,7 @@ namespace BlackBartsGold.Core
                 
                 // Update PlayerData
                 PlayerData.Instance.SetUser(user, savedToken);
+                EnsureDevGasForTestUser(user);
                 
                 CurrentUser = user;
                 
@@ -729,6 +736,40 @@ namespace BlackBartsGold.Core
         #endregion
         
         #region Response Mapping Helpers
+
+        private void EnsureDevGasForTestUser(User user)
+        {
+            if (user == null || !PlayerData.Exists)
+            {
+                return;
+            }
+
+            if (!string.Equals(user.email?.Trim(), DEV_TEST_GAS_EMAIL, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var wallet = PlayerData.Instance.Wallet ?? Wallet.CreateEmptyWallet();
+            const float minimumGasTank = 10f;
+
+            if (wallet.gasTank >= minimumGasTank)
+            {
+                Debug.Log($"[BBG][DevGas] {DEV_TEST_GAS_EMAIL} already has ${wallet.gasTank:F2} gas.");
+                return;
+            }
+
+            wallet.gasTank = minimumGasTank;
+            wallet.purchasedBalance = Math.Max(wallet.purchasedBalance, minimumGasTank);
+            wallet.total = wallet.gasTank + wallet.parked + wallet.pending;
+            wallet.gasRemainingDays = wallet.dailyGasRate > 0f ? wallet.gasTank / wallet.dailyGasRate : 0f;
+            wallet.lastGasChargeAt = DateTime.UtcNow.ToString("o");
+            wallet.recentTransactions ??= new System.Collections.Generic.List<Transaction>();
+
+            PlayerData.Instance.SetWallet(wallet);
+            PlayerData.Instance.SaveData();
+
+            Debug.Log($"[BBG][DevGas] Topped up {DEV_TEST_GAS_EMAIL} to ${wallet.gasTank:F2} gas ({wallet.gasRemainingDays:F1} days).");
+        }
         
         /// <summary>
         /// Map AuthResponse (login/register) to User object

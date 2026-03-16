@@ -196,12 +196,23 @@ namespace BlackBartsGold.UI
             loadingPanel = ResolveGameObject(loadingPanel, "LoadingPanel");
         }
 
+        private Transform GetUiRoot()
+        {
+            var parentCanvas = GetComponentInParent<Canvas>();
+            return parentCanvas != null ? parentCanvas.transform : transform;
+        }
+
         private Button ResolveButton(Button current, params string[] paths)
         {
             if (current != null) return current;
+            Transform uiRoot = GetUiRoot();
             foreach (var path in paths)
             {
                 var t = transform.Find(path);
+                if (t == null && uiRoot != null && uiRoot != transform)
+                {
+                    t = uiRoot.Find(path);
+                }
                 if (t != null && t.TryGetComponent<Button>(out var button))
                     return button;
             }
@@ -211,9 +222,14 @@ namespace BlackBartsGold.UI
         private TMP_Text ResolveTmpText(TMP_Text current, params string[] paths)
         {
             if (current != null) return current;
+            Transform uiRoot = GetUiRoot();
             foreach (var path in paths)
             {
                 var t = transform.Find(path);
+                if (t == null && uiRoot != null && uiRoot != transform)
+                {
+                    t = uiRoot.Find(path);
+                }
                 if (t != null && t.TryGetComponent<TMP_Text>(out var text))
                     return text;
             }
@@ -223,9 +239,14 @@ namespace BlackBartsGold.UI
         private GameObject ResolveGameObject(GameObject current, params string[] paths)
         {
             if (current != null) return current;
+            Transform uiRoot = GetUiRoot();
             foreach (var path in paths)
             {
                 var t = transform.Find(path);
+                if (t == null && uiRoot != null && uiRoot != transform)
+                {
+                    t = uiRoot.Find(path);
+                }
                 if (t != null) return t.gameObject;
             }
             return null;
@@ -234,10 +255,23 @@ namespace BlackBartsGold.UI
         /// <summary>
         /// Setup button click listeners
         /// </summary>
+        private void DetachQuickNavigation(Button button, string buttonName)
+        {
+            if (button == null) return;
+
+            var quickNavigation = button.GetComponent<QuickNavigation>();
+            if (quickNavigation == null) return;
+
+            button.onClick.RemoveListener(quickNavigation.OnClick);
+            Destroy(quickNavigation);
+            Debug.Log($"[BBG][MainMenu][Nav] Removed QuickNavigation from {buttonName}; MainMenuUI owns navigation.");
+        }
+
         private void SetupButtons()
         {
             if (startHuntingButton != null)
             {
+                DetachQuickNavigation(startHuntingButton, "StartHuntButton");
                 startHuntingButton.onClick.AddListener(OnStartHuntingClicked);
             }
             
@@ -248,11 +282,13 @@ namespace BlackBartsGold.UI
             
             if (walletButton != null)
             {
+                DetachQuickNavigation(walletButton, "WalletButton");
                 walletButton.onClick.AddListener(OnWalletClicked);
             }
             
             if (settingsButton != null)
             {
+                DetachQuickNavigation(settingsButton, "SettingsButton");
                 settingsButton.onClick.AddListener(OnSettingsClicked);
             }
 
@@ -260,6 +296,11 @@ namespace BlackBartsGold.UI
             {
                 profileButton.onClick.RemoveAllListeners();
                 profileButton.onClick.AddListener(OnProfileClicked);
+                Debug.Log("[BBG][ProfileUI][Setup] Profile button listener attached.");
+            }
+            else
+            {
+                Debug.LogWarning("[BBG][ProfileUI][Setup] Profile button reference is null after EnsureProfileUi.");
             }
             
             if (buyGasButton != null)
@@ -494,6 +535,7 @@ namespace BlackBartsGold.UI
         /// </summary>
         private void OnProfileClicked()
         {
+            Debug.Log("[BBG][ProfileUI][Tap] Profile button tapped.");
             Log("Profile clicked");
             OpenProfilePanel(false);
         }
@@ -549,9 +591,11 @@ namespace BlackBartsGold.UI
 
         private void EnsureProfileUi()
         {
+            Transform uiRoot = GetUiRoot();
+
             if (profileButton == null)
             {
-                var existingProfileButton = transform.Find("ProfileButton");
+                var existingProfileButton = uiRoot != null ? uiRoot.Find("ProfileButton") : transform.Find("ProfileButton");
                 if (existingProfileButton != null)
                 {
                     profileButton = existingProfileButton.GetComponent<Button>();
@@ -575,7 +619,7 @@ namespace BlackBartsGold.UI
         private Button CreateMainMenuButton(string objectName, string label, Vector2 anchoredPosition, Vector2 size)
         {
             var buttonGo = new GameObject(objectName);
-            buttonGo.transform.SetParent(transform, false);
+            buttonGo.transform.SetParent(GetUiRoot(), false);
 
             var rect = buttonGo.AddComponent<RectTransform>();
             rect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -611,7 +655,7 @@ namespace BlackBartsGold.UI
         private GameObject BuildProfilePanel()
         {
             var panelGo = new GameObject("ProfilePanel");
-            panelGo.transform.SetParent(transform, false);
+            panelGo.transform.SetParent(GetUiRoot(), false);
 
             var rect = panelGo.AddComponent<RectTransform>();
             rect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -818,7 +862,15 @@ namespace BlackBartsGold.UI
         private void OpenProfilePanel(bool onboarding)
         {
             EnsureProfileUi();
-            if (profilePanel == null || !PlayerData.Exists || PlayerData.Instance.CurrentUser == null) return;
+            bool hasPlayerData = PlayerData.Exists;
+            bool hasCurrentUser = hasPlayerData && PlayerData.Instance.CurrentUser != null;
+            Debug.Log($"[BBG][ProfileUI][Open] Requested open. onboarding={onboarding} panelReady={profilePanel != null} hasPlayerData={hasPlayerData} hasCurrentUser={hasCurrentUser}");
+
+            if (profilePanel == null || !hasPlayerData || !hasCurrentUser)
+            {
+                Debug.LogWarning("[BBG][ProfileUI][Open] Aborted because required profile state is missing.");
+                return;
+            }
 
             profilePanel.SetActive(true);
             UpdateProfileActionLayout(onboarding);
@@ -831,6 +883,7 @@ namespace BlackBartsGold.UI
             profileValidationText.text = "";
             pendingProfileTexture = null;
             LoadProfileImagePreview(user);
+            Debug.Log($"[BBG][ProfileUI][Open] Panel active for userId={user.id} displayName='{user.displayName}'.");
         }
 
         private void CloseProfilePanel()
@@ -838,6 +891,7 @@ namespace BlackBartsGold.UI
             if (profilePanel != null)
             {
                 profilePanel.SetActive(false);
+                Debug.Log("[BBG][ProfileUI][Open] Panel closed.");
             }
         }
 
