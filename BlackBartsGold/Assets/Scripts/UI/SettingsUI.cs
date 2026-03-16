@@ -151,6 +151,7 @@ namespace BlackBartsGold.UI
         
         private void Start()
         {
+            ResolveRuntimeReferences();
             var es = UnityEngine.EventSystems.EventSystem.current;
             Debug.Log($"[SettingsUI] ⚙️ Start - EventSystem.current={es?.name ?? "null"} backBtn={backButton != null}");
             SetupListeners();
@@ -168,6 +169,97 @@ namespace BlackBartsGold.UI
         #endregion
         
         #region Setup
+
+        /// <summary>
+        /// Resolve scene-created UI references when inspector fields are missing.
+        /// </summary>
+        private void ResolveRuntimeReferences()
+        {
+            var canvas = GetComponentInParent<Canvas>();
+            Transform root = canvas != null ? canvas.transform : transform;
+
+            backButton = ResolveButton(backButton, root, "BackButton");
+            logoutButton = ResolveButton(logoutButton, root, "LogoutButton");
+            editProfileButton = ResolveButton(editProfileButton, root, "EditProfileButton");
+            changePasswordButton = ResolveButton(changePasswordButton, root, "ChangePasswordButton");
+            confirmYesButton = ResolveButton(confirmYesButton, root, "ConfirmYesButton");
+            confirmNoButton = ResolveButton(confirmNoButton, root, "ConfirmNoButton");
+
+            usernameText = ResolveTmpText(usernameText, root, "UsernameText");
+            emailText = ResolveTmpText(emailText, root, "EmailText");
+            tierText = ResolveTmpText(tierText, root, "TierText");
+            versionText = ResolveTmpText(versionText, root, "VersionText");
+            confirmTitleText = ResolveTmpText(confirmTitleText, root, "ConfirmTitleText");
+            confirmMessageText = ResolveTmpText(confirmMessageText, root, "ConfirmMessageText");
+
+            confirmModal = ResolveGameObject(confirmModal, root, "ConfirmModal");
+        }
+
+        private Button ResolveButton(Button current, Transform root, params string[] names)
+        {
+            if (current != null) return current;
+
+            foreach (var name in names)
+            {
+                var candidate = root.Find(name);
+                if (candidate == null)
+                {
+                    var global = GameObject.Find(name);
+                    candidate = global != null ? global.transform : null;
+                }
+
+                if (candidate != null && candidate.TryGetComponent<Button>(out var button))
+                {
+                    return button;
+                }
+            }
+
+            return null;
+        }
+
+        private TMP_Text ResolveTmpText(TMP_Text current, Transform root, params string[] names)
+        {
+            if (current != null) return current;
+
+            foreach (var name in names)
+            {
+                var candidate = root.Find(name);
+                if (candidate == null)
+                {
+                    var global = GameObject.Find(name);
+                    candidate = global != null ? global.transform : null;
+                }
+
+                if (candidate != null && candidate.TryGetComponent<TMP_Text>(out var text))
+                {
+                    return text;
+                }
+            }
+
+            return null;
+        }
+
+        private GameObject ResolveGameObject(GameObject current, Transform root, params string[] names)
+        {
+            if (current != null) return current;
+
+            foreach (var name in names)
+            {
+                var candidate = root.Find(name);
+                if (candidate == null)
+                {
+                    var global = GameObject.Find(name);
+                    candidate = global != null ? global.transform : null;
+                }
+
+                if (candidate != null)
+                {
+                    return candidate.gameObject;
+                }
+            }
+
+            return null;
+        }
         
         /// <summary>
         /// Setup all UI listeners
