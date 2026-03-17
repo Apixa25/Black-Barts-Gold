@@ -167,7 +167,7 @@ namespace BlackBartsGold.UI
                 titleText.fontSize = 56;
                 titleText.fontStyle = FontStyles.Bold;
                 titleText.alignment = TextAlignmentOptions.Center;
-                titleText.color = GoldColor;
+                titleText.color = new Color(1f, 0.96f, 0.85f, 1f);
                 titleText.enableWordWrapping = false;
             }
         }
@@ -175,19 +175,20 @@ namespace BlackBartsGold.UI
         private void SetupButtons()
         {
             // Start Hunt Button - Main button, larger
+            var brightText = new Color(1f, 0.96f, 0.85f, 1f);
             SetupButton(startHuntRect, startHuntImage, startHuntButton, 
                 "StartHuntButton", "START HUNTING", 
-                0, -100, 600, 120, GoldColor, DarkBrown, true);
+                0, -100, 600, 120, GoldColor, brightText, true);
             
             // Wallet Button
             SetupButton(walletRect, walletImage, walletButton,
                 "WalletButton", "👛 MY WALLET",
-                0, -250, 500, 100, Parchment, DarkBrown, false);
+                0, -250, 500, 100, Parchment, brightText, false);
             
             // Settings Button
             SetupButton(settingsRect, settingsImage, settingsButton,
                 "SettingsButton", "SETTINGS",
-                0, -380, 500, 100, Parchment, DarkBrown, false);
+                0, -380, 500, 100, Parchment, brightText, false);
         }
         
         private void SetupButton(RectTransform rect, Image image, Button button,

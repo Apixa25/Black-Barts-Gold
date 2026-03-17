@@ -98,7 +98,7 @@ namespace BlackBartsGold.UI
                 text.fontSize = 64;
                 text.fontStyle = FontStyles.Bold;
                 text.alignment = TextAlignmentOptions.Center;
-                text.color = GoldColor;
+                text.color = new Color(1f, 0.96f, 0.85f, 1f);
                 text.raycastTarget = false; // Don't block touches
             }
         }
@@ -204,7 +204,7 @@ namespace BlackBartsGold.UI
             tmpText.fontSize = fontSize;
             tmpText.fontStyle = FontStyles.Bold;
             tmpText.alignment = TextAlignmentOptions.Center;
-            tmpText.color = DarkBrown;
+            tmpText.color = new Color(1f, 0.96f, 0.85f, 1f);
         }
     }
 }

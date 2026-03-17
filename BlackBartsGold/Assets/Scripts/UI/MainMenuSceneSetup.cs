@@ -866,7 +866,7 @@ namespace BlackBartsGold.UI
             tmpText.fontSize = fontSize;
             tmpText.fontStyle = FontStyles.Bold;
             tmpText.alignment = TextAlignmentOptions.Center;
-            tmpText.color = DarkBrown;
+            tmpText.color = new Color(1f, 0.96f, 0.85f, 1f);
             tmpText.raycastTarget = false;
             Debug.Log($"[MainMenuSceneSetup][Trace] SetupButtonText applied label='{label}' font={fontSize} on '{button.name}'");
         }

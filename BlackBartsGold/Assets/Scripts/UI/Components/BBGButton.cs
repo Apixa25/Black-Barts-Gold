@@ -333,7 +333,7 @@ namespace BlackBartsGold.UI
                     ApplyColors(
                         bgTint: Color.Lerp(Color.white, t.treasureGold, 0.12f),
                         borderTint: t.treasureGold,
-                        textColor: t.darkLeather,
+                        textColor: new Color(1f, 0.96f, 0.85f, 1f),
                         glowColor: t.neonAmber,
                         glowMin: 0.25f, glowMax: 0.6f);
                     break;

@@ -116,7 +116,7 @@ namespace BlackBartsGold.UI
                 text.fontSize = 52;
                 text.fontStyle = FontStyles.Bold;
                 text.alignment = TextAlignmentOptions.Center;
-                text.color = GoldColor;
+                text.color = new Color(1f, 0.96f, 0.85f, 1f);
             }
         }
         
@@ -250,7 +250,7 @@ namespace BlackBartsGold.UI
                 {
                     placeholderText.text = placeholder;
                     placeholderText.fontSize = 24;
-                    placeholderText.color = new Color(DarkBrown.r, DarkBrown.g, DarkBrown.b, 0.5f);
+                    placeholderText.color = new Color(0.75f, 0.7f, 0.6f, 0.6f);
                     placeholderText.alignment = TextAlignmentOptions.MidlineLeft;
                 }
                 
@@ -279,7 +279,7 @@ namespace BlackBartsGold.UI
                 if (inputText != null)
                 {
                     inputText.fontSize = 24;
-                    inputText.color = DarkBrown;
+                    inputText.color = new Color(1f, 0.96f, 0.85f, 1f);
                     inputText.alignment = TextAlignmentOptions.MidlineLeft;
                 }
                 
@@ -359,7 +359,7 @@ namespace BlackBartsGold.UI
             text.fontSize = isPrimary ? 28 : 22;
             text.fontStyle = isPrimary ? FontStyles.Bold : FontStyles.Normal;
             text.alignment = TextAlignmentOptions.Center;
-            text.color = DarkBrown;
+            text.color = new Color(1f, 0.96f, 0.85f, 1f);
         }
         
         #endregion
