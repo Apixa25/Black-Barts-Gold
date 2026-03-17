@@ -100,10 +100,11 @@ namespace BlackBartsGold.UI
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             
-            // Add Image component with a nice dark blue color
             var img = bg.GetComponent<Image>();
             if (img == null) img = bg.gameObject.AddComponent<Image>();
-            img.color = new Color(0.1f, 0.15f, 0.25f, 1f); // Dark pirate blue
+            img.sprite = BBGSprites.PanelWood;
+            img.type = Image.Type.Sliced;
+            img.color = new Color(0.25f, 0.2f, 0.15f, 1f);
             
             Debug.Log("[SimpleLoginController] Background setup done");
         }
@@ -136,7 +137,7 @@ namespace BlackBartsGold.UI
             tmp.text = "There's treasure everywhere! Get ready to find it!";
             tmp.fontSize = 48;
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = new Color(1f, 0.84f, 0f, 1f); // Gold color
+            tmp.color = BBGThemeProvider.Gold;
             
             Debug.Log("[SimpleLoginController] Title setup done");
         }
@@ -164,56 +165,21 @@ namespace BlackBartsGold.UI
         {
             var rect = btnObj.GetComponent<RectTransform>();
             if (rect == null) rect = btnObj.AddComponent<RectTransform>();
-            
-            // Position
+
             rect.anchorMin = anchorPos;
             rect.anchorMax = anchorPos;
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(300, 60);
+            rect.sizeDelta = new Vector2(420, 90);
             rect.anchoredPosition = Vector2.zero;
-            
-            // Button Image
-            var img = btnObj.GetComponent<Image>();
-            if (img == null) img = btnObj.AddComponent<Image>();
-            img.color = bgColor;
-            
-            // Ensure Button component exists
-            var btn = btnObj.GetComponent<Button>();
-            if (btn == null) btn = btnObj.AddComponent<Button>();
-            btn.targetGraphic = img;
-            
-            // Find or create text child
-            var textObj = btnObj.transform.Find("Text");
-            if (textObj == null)
-            {
-                textObj = btnObj.transform.Find("Text (TMP)");
-            }
-            if (textObj == null)
-            {
-                var textGO = new GameObject("Text");
-                textGO.transform.SetParent(btnObj.transform, false);
-                textObj = textGO.transform;
-            }
-            
-            var textRect = textObj.GetComponent<RectTransform>();
-            if (textRect == null) textRect = textObj.gameObject.AddComponent<RectTransform>();
-            
-            // Stretch text to fill button
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-            
-            // Configure text
-            var tmp = textObj.GetComponent<TextMeshProUGUI>();
-            if (tmp == null) tmp = textObj.gameObject.AddComponent<TextMeshProUGUI>();
-            
-            tmp.text = text;
-            tmp.fontSize = 24;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = Color.white;
-            
-            Debug.Log($"[SimpleLoginController] Button '{text}' setup done");
+
+            bool isPrimary = text.Contains("Log In");
+            var variant = isPrimary ? BBGButtonVariant.Primary : BBGButtonVariant.Secondary;
+            BBGButton.Upgrade(btnObj, variant);
+
+            var bbg = btnObj.GetComponent<BBGButton>();
+            if (bbg != null) bbg.SetText(text);
+
+            Debug.Log($"[SimpleLoginController] Button '{text}' themed with BBGButton ({variant})");
         }
         
         private void WireButtons()
@@ -361,30 +327,14 @@ namespace BlackBartsGold.UI
         
         private Button CreateLoginButton(Transform parent, string text, float y, Color bgColor)
         {
-            var go = new GameObject("Btn_" + text);
-            go.transform.SetParent(parent, false);
-            var r = go.AddComponent<RectTransform>();
-            r.anchorMin = new Vector2(0.5f, y);
-            r.anchorMax = new Vector2(0.5f, y);
-            r.sizeDelta = new Vector2(380, 85);
-            r.pivot = new Vector2(0.5f, 0.5f);
-            var img = go.AddComponent<Image>();
-            img.color = bgColor;
-            var btn = go.AddComponent<Button>();
-            btn.targetGraphic = img;
-            var txtGO = new GameObject("Text");
-            txtGO.transform.SetParent(go.transform, false);
-            var tr = txtGO.AddComponent<RectTransform>();
-            tr.anchorMin = Vector2.zero;
-            tr.anchorMax = Vector2.one;
-            tr.offsetMin = Vector2.zero;
-            tr.offsetMax = Vector2.zero;
-            var tmp = txtGO.AddComponent<TextMeshProUGUI>();
-            tmp.text = text;
-            tmp.fontSize = 38;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = Color.white;
-            return btn;
+            bool isPrimary = text.Contains("Sign In");
+            var variant = isPrimary ? BBGButtonVariant.Primary : BBGButtonVariant.Ghost;
+            var bbgBtn = BBGButton.Create(parent, text, variant, new Vector2(420, 90));
+            bbgBtn.RectTransform.anchorMin = new Vector2(0.5f, y);
+            bbgBtn.RectTransform.anchorMax = new Vector2(0.5f, y);
+            bbgBtn.RectTransform.pivot = new Vector2(0.5f, 0.5f);
+            bbgBtn.RectTransform.anchoredPosition = Vector2.zero;
+            return bbgBtn.UnityButton;
         }
         
         private async void OnSignInClicked()

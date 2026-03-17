@@ -463,12 +463,13 @@ namespace BlackBartsGold.UI
         /// </summary>
         private Color GetTierColor(float limit)
         {
-            if (limit >= 100f) return new Color(1f, 0.4f, 0.7f);      // King - Pink
-            if (limit >= 50f) return new Color(0.5f, 0.8f, 1f);       // Legend - Diamond
-            if (limit >= 25f) return new Color(0.9f, 0.9f, 0.95f);    // Captain - Platinum
-            if (limit >= 10f) return goldColor;                        // Hunter - Gold
-            if (limit >= 5f) return new Color(0.75f, 0.75f, 0.75f);   // Deck Hand - Silver
-            return new Color(0.8f, 0.5f, 0.2f);                        // Cabin Boy - Bronze
+            var theme = BBGThemeProvider.Current;
+            if (limit >= 100f) return theme.coinDiamond;
+            if (limit >= 50f) return theme.coinPlatinum;
+            if (limit >= 25f) return theme.coinGold;
+            if (limit >= 10f) return theme.treasureGold;
+            if (limit >= 5f) return theme.coinSilver;
+            return theme.coinBronze;
         }
         
         #endregion
@@ -618,38 +619,12 @@ namespace BlackBartsGold.UI
 
         private Button CreateMainMenuButton(string objectName, string label, Vector2 anchoredPosition, Vector2 size)
         {
-            var buttonGo = new GameObject(objectName);
-            buttonGo.transform.SetParent(GetUiRoot(), false);
-
-            var rect = buttonGo.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = size;
-
-            var image = buttonGo.AddComponent<Image>();
-            image.color = new Color(0.961f, 0.902f, 0.827f, 1f);
-
-            var button = buttonGo.AddComponent<Button>();
-
-            var textGo = new GameObject("ButtonText");
-            textGo.transform.SetParent(buttonGo.transform, false);
-            var textRect = textGo.AddComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(10, 5);
-            textRect.offsetMax = new Vector2(-10, -5);
-
-            var text = textGo.AddComponent<TextMeshProUGUI>();
-            text.text = label;
-            text.fontSize = 32;
-            text.fontStyle = FontStyles.Bold;
-            text.alignment = TextAlignmentOptions.Center;
-            text.color = new Color(0.239f, 0.161f, 0.078f, 1f);
-            text.raycastTarget = false;
-
-            return button;
+            bool isPrimary = objectName.Contains("StartHunting");
+            var variant = isPrimary ? BBGButtonVariant.Primary : BBGButtonVariant.Secondary;
+            var bbgBtn = BBGButton.Create(GetUiRoot(), label, variant, size);
+            bbgBtn.gameObject.name = objectName;
+            bbgBtn.RectTransform.anchoredPosition = anchoredPosition;
+            return bbgBtn.UnityButton;
         }
 
         private GameObject BuildProfilePanel()
@@ -673,10 +648,10 @@ namespace BlackBartsGold.UI
             var image = panelGo.AddComponent<Image>();
             image.color = overlayColor;
 
-            var cardGo = CreateProfileSectionPanel(
+            var cardGo = CreateCenteredProfilePanel(
                 panelGo.transform,
                 "ProfileCard",
-                new Vector2(0, -50),
+                new Vector2(0, -40),
                 new Vector2(920, 1280),
                 cardColor,
                 accentColor
@@ -782,6 +757,32 @@ namespace BlackBartsGold.UI
             return go;
         }
 
+        private GameObject CreateCenteredProfilePanel(Transform parent, string name, Vector2 anchoredPosition, Vector2 size, Color fillColor, Color outlineColor)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            var image = go.AddComponent<Image>();
+            image.color = fillColor;
+
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = outlineColor;
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            var shadow = go.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.35f);
+            shadow.effectDistance = new Vector2(0f, -6f);
+
+            return go;
+        }
+
         private TMP_Text CreateLabel(Transform parent, string name, string textValue, Vector2 anchoredPosition, Vector2 size, int fontSize, Color color, TextAlignmentOptions align)
         {
             var go = new GameObject(name);
@@ -813,65 +814,13 @@ namespace BlackBartsGold.UI
             Vector2 size
         )
         {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            var rect = go.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = size;
-
-            var bg = go.AddComponent<Image>();
-            bg.color = new Color(0.06f, 0.1f, 0.16f, 1f);
-
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = new Color(0.62f, 0.5f, 0.18f, 0.8f);
-            outline.effectDistance = new Vector2(2f, -2f);
-
-            var shadow = go.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0f, 0f, 0f, 0.2f);
-            shadow.effectDistance = new Vector2(0f, -3f);
-
-            var input = go.AddComponent<TMP_InputField>();
-
-            var placeholderGo = new GameObject("Placeholder");
-            placeholderGo.transform.SetParent(go.transform, false);
-            var placeholderRect = placeholderGo.AddComponent<RectTransform>();
-            placeholderRect.anchorMin = Vector2.zero;
-            placeholderRect.anchorMax = Vector2.one;
-            placeholderRect.offsetMin = new Vector2(16, 10);
-            placeholderRect.offsetMax = new Vector2(-16, -10);
-            var placeholderText = placeholderGo.AddComponent<TextMeshProUGUI>();
-            placeholderText.text = placeholderValue;
-            placeholderText.fontSize = 28;
-            placeholderText.color = new Color(0.63f, 0.7f, 0.78f, 0.8f);
-            placeholderText.alignment = TextAlignmentOptions.Left;
-            placeholderText.raycastTarget = false;
-
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(go.transform, false);
-            var textRect = textGo.AddComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = new Vector2(16, 10);
-            textRect.offsetMax = new Vector2(-16, -10);
-            var text = textGo.AddComponent<TextMeshProUGUI>();
-            text.text = "";
-            text.fontSize = 30;
-            text.color = Color.white;
-            text.alignment = TextAlignmentOptions.Left;
-            text.raycastTarget = false;
-
-            input.textViewport = rect;
-            input.textComponent = text;
-            input.placeholder = placeholderText;
-            input.contentType = contentType;
-            input.characterLimit = characterLimit;
-            input.caretColor = goldColor;
-            input.selectionColor = new Color(1f, 0.84f, 0f, 0.25f);
-
-            return input;
+            var bbgInput = BBGInputField.Create(parent, placeholderValue, contentType, characterLimit, size);
+            bbgInput.gameObject.name = name;
+            bbgInput.RectTransform.anchorMin = new Vector2(0.5f, 1f);
+            bbgInput.RectTransform.anchorMax = new Vector2(0.5f, 1f);
+            bbgInput.RectTransform.pivot = new Vector2(0.5f, 0.5f);
+            bbgInput.RectTransform.anchoredPosition = anchoredPosition;
+            return bbgInput.InputField;
         }
 
         private Image CreatePhotoPreview(Transform parent, string name, Vector2 anchoredPosition, Vector2 size)
@@ -901,48 +850,33 @@ namespace BlackBartsGold.UI
 
         private Button CreatePanelButton(Transform parent, string name, string label, Vector2 anchoredPosition, Vector2 size, int fontSize)
         {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            var rect = go.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = size;
-
-            var image = go.AddComponent<Image>();
-            image.color = new Color(0.15f, 0.15f, 0.15f, 0.95f);
-
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = new Color(0.54f, 0.43f, 0.15f, 0.85f);
-            outline.effectDistance = new Vector2(2f, -2f);
-
-            var shadow = go.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0f, 0f, 0f, 0.2f);
-            shadow.effectDistance = new Vector2(0f, -3f);
-
-            var button = go.AddComponent<Button>();
-
-            var textGo = new GameObject("Text");
-            textGo.transform.SetParent(go.transform, false);
-            var textRect = textGo.AddComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-            var text = textGo.AddComponent<TextMeshProUGUI>();
-            text.text = label;
-            text.fontSize = fontSize;
-            text.alignment = TextAlignmentOptions.Center;
-            text.color = Color.white;
-            text.raycastTarget = false;
-
-            return button;
+            var bbgBtn = BBGButton.Create(parent, label, BBGButtonVariant.Secondary, size);
+            bbgBtn.gameObject.name = name;
+            bbgBtn.SetFontSize(fontSize);
+            bbgBtn.RectTransform.anchorMin = new Vector2(0.5f, 1f);
+            bbgBtn.RectTransform.anchorMax = new Vector2(0.5f, 1f);
+            bbgBtn.RectTransform.pivot = new Vector2(0.5f, 0.5f);
+            bbgBtn.RectTransform.anchoredPosition = anchoredPosition;
+            return bbgBtn.UnityButton;
         }
 
         private void StylePanelButton(Button button, Color backgroundColor, Color textColor)
         {
             if (button == null) return;
+
+            var bbg = button.GetComponent<BBGButton>();
+            if (bbg != null)
+            {
+                bool isGold = backgroundColor.r > 0.5f && backgroundColor.g > 0.4f;
+                bool isDark = backgroundColor.r < 0.15f && backgroundColor.g < 0.2f;
+                if (isGold)
+                    bbg.SetVariant(BBGButtonVariant.Primary);
+                else if (isDark)
+                    bbg.SetVariant(BBGButtonVariant.Ghost);
+                else
+                    bbg.SetVariant(BBGButtonVariant.Secondary);
+                return;
+            }
 
             var image = button.GetComponent<Image>();
             if (image != null)

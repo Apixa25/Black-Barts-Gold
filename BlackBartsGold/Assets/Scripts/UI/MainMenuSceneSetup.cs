@@ -18,11 +18,11 @@ namespace BlackBartsGold.UI
 {
     public class MainMenuSceneSetup : MonoBehaviour
     {
-        // Colors from project vision
-        private readonly Color GoldColor = new Color(1f, 0.84f, 0f);
-        private readonly Color DeepSeaBlue = new Color(0.102f, 0.212f, 0.365f);
-        private readonly Color Parchment = new Color(0.961f, 0.902f, 0.827f);
-        private readonly Color DarkBrown = new Color(0.239f, 0.161f, 0.078f);
+        // Colors: redirected to BBGThemeProvider for centralized theming
+        private Color GoldColor => BBGThemeProvider.Gold;
+        private Color DeepSeaBlue => BBGThemeProvider.WoodDark;
+        private Color Parchment => BBGThemeProvider.Parchment;
+        private Color DarkBrown => BBGThemeProvider.DarkLeather;
         private bool _isApplyingSetup;
         private int _lastAppliedFrame = -1;
         private Coroutine _debugOverlayCleanupRoutine;
@@ -93,6 +93,7 @@ namespace BlackBartsGold.UI
                 DisableDebugPanels();
                 DisableDiagnosticsLikeTextOverlays();
                 CleanupCenteredWhiteSquareArtifacts();
+                UpgradeButtonsToTheme();
 
                 Debug.Log("[MainMenuSceneSetup] MainMenu UI setup complete!");
             }
@@ -666,6 +667,36 @@ namespace BlackBartsGold.UI
 
             SetupButtonText(btn, "MY PROFILE", 32);
             Debug.Log("[MainMenuSceneSetup][Trace] ProfileButton text+style applied");
+        }
+
+        private void UpgradeButtonsToTheme()
+        {
+            string[] buttonNames = { "StartHuntButton", "WalletButton", "SettingsButton", "ProfileButton" };
+            foreach (var name in buttonNames)
+            {
+                var btn = transform.Find(name);
+                if (btn == null) continue;
+                var button = btn.GetComponent<Button>();
+                if (button == null) continue;
+                if (btn.GetComponent<BBGButton>() != null) continue;
+
+                bool isPrimary = name.Contains("StartHunt");
+                var variant = isPrimary ? BBGButtonVariant.Primary : BBGButtonVariant.Secondary;
+                BBGButton.Upgrade(button.gameObject, variant);
+                Debug.Log($"[MainMenuSceneSetup] Upgraded {name} to BBGButton ({variant})");
+            }
+
+            var bg = transform.Find("BackgroundPanel");
+            if (bg != null)
+            {
+                var bgImage = bg.GetComponent<Image>();
+                if (bgImage != null)
+                {
+                    bgImage.sprite = BBGSprites.PanelWood;
+                    bgImage.type = Image.Type.Sliced;
+                    bgImage.color = new Color(0.3f, 0.25f, 0.2f, 1f);
+                }
+            }
         }
 
         private Transform EnsureMainMenuButton(string buttonName)
