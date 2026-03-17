@@ -128,7 +128,9 @@ namespace BlackBartsGold.UI
             Debug.Log("[SimpleRegisterController] Adding Image...");
             var img = bg.GetComponent<Image>();
             if (img == null) img = bg.gameObject.AddComponent<Image>();
-            img.color = new Color(0.12f, 0.18f, 0.28f, 1f);
+            img.sprite = BBGSprites.PanelWood;
+            img.type = Image.Type.Sliced;
+            img.color = new Color(0.25f, 0.2f, 0.15f, 1f);
             
             Debug.Log("[SimpleRegisterController] SetupBackground complete");
         }
@@ -158,7 +160,7 @@ namespace BlackBartsGold.UI
             tmp.text = "Join the Crew!";
             tmp.fontSize = 48;
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = new Color(1f, 0.84f, 0f, 1f); // Gold
+            tmp.color = BBGThemeProvider.Gold;
         }
         
         private void SetupInstructions()
@@ -186,7 +188,7 @@ namespace BlackBartsGold.UI
             tmp.text = "Registration coming soon!\n\nFor now, click below to\nreturn to Login.";
             tmp.fontSize = 24;
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = Color.white;
+            tmp.color = BBGThemeProvider.Parchment;
         }
         
         private void SetupButtons()
@@ -202,57 +204,16 @@ namespace BlackBartsGold.UI
         
         private void CreateOrSetupButton(string name, string text, Vector2 anchorPos, Color bgColor)
         {
-            var btnObj = canvas.transform.Find(name);
-            if (btnObj == null)
-            {
-                var btnGO = new GameObject(name);
-                btnGO.transform.SetParent(canvas.transform, false);
-                btnObj = btnGO.transform;
-            }
-            
-            var rect = btnObj.GetComponent<RectTransform>();
-            if (rect == null) rect = btnObj.gameObject.AddComponent<RectTransform>();
-            
-            rect.anchorMin = anchorPos;
-            rect.anchorMax = anchorPos;
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(300, 60);
-            rect.anchoredPosition = Vector2.zero;
-            
-            var img = btnObj.GetComponent<Image>();
-            if (img == null) img = btnObj.gameObject.AddComponent<Image>();
-            img.color = bgColor;
-            
-            var btn = btnObj.GetComponent<Button>();
-            if (btn == null) btn = btnObj.gameObject.AddComponent<Button>();
-            btn.targetGraphic = img;
-            
-            // Find or create text child
-            var textObj = btnObj.Find("Text");
-            if (textObj == null)
-            {
-                var textGO = new GameObject("Text");
-                textGO.transform.SetParent(btnObj, false);
-                textObj = textGO.transform;
-            }
-            
-            var textRect = textObj.GetComponent<RectTransform>();
-            if (textRect == null) textRect = textObj.gameObject.AddComponent<RectTransform>();
-            
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-            
-            var tmp = textObj.GetComponent<TextMeshProUGUI>();
-            if (tmp == null) tmp = textObj.gameObject.AddComponent<TextMeshProUGUI>();
-            
-            tmp.text = text;
-            tmp.fontSize = 24;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = Color.white;
-            
-            Debug.Log($"[SimpleRegisterController] Button '{text}' setup done");
+            bool isBack = name.Contains("Back");
+            var variant = isBack ? BBGButtonVariant.Secondary : BBGButtonVariant.Ghost;
+            var bbgBtn = BBGButton.Create(canvas.transform, text, variant, new Vector2(420, 90));
+            bbgBtn.gameObject.name = name;
+            bbgBtn.RectTransform.anchorMin = anchorPos;
+            bbgBtn.RectTransform.anchorMax = anchorPos;
+            bbgBtn.RectTransform.pivot = new Vector2(0.5f, 0.5f);
+            bbgBtn.RectTransform.anchoredPosition = Vector2.zero;
+
+            Debug.Log($"[SimpleRegisterController] Button '{text}' themed with BBGButton ({variant})");
         }
         
         private void WireButtons()

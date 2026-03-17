@@ -682,7 +682,7 @@ namespace BlackBartsGold.UI
 
                 bool isPrimary = name.Contains("StartHunt");
                 var variant = isPrimary ? BBGButtonVariant.Primary : BBGButtonVariant.Secondary;
-                BBGButton.Upgrade(button.gameObject, variant);
+                BBGButton.Upgrade(btn.gameObject, variant);
                 Debug.Log($"[MainMenuSceneSetup] Upgraded {name} to BBGButton ({variant})");
             }
 

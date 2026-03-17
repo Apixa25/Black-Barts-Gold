@@ -268,61 +268,13 @@ namespace BlackBartsGold.UI
         private TMP_InputField CreateLoginInputRow(Transform parent, string name, string label, ref float y)
         {
             y -= 0.12f;
-            var row = new GameObject(name);
-            row.transform.SetParent(parent, false);
-            var rowRect = row.AddComponent<RectTransform>();
-            rowRect.anchorMin = new Vector2(0.5f, y);
-            rowRect.anchorMax = new Vector2(0.5f, y);
-            rowRect.sizeDelta = new Vector2(450, 75);
-            rowRect.pivot = new Vector2(0.5f, 0.5f);
-            row.AddComponent<Image>().color = new Color(0.2f, 0.25f, 0.35f, 1f);
-            
-            var inputGO = new GameObject("Input");
-            inputGO.transform.SetParent(row.transform, false);
-            var inputRect = inputGO.AddComponent<RectTransform>();
-            inputRect.anchorMin = Vector2.zero;
-            inputRect.anchorMax = Vector2.one;
-            inputRect.offsetMin = new Vector2(12, 8);
-            inputRect.offsetMax = new Vector2(-12, -8);
-            var input = inputGO.AddComponent<TMP_InputField>();
-            
-            var textArea = new GameObject("Text Area");
-            textArea.transform.SetParent(inputGO.transform, false);
-            var taRect = textArea.AddComponent<RectTransform>();
-            taRect.anchorMin = Vector2.zero;
-            taRect.anchorMax = Vector2.one;
-            taRect.offsetMin = Vector2.zero;
-            taRect.offsetMax = Vector2.zero;
-            textArea.AddComponent<RectMask2D>();
-            
-            var textGO = new GameObject("Text");
-            textGO.transform.SetParent(textArea.transform, false);
-            var tr = textGO.AddComponent<RectTransform>();
-            tr.anchorMin = new Vector2(0, 0.5f);
-            tr.anchorMax = new Vector2(1, 0.5f);
-            tr.offsetMin = new Vector2(0, -18);
-            tr.offsetMax = new Vector2(0, 18);
-            var it = textGO.AddComponent<TextMeshProUGUI>();
-            it.fontSize = 32;
-            it.color = Color.white;
-            
-            var phGO = new GameObject("Placeholder");
-            phGO.transform.SetParent(textArea.transform, false);
-            var phR = phGO.AddComponent<RectTransform>();
-            phR.anchorMin = new Vector2(0, 0.5f);
-            phR.anchorMax = new Vector2(1, 0.5f);
-            phR.offsetMin = new Vector2(0, -18);
-            phR.offsetMax = new Vector2(0, 18);
-            var ph = phGO.AddComponent<TextMeshProUGUI>();
-            ph.text = label;
-            ph.fontSize = 32;
-            ph.color = new Color(0.6f, 0.6f, 0.6f, 0.8f);
-            
-            input.textComponent = it;
-            input.textViewport = taRect;
-            input.placeholder = ph;
-            input.targetGraphic = row.GetComponent<Image>();
-            return input;
+            var bbgInput = BBGInputField.Create(parent, label, TMP_InputField.ContentType.Standard, 0, new Vector2(480, 80));
+            bbgInput.gameObject.name = name;
+            bbgInput.RectTransform.anchorMin = new Vector2(0.5f, y);
+            bbgInput.RectTransform.anchorMax = new Vector2(0.5f, y);
+            bbgInput.RectTransform.pivot = new Vector2(0.5f, 0.5f);
+            bbgInput.RectTransform.anchoredPosition = Vector2.zero;
+            return bbgInput.InputField;
         }
         
         private Button CreateLoginButton(Transform parent, string text, float y, Color bgColor)

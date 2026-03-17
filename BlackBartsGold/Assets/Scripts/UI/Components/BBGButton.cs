@@ -170,7 +170,10 @@ namespace BlackBartsGold.UI
             int existingFontSize = oldText != null ? (int)oldText.fontSize : 28;
 
             if (oldText != null)
+            {
+                oldText.gameObject.name = "_OldText";
                 oldText.gameObject.SetActive(false);
+            }
 
             var btn = existing.GetComponent<BBGButton>();
             if (btn == null)
@@ -283,7 +286,7 @@ namespace BlackBartsGold.UI
                 FillParent(_borderImage.rectTransform);
             }
 
-            var textGO = new GameObject("_Text");
+            var textGO = new GameObject("ButtonText");
             textGO.transform.SetParent(transform, false);
             _labelText = textGO.AddComponent<TextMeshProUGUI>();
             _labelText.text = label;
