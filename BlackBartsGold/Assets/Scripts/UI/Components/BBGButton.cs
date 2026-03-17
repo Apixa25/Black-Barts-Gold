@@ -56,6 +56,7 @@ namespace BlackBartsGold.UI
         private Color _glowBaseColor;
         private float _glowMinAlpha;
         private float _glowMaxAlpha;
+        private bool _useShaderGlow;
         private Coroutine _pressCoroutine;
         private bool _built;
 
@@ -252,9 +253,17 @@ namespace BlackBartsGold.UI
 
             if (showGlow && !isGhost)
             {
-                _glowImage = CreateChildImage("_Glow", BBGSprites.GlowRect);
-                _glowImage.type = Image.Type.Sliced;
+                var glowMat = BBGShaderLib.GlowMaterial;
+                _useShaderGlow = glowMat != null;
+
+                _glowImage = CreateChildImage("_Glow",
+                    _useShaderGlow ? null : BBGSprites.GlowRect);
+                _glowImage.type = _useShaderGlow ? Image.Type.Simple : Image.Type.Sliced;
                 _glowImage.raycastTarget = false;
+
+                if (_useShaderGlow)
+                    _glowImage.material = glowMat;
+
                 var glowRect = _glowImage.rectTransform;
                 glowRect.anchorMin = Vector2.zero;
                 glowRect.anchorMax = Vector2.one;

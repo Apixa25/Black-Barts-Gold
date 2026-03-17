@@ -559,7 +559,7 @@ namespace BlackBartsGold.UI
                 text.fontSize = 56;
                 text.fontStyle = FontStyles.Bold;
                 text.alignment = TextAlignmentOptions.Center;
-                text.color = GoldColor;
+                text.color = new Color(1f, 0.96f, 0.85f, 1f);
                 text.enableWordWrapping = true; // Long banner text
                 text.raycastTarget = false; // Don't block touches
             }

@@ -137,7 +137,7 @@ namespace BlackBartsGold.UI
             tmp.text = "There's treasure everywhere! Get ready to find it!";
             tmp.fontSize = 48;
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = BBGThemeProvider.Gold;
+            tmp.color = new Color(1f, 0.96f, 0.85f, 1f);
             
             Debug.Log("[SimpleLoginController] Title setup done");
         }

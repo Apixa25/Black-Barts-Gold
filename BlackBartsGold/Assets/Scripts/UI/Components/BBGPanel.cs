@@ -173,13 +173,21 @@ namespace BlackBartsGold.UI
 
             if (showGlow)
             {
-                _glowImage = CreateChildImage("_Glow", BBGSprites.GlowRect);
-                _glowImage.type = Image.Type.Sliced;
+                var neonMat = BBGShaderLib.NeonOutlineMaterial;
+                bool useShader = neonMat != null;
+
+                _glowImage = CreateChildImage("_Glow",
+                    useShader ? null : BBGSprites.GlowRect);
+                _glowImage.type = useShader ? Image.Type.Simple : Image.Type.Sliced;
                 _glowImage.raycastTarget = false;
+
+                if (useShader)
+                    _glowImage.material = neonMat;
+
                 var glowRect = _glowImage.rectTransform;
                 glowRect.anchorMin = Vector2.zero;
                 glowRect.anchorMax = Vector2.one;
-                float spread = theme.glowSpread;
+                float spread = useShader ? theme.glowSpread * 0.5f : theme.glowSpread;
                 glowRect.offsetMin = new Vector2(-spread, -spread);
                 glowRect.offsetMax = new Vector2(spread, spread);
             }

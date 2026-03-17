@@ -92,7 +92,7 @@ namespace BlackBartsGold.UI
 
                 bool isTitle = text.fontSize >= 40 || text.gameObject.name.ToLowerInvariant().Contains("title");
                 if (isTitle)
-                    text.color = BBGThemeProvider.Gold;
+                    text.color = new Color(1f, 0.96f, 0.85f, 1f);
                 else
                     text.color = BBGThemeProvider.Parchment;
             }
