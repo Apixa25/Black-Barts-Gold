@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3, type: 3}
+  m_Name: BBGTheme
+  m_EditorClassIdentifier: Assembly-CSharp::BlackBartsGold.UI.BBGTheme
+  treasureGold: {r: 1, g: 0.843, b: 0, a: 1}
+  brass: {r: 0.722, g: 0.451, b: 0.2, a: 1}
+  fireOrange: {r: 0.886, g: 0.345, b: 0.133, a: 1}
+  saddleBrown: {r: 0.545, g: 0.271, b: 0.075, a: 1}
+  darkLeather: {r: 0.239, g: 0.161, b: 0.078, a: 1}
+  woodDark: {r: 0.165, g: 0.102, b: 0.055, a: 1}
+  parchment: {r: 0.961, g: 0.902, b: 0.827, a: 1}
+  warmTan: {r: 0.824, g: 0.706, b: 0.549, a: 1}
+  darkCharcoal: {r: 0.176, g: 0.176, b: 0.176, a: 1}
+  warmGray: {r: 0.29, g: 0.29, b: 0.29, a: 1}
+  neonCyan: {r: 0, g: 1, b: 0.898, a: 1}
+  neonAmber: {r: 1, g: 0.749, b: 0, a: 1}
+  neonMagenta: {r: 1, g: 0, b: 0.667, a: 1}
+  success: {r: 0.224, g: 1, b: 0.078, a: 1}
+  danger: {r: 1, g: 0.09, b: 0.267, a: 1}
+  warning: {r: 1, g: 0.843, b: 0.251, a: 1}
+  coinGold: {r: 1, g: 0.843, b: 0, a: 1}
+  coinSilver: {r: 0.753, g: 0.753, b: 0.753, a: 1}
+  coinBronze: {r: 0.804, g: 0.498, b: 0.196, a: 1}
+  coinPlatinum: {r: 0.898, g: 0.894, b: 0.886, a: 1}
+  coinDiamond: {r: 0.725, g: 0.949, b: 1, a: 1}
+  semiTransparentBlack: {r: 0, g: 0, b: 0, a: 0.7}
+  transparentBlack: {r: 0, g: 0, b: 0, a: 0.5}
+  opaqueBlack: {r: 0, g: 0, b: 0, a: 0.9}
+  fullWhite: {r: 1, g: 1, b: 1, a: 1}
+  spacingXs: 4
+  spacingSm: 8
+  spacingMd: 16
+  spacingLg: 24
+  spacingXl: 32
+  cornerRadiusSm: 6
+  cornerRadiusMd: 12
+  cornerRadiusLg: 20
+  borderThin: 1.5
+  borderNormal: 3
+  borderThick: 5
+  buttonPressScale: 0.95
+  buttonHoverScale: 1.05
+  buttonPressDuration: 0.15
+  buttonHoverGlowIntensity: 1.5
+  idleBreatheCycle: 3
+  defaultGlowColor: {r: 0, g: 1, b: 0.898, a: 0.6}
+  glowSpread: 8
+  glowIntensity: 1.2
+  panelTransitionDuration: 0.3
+  screenTransitionDuration: 0.2
+  errorShakeCycles: 3
+  errorShakeDuration: 0.05
