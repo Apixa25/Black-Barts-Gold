@@ -654,55 +654,86 @@ namespace BlackBartsGold.UI
 
         private GameObject BuildProfilePanel()
         {
+            Color overlayColor = new Color(0.03f, 0.07f, 0.14f, 1f);
+            Color cardColor = new Color(0.08f, 0.12f, 0.19f, 1f);
+            Color sectionColor = new Color(0.11f, 0.17f, 0.26f, 0.98f);
+            Color accentColor = new Color(0.91f, 0.74f, 0.24f, 1f);
+            Color mutedTextColor = new Color(0.82f, 0.86f, 0.92f, 1f);
+
             var panelGo = new GameObject("ProfilePanel");
             panelGo.transform.SetParent(GetUiRoot(), false);
 
             var rect = panelGo.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(860, 1220);
+            rect.sizeDelta = Vector2.zero;
 
             var image = panelGo.AddComponent<Image>();
-            image.color = new Color(0f, 0f, 0f, 0.9f);
+            image.color = overlayColor;
 
-            CreateLabel(panelGo.transform, "Title", "Player Profile", new Vector2(0, -50), new Vector2(760, 70), 46, goldColor, TextAlignmentOptions.Center);
-            CreateLabel(panelGo.transform, "IdentityHeader", "Identity", new Vector2(-300, -130), new Vector2(300, 40), 32, goldColor, TextAlignmentOptions.Left);
+            var cardGo = CreateProfileSectionPanel(
+                panelGo.transform,
+                "ProfileCard",
+                new Vector2(0, -50),
+                new Vector2(920, 1280),
+                cardColor,
+                accentColor
+            );
 
-            CreateLabel(panelGo.transform, "DisplayNameLabel", "Display Name", new Vector2(-300, -190), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
-            profileDisplayNameInput = CreateInputField(panelGo.transform, "DisplayNameInput", "Enter display name", TMP_InputField.ContentType.Standard, 20, new Vector2(0, -245), new Vector2(620, 72));
+            CreateProfileSectionPanel(
+                cardGo.transform,
+                "HeaderBand",
+                new Vector2(0, -110),
+                new Vector2(780, 120),
+                new Color(0.12f, 0.18f, 0.28f, 1f),
+                new Color(0.74f, 0.58f, 0.18f, 1f)
+            );
 
-            CreateLabel(panelGo.transform, "AgeLabel", "Age", new Vector2(-300, -325), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
-            profileAgeInput = CreateInputField(panelGo.transform, "AgeInput", "Enter age", TMP_InputField.ContentType.IntegerNumber, 3, new Vector2(0, -380), new Vector2(620, 72));
+            CreateLabel(cardGo.transform, "Title", "Captain Profile", new Vector2(0, -82), new Vector2(760, 64), 48, goldColor, TextAlignmentOptions.Center);
+            CreateLabel(cardGo.transform, "Subtitle", "Identity, contact details, and your live player portrait.", new Vector2(0, -140), new Vector2(760, 46), 24, mutedTextColor, TextAlignmentOptions.Center);
 
-            CreateLabel(panelGo.transform, "EmailLabel", "Email", new Vector2(-300, -460), new Vector2(260, 40), 26, Color.white, TextAlignmentOptions.Left);
-            profileEmailInput = CreateInputField(panelGo.transform, "EmailInput", "name@example.com", TMP_InputField.ContentType.EmailAddress, 80, new Vector2(0, -515), new Vector2(620, 72));
+            CreateProfileSectionPanel(cardGo.transform, "IdentitySection", new Vector2(0, -410), new Vector2(780, 620), sectionColor, new Color(0.42f, 0.33f, 0.12f, 0.9f));
+            CreateProfileSectionPanel(cardGo.transform, "PhotoSection", new Vector2(0, -915), new Vector2(780, 250), sectionColor, new Color(0.42f, 0.33f, 0.12f, 0.9f));
+            CreateProfileSectionPanel(cardGo.transform, "FooterSection", new Vector2(0, -1115), new Vector2(780, 150), new Color(0.1f, 0.15f, 0.23f, 1f), new Color(0.3f, 0.25f, 0.1f, 0.9f));
 
-            CreateLabel(panelGo.transform, "PhoneLabel", "Phone (Optional, E.164)", new Vector2(-300, -595), new Vector2(520, 40), 26, Color.white, TextAlignmentOptions.Left);
-            profilePhoneInput = CreateInputField(panelGo.transform, "PhoneInput", "+14155552671", TMP_InputField.ContentType.Standard, 20, new Vector2(0, -650), new Vector2(620, 72));
+            CreateLabel(cardGo.transform, "IdentityHeader", "Captain Details", new Vector2(-250, -170), new Vector2(500, 46), 32, goldColor, TextAlignmentOptions.Left);
+            CreateLabel(cardGo.transform, "IdentitySubheader", "These details appear across your player identity and account.", new Vector2(0, -210), new Vector2(700, 36), 20, mutedTextColor, TextAlignmentOptions.Center);
 
-            CreateLabel(panelGo.transform, "PhotoLabel", "Profile Picture", new Vector2(-300, -730), new Vector2(300, 40), 26, Color.white, TextAlignmentOptions.Left);
-            profilePhotoPreview = CreatePhotoPreview(panelGo.transform, "ProfilePhotoPreview", new Vector2(-185, -805), new Vector2(120, 120));
-            profileTakePhotoButton = CreatePanelButton(panelGo.transform, "TakePhotoButton", "Camera", new Vector2(30, -785), new Vector2(200, 64), 24);
-            profilePickGalleryButton = CreatePanelButton(panelGo.transform, "PickGalleryButton", "Gallery", new Vector2(250, -785), new Vector2(200, 64), 24);
-            profilePhotoStatusText = CreateLabel(panelGo.transform, "PhotoStatus", "Upload from camera or gallery.", new Vector2(130, -850), new Vector2(500, 40), 22, new Color(0.9f, 0.9f, 0.9f, 1f), TextAlignmentOptions.Left);
-            profileValidationText = CreateLabel(panelGo.transform, "ProfileValidationText", "", new Vector2(0, -900), new Vector2(700, 48), 24, warningColor, TextAlignmentOptions.Center);
+            CreateLabel(cardGo.transform, "DisplayNameLabel", "Display Name", new Vector2(-250, -275), new Vector2(500, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profileDisplayNameInput = CreateInputField(cardGo.transform, "DisplayNameInput", "How other pirates see you", TMP_InputField.ContentType.Standard, 20, new Vector2(0, -330), new Vector2(640, 76));
+
+            CreateLabel(cardGo.transform, "AgeLabel", "Age", new Vector2(-250, -410), new Vector2(500, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profileAgeInput = CreateInputField(cardGo.transform, "AgeInput", "Required for play eligibility", TMP_InputField.ContentType.IntegerNumber, 3, new Vector2(0, -465), new Vector2(640, 76));
+
+            CreateLabel(cardGo.transform, "EmailLabel", "Email Address", new Vector2(-250, -545), new Vector2(500, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profileEmailInput = CreateInputField(cardGo.transform, "EmailInput", "name@example.com", TMP_InputField.ContentType.EmailAddress, 80, new Vector2(0, -600), new Vector2(640, 76));
+
+            CreateLabel(cardGo.transform, "PhoneLabel", "Phone Number", new Vector2(-250, -680), new Vector2(500, 40), 26, Color.white, TextAlignmentOptions.Left);
+            profilePhoneInput = CreateInputField(cardGo.transform, "PhoneInput", "+14155552671", TMP_InputField.ContentType.Standard, 20, new Vector2(0, -735), new Vector2(640, 76));
+
+            CreateLabel(cardGo.transform, "PhotoLabel", "Live Player Portrait", new Vector2(-250, -830), new Vector2(500, 40), 30, goldColor, TextAlignmentOptions.Left);
+            profilePhotoPreview = CreatePhotoPreview(cardGo.transform, "ProfilePhotoPreview", new Vector2(-215, -930), new Vector2(170, 170));
+            profileTakePhotoButton = CreatePanelButton(cardGo.transform, "TakePhotoButton", "Take Photo", new Vector2(65, -895), new Vector2(220, 66), 24);
+            profilePickGalleryButton = CreatePanelButton(cardGo.transform, "PickGalleryButton", "Choose From Gallery", new Vector2(175, -970), new Vector2(440, 66), 24);
+            profilePhotoStatusText = CreateLabel(cardGo.transform, "PhotoStatus", "Your chosen photo also powers the live dashboard player image.", new Vector2(125, -1040), new Vector2(520, 56), 20, mutedTextColor, TextAlignmentOptions.Left);
+            profileValidationText = CreateLabel(cardGo.transform, "ProfileValidationText", "", new Vector2(0, -1185), new Vector2(720, 52), 24, warningColor, TextAlignmentOptions.Center);
 
             profileWalletHintText = CreateLabel(
-                panelGo.transform,
+                cardGo.transform,
                 "WalletHint",
-                "Wallet balances and transactions now live in MY WALLET.",
-                new Vector2(0, -950),
+                "Wallet balances and transactions live in MY WALLET. This screen is focused on your identity and avatar.",
+                new Vector2(0, -1115),
                 new Vector2(700, 90),
-                22,
-                new Color(0.9f, 0.9f, 0.9f, 1f),
+                21,
+                mutedTextColor,
                 TextAlignmentOptions.Center
             );
 
-            profileSaveButton = CreatePanelButton(panelGo.transform, "SaveProfileButton", "Save Profile", new Vector2(-180, -1060), new Vector2(240, 72), 30);
-            profileCloseButton = CreatePanelButton(panelGo.transform, "CloseProfileButton", "Close", new Vector2(95, -1060), new Vector2(180, 72), 30);
-            profileSkipButton = CreatePanelButton(panelGo.transform, "SkipProfileButton", "Skip For Now", new Vector2(320, -1060), new Vector2(240, 72), 24);
+            profileSaveButton = CreatePanelButton(cardGo.transform, "SaveProfileButton", "Save Profile", new Vector2(-180, -1235), new Vector2(250, 76), 30);
+            profileCloseButton = CreatePanelButton(cardGo.transform, "CloseProfileButton", "Close", new Vector2(100, -1235), new Vector2(180, 76), 30);
+            profileSkipButton = CreatePanelButton(cardGo.transform, "SkipProfileButton", "Skip For Now", new Vector2(330, -1235), new Vector2(230, 76), 24);
 
             profileTakePhotoButton.onClick.RemoveAllListeners();
             profileTakePhotoButton.onClick.AddListener(OnTakePhotoClicked);
@@ -715,8 +746,40 @@ namespace BlackBartsGold.UI
             profileSkipButton.onClick.RemoveAllListeners();
             profileSkipButton.onClick.AddListener(OnProfileSkipClicked);
 
+            StylePanelButton(profileTakePhotoButton, new Color(0.18f, 0.25f, 0.38f, 1f), Color.white);
+            StylePanelButton(profilePickGalleryButton, new Color(0.18f, 0.25f, 0.38f, 1f), Color.white);
+            StylePanelButton(profileSaveButton, new Color(0.73f, 0.57f, 0.2f, 1f), new Color(0.12f, 0.08f, 0.02f, 1f));
+            StylePanelButton(profileCloseButton, new Color(0.19f, 0.23f, 0.31f, 1f), Color.white);
+            StylePanelButton(profileSkipButton, new Color(0.12f, 0.16f, 0.23f, 1f), mutedTextColor);
+
             panelGo.SetActive(false);
             return panelGo;
+        }
+
+        private GameObject CreateProfileSectionPanel(Transform parent, string name, Vector2 anchoredPosition, Vector2 size, Color fillColor, Color outlineColor)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 1f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = size;
+
+            var image = go.AddComponent<Image>();
+            image.color = fillColor;
+
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = outlineColor;
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            var shadow = go.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.35f);
+            shadow.effectDistance = new Vector2(0f, -6f);
+
+            return go;
         }
 
         private TMP_Text CreateLabel(Transform parent, string name, string textValue, Vector2 anchoredPosition, Vector2 size, int fontSize, Color color, TextAlignmentOptions align)
@@ -760,7 +823,15 @@ namespace BlackBartsGold.UI
             rect.sizeDelta = size;
 
             var bg = go.AddComponent<Image>();
-            bg.color = new Color(0.1f, 0.1f, 0.1f, 0.95f);
+            bg.color = new Color(0.06f, 0.1f, 0.16f, 1f);
+
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = new Color(0.62f, 0.5f, 0.18f, 0.8f);
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            var shadow = go.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.2f);
+            shadow.effectDistance = new Vector2(0f, -3f);
 
             var input = go.AddComponent<TMP_InputField>();
 
@@ -774,8 +845,9 @@ namespace BlackBartsGold.UI
             var placeholderText = placeholderGo.AddComponent<TextMeshProUGUI>();
             placeholderText.text = placeholderValue;
             placeholderText.fontSize = 28;
-            placeholderText.color = new Color(0.75f, 0.75f, 0.75f, 0.75f);
+            placeholderText.color = new Color(0.63f, 0.7f, 0.78f, 0.8f);
             placeholderText.alignment = TextAlignmentOptions.Left;
+            placeholderText.raycastTarget = false;
 
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(go.transform, false);
@@ -789,12 +861,15 @@ namespace BlackBartsGold.UI
             text.fontSize = 30;
             text.color = Color.white;
             text.alignment = TextAlignmentOptions.Left;
+            text.raycastTarget = false;
 
             input.textViewport = rect;
             input.textComponent = text;
             input.placeholder = placeholderText;
             input.contentType = contentType;
             input.characterLimit = characterLimit;
+            input.caretColor = goldColor;
+            input.selectionColor = new Color(1f, 0.84f, 0f, 0.25f);
 
             return input;
         }
@@ -811,8 +886,16 @@ namespace BlackBartsGold.UI
             rect.sizeDelta = size;
 
             var image = go.AddComponent<Image>();
-            image.color = new Color(0.25f, 0.25f, 0.25f, 1f);
+            image.color = new Color(0.09f, 0.13f, 0.2f, 1f);
             image.preserveAspect = true;
+
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = new Color(0.82f, 0.66f, 0.22f, 0.9f);
+            outline.effectDistance = new Vector2(3f, -3f);
+
+            var shadow = go.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.25f);
+            shadow.effectDistance = new Vector2(0f, -4f);
             return image;
         }
 
@@ -829,6 +912,14 @@ namespace BlackBartsGold.UI
 
             var image = go.AddComponent<Image>();
             image.color = new Color(0.15f, 0.15f, 0.15f, 0.95f);
+
+            var outline = go.AddComponent<Outline>();
+            outline.effectColor = new Color(0.54f, 0.43f, 0.15f, 0.85f);
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            var shadow = go.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.2f);
+            shadow.effectDistance = new Vector2(0f, -3f);
 
             var button = go.AddComponent<Button>();
 
@@ -847,6 +938,31 @@ namespace BlackBartsGold.UI
             text.raycastTarget = false;
 
             return button;
+        }
+
+        private void StylePanelButton(Button button, Color backgroundColor, Color textColor)
+        {
+            if (button == null) return;
+
+            var image = button.GetComponent<Image>();
+            if (image != null)
+            {
+                image.color = backgroundColor;
+            }
+
+            var colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(0.95f, 0.95f, 0.95f, 1f);
+            colors.pressedColor = new Color(0.82f, 0.82f, 0.82f, 1f);
+            colors.selectedColor = Color.white;
+            button.colors = colors;
+
+            var text = button.GetComponentInChildren<TextMeshProUGUI>();
+            if (text != null)
+            {
+                text.color = textColor;
+                text.fontStyle = FontStyles.Bold;
+            }
         }
 
         private void MaybeOpenProfileOnboarding()
@@ -873,6 +989,7 @@ namespace BlackBartsGold.UI
             }
 
             profilePanel.SetActive(true);
+            profilePanel.transform.SetAsLastSibling();
             UpdateProfileActionLayout(onboarding);
 
             var user = PlayerData.Instance.CurrentUser;
@@ -1029,8 +1146,8 @@ namespace BlackBartsGold.UI
             if (closeRect != null)
             {
                 closeRect.anchoredPosition = onboarding
-                    ? new Vector2(95, -1060)
-                    : new Vector2(180, -1060);
+                    ? new Vector2(100, -1235)
+                    : new Vector2(215, -1235);
             }
 
             if (profileWalletHintText != null)
