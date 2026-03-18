@@ -213,6 +213,41 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 
 ---
 
+### Session: 2026-03-15 — Sprint 1 Kickoff: Governor Trigger Repair
+
+**What we implemented:**
+
+- Started Sprint 1 with the smallest, safest hardening slice
+- Fixed the Spawn Governor coin-collected webhook path in:
+  - `admin-dashboard/supabase/functions/spawn-governor/index.ts`
+- Replaced the stale call to `checkZonePressureImmediate(coinId)` with the correct cell-first helper:
+  - `checkCellPressureImmediate(coinId)`
+
+**Why this mattered:**
+
+- The edge function had already been migrated to cell-first immediate replacement logic
+- The webhook entrypoint was still calling an old, undefined zone-era helper name
+- That meant `trigger=coin_collected` could fail before the immediate replacement logic ever ran
+
+**Verification:**
+
+- Searched the Spawn Governor function for remaining `checkZonePressureImmediate` references
+- Confirmed no references remain
+- Targeted lint for `admin-dashboard/supabase/functions/spawn-governor/index.ts` passed cleanly
+
+**What is now true:**
+
+- The coin-collected webhook path now uses the same immediate cell-pressure helper as the Realtime subscription path
+- Sprint 1 control-surface hardening has officially begun with a low-risk production-safety fix
+
+**Best next coding step:**
+
+- Clean up human-vs-AI audit identity in:
+  - `admin-dashboard/src/app/api/v1/admin/dashboard/auto-distribution/route.ts`
+- Then improve Command Center labeling so autonomous, companion, and admin-triggered actions are easier to distinguish
+
+---
+
 ### Session: 2026-03-08 — S2 Coin Stamping + Remote Migration Push
 
 **What we implemented:**

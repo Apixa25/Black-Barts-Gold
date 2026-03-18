@@ -641,7 +641,7 @@ Deno.serve(async (req: Request) => {
         )
       }
 
-      await checkZonePressureImmediate(coinId)
+      await checkCellPressureImmediate(coinId)
       return new Response(
         JSON.stringify({ status: 'ok', trigger, coin_id: coinId }),
         { headers: { 'Content-Type': 'application/json' } }
