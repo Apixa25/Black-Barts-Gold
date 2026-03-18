@@ -78,7 +78,7 @@ export interface BlackBartPromptContext {
 export type BlackBartRuntimeSource = 'model_provider' | 'scripted_fallback'
 
 export interface BlackBartProviderAttempt {
-  provider: 'openai_responses' | 'unconfigured' | 'unsupported'
+  provider: 'openai_chat' | 'unconfigured' | 'unsupported'
   outcome: 'success' | 'unavailable' | 'error'
   reason: string | null
 }

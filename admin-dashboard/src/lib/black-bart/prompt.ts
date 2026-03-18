@@ -106,6 +106,8 @@ export function buildBlackBartPromptEnvelope(input: BlackBartRuntimeInput, promp
       : 'Local hunt pressure: unavailable',
     `Recent companion history:\n${recentHistorySummary}`,
     'Respond as Black Bart with concise, in-character guidance grounded only in this context.',
+    'Return valid JSON only. Do not wrap the JSON in markdown fences.',
+    'Use the exact response schema requested by the model API.',
   ].join('\n')
 
   return {

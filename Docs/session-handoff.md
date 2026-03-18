@@ -264,6 +264,13 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Companion audit rows now also capture:
   - `provider_attempt`
   - `fallback_reason`
+- Implemented the first real provider execution path:
+  - OpenAI chat completions over direct HTTP
+  - strict JSON schema response format
+  - structured parsing into `CompanionResponsePack`
+- The runtime can now return:
+  - `source: 'model_provider'` when provider output parses successfully
+  - `source: 'scripted_fallback'` when transport / config / parsing fails
 
 **Why this mattered:**
 
@@ -282,6 +289,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Targeted lint for the new `black-bart` runtime folder and the player companion route passed cleanly
 - Targeted lint passed again after adding local pressure and recent companion history to the Black Bart context/runtime path
 - Targeted lint passed again after adding the provider-attempt abstraction and fallback metadata path
+- Targeted lint passed again after enabling the first structured provider response path
 
 **What is now true:**
 
@@ -304,14 +312,20 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - it reads `BLACK_BART_MODEL_PROVIDER`
   - it records whether the provider path was unavailable / unsupported
   - it falls back deliberately instead of implicitly
-- The current provider adapter is scaffolded but intentionally not yet enabled for live response parsing, so behavior is still safe and stable
+- The current OpenAI provider adapter is now actually wired end-to-end:
+  - prompt envelope
+  - HTTP call
+  - strict JSON schema request
+  - response parsing
+  - fallback on failure
+- A configured environment can now start returning real model-backed companion responses without changing the public player route contract
 
 **Best next coding step:**
 
 - Decide whether Sprint 1 should also add a lightweight standardized admin activity logging helper for manual delete/update routes
 - Continue Sprint 2 by turning the provider scaffold into a real parsed-response path for one provider
-- Then add structured model output parsing so provider replies can map safely into `CompanionResponsePack`
-- After that, begin upgrading the Command Center to show provider-attempt / fallback status for companion actions
+- Next: upgrade the Command Center to show provider-attempt / fallback status for companion actions
+- Then refine prompt packaging and add stronger guardrails around provider-generated candidate messages and reply lengths
 
 ---
 

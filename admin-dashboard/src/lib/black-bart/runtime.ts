@@ -5,7 +5,10 @@ import {
 } from '@/lib/companion/companion-engine'
 import { buildBlackBartPromptContext, BLACK_BART_SYSTEM_PROMPT_VERSION } from '@/lib/black-bart/prompt'
 import { attemptBlackBartProviderResponse } from '@/lib/black-bart/provider'
-import { normalizeCompanionResponsePack } from '@/lib/black-bart/response-parser'
+import {
+  normalizeCompanionResponsePack,
+  parseBlackBartProviderResponse,
+} from '@/lib/black-bart/response-parser'
 import type { BlackBartRuntimeInput, BlackBartRuntimeResult } from '@/lib/black-bart/types'
 
 export async function generateBlackBartCompanionResponse(
@@ -16,6 +19,34 @@ export async function generateBlackBartCompanionResponse(
     input,
     promptContext,
   })
+
+  if (providerResult.responseText) {
+    try {
+      const providerResponsePack = parseBlackBartProviderResponse(
+        providerResult.responseText,
+        promptContext.selectedCoinId,
+      )
+
+      return {
+        responsePack: normalizeCompanionResponsePack(providerResponsePack),
+        runtimeMeta: {
+          source: 'model_provider',
+          systemPromptVersion: BLACK_BART_SYSTEM_PROMPT_VERSION,
+          promptContext,
+          providerAttempt: providerResult.providerAttempt,
+          fallbackReason: null,
+        },
+      }
+    } catch (error) {
+      const parseFailureReason = error instanceof Error ? error.message : String(error)
+
+      providerResult.providerAttempt = {
+        ...providerResult.providerAttempt,
+        outcome: 'error',
+        reason: `Provider response parsing failed: ${parseFailureReason}`,
+      }
+    }
+  }
 
   // Sprint 2 scaffold: the runtime now explicitly tries the model-provider path
   // first and records why it fell back, while still preserving current behavior.
