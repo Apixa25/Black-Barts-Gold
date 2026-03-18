@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createPublicClient, createServiceRoleClient } from '@/lib/supabase/server'
-import {
-  buildEventResponse,
-  buildIntentResponse,
-  buildStartSessionResponse,
-  type CompanionCoinContext,
-  type CompanionHiderContext,
-  type CompanionPlayerContext,
-} from '@/lib/companion/companion-engine'
 import {
   COMPANION_QUICK_PROMPTS,
   getQuickPromptDefinition,
   type CompanionIntentType,
 } from '@/lib/companion/quick-prompts'
+import {
+  getAuthenticatedPlayer,
+  getHiderContext,
+  getPlayerContext,
+  getSelectedCoinContext,
+} from '@/lib/black-bart/context'
+import { generateBlackBartCompanionResponse } from '@/lib/black-bart/runtime'
 import { logCompanionAction } from '@/lib/companion/companion-logging'
 
 export const dynamic = 'force-dynamic'
@@ -50,128 +48,6 @@ interface ReportEventRequest extends BaseCompanionRequest {
 
 type CompanionRequest = StartSessionRequest | SubmitIntentRequest | ReportEventRequest
 
-interface AuthenticatedPlayer {
-  id: string
-  displayName: string | null
-}
-
-async function getAuthenticatedPlayer(request: NextRequest): Promise<AuthenticatedPlayer | null> {
-  const authHeader = request.headers.get('Authorization')
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
-
-  const token = authHeader.replace('Bearer ', '')
-  if (!token) return null
-
-  const publicClient = createPublicClient()
-  const serviceClient = createServiceRoleClient()
-  const { data: authData, error: authError } = await publicClient.auth.getUser(token)
-  if (authError || !authData.user) return null
-
-  const { data: profile } = await serviceClient
-    .from('profiles')
-    .select('full_name')
-    .eq('id', authData.user.id)
-    .maybeSingle()
-
-  return {
-    id: authData.user.id,
-    displayName: profile?.full_name ?? null,
-  }
-}
-
-async function getPlayerContext(
-  userId: string,
-  fallback?: Pick<BaseCompanionRequest, 'latitude' | 'longitude' | 'currentZoneId' | 'currentCellL17'>,
-): Promise<CompanionPlayerContext> {
-  const serviceClient = createServiceRoleClient()
-
-  const { data: location } = await serviceClient
-    .from('player_locations')
-    .select('latitude, longitude, current_zone_id, s2_cell_token_l17')
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  return {
-    user_id: userId,
-    display_name: null,
-    latitude: location?.latitude ?? fallback?.latitude ?? null,
-    longitude: location?.longitude ?? fallback?.longitude ?? null,
-    current_zone_id: location?.current_zone_id ?? fallback?.currentZoneId ?? null,
-    current_cell_l17: location?.s2_cell_token_l17 ?? fallback?.currentCellL17 ?? null,
-  }
-}
-
-async function getSelectedCoinContext(selectedCoinId?: string | null): Promise<CompanionCoinContext | null> {
-  if (!selectedCoinId) return null
-
-  const serviceClient = createServiceRoleClient()
-  const { data: coin } = await serviceClient
-    .from('coins')
-    .select(`
-      id,
-      coin_type,
-      value,
-      tier,
-      latitude,
-      longitude,
-      status,
-      hider_id,
-      location_name,
-      description,
-      created_by,
-      metadata
-    `)
-    .eq('id', selectedCoinId)
-    .maybeSingle()
-
-  if (!coin) return null
-
-  return {
-    id: coin.id,
-    coin_type: coin.coin_type,
-    value: coin.value,
-    tier: coin.tier,
-    latitude: coin.latitude,
-    longitude: coin.longitude,
-    status: coin.status,
-    hider_id: coin.hider_id,
-    location_name: coin.location_name,
-    description: coin.description,
-    created_by: coin.created_by ?? 'system',
-    metadata: coin.metadata,
-  }
-}
-
-async function getHiderContext(hiderId: string | null): Promise<CompanionHiderContext | null> {
-  if (!hiderId) return null
-
-  const serviceClient = createServiceRoleClient()
-  const [{ data: profile }, { count: activeHiddenCount }, { count: hiddenTransactionCount }] = await Promise.all([
-    serviceClient
-      .from('profiles')
-      .select('full_name')
-      .eq('id', hiderId)
-      .maybeSingle(),
-    serviceClient
-      .from('coins')
-      .select('*', { count: 'exact', head: true })
-      .eq('hider_id', hiderId)
-      .in('status', ['hidden', 'visible']),
-    serviceClient
-      .from('transactions')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', hiderId)
-      .eq('transaction_type', 'hidden'),
-  ])
-
-  return {
-    id: hiderId,
-    display_name: profile?.full_name ?? null,
-    active_hidden_count: activeHiddenCount ?? 0,
-    hidden_transaction_count: hiddenTransactionCount ?? 0,
-  }
-}
-
 function unauthorized(message = 'Missing or invalid authorization token') {
   return NextResponse.json({ success: false, error: message }, { status: 401 })
 }
@@ -199,10 +75,15 @@ export async function POST(request: NextRequest) {
 
     if (requestedAction === 'start_session') {
       const selectedCoin = await getSelectedCoinContext(body.selectedCoinId)
-      const pack = buildStartSessionResponse({
+      const runtimeResult = await generateBlackBartCompanionResponse({
+        action: 'start_session',
         player: playerContext,
         selectedCoin,
       })
+      const pack = runtimeResult.responsePack
+      if (!pack) {
+        throw new Error('Black Bart runtime returned no response for start_session')
+      }
       const companionSessionId = crypto.randomUUID()
 
       await logCompanionAction({
@@ -211,11 +92,15 @@ export async function POST(request: NextRequest) {
         parameters: {
           companion_session_id: companionSessionId,
           selected_coin_id: selectedCoin?.id ?? null,
+          runtime_source: runtimeResult.runtimeMeta.source,
+          system_prompt_version: runtimeResult.runtimeMeta.systemPromptVersion,
         },
         reasoning: 'Started Black Bart companion session for active hunt.',
         result: {
           reply_now: pack.reply_now?.message_text ?? null,
           candidate_count: pack.candidate_messages.length,
+          runtime_source: runtimeResult.runtimeMeta.source,
+          situation_summary: runtimeResult.runtimeMeta.promptContext.situationSummary,
         },
       })
 
@@ -237,13 +122,18 @@ export async function POST(request: NextRequest) {
 
       const selectedCoin = await getSelectedCoinContext(body.selectedCoinId)
       const hider = await getHiderContext(selectedCoin?.hider_id ?? null)
-      const pack = buildIntentResponse({
-        intentType: body.intentType as CompanionIntentType,
+      const runtimeResult = await generateBlackBartCompanionResponse({
+        action: 'submit_intent',
         player: playerContext,
         selectedCoin,
         hider,
+        intentType: body.intentType as CompanionIntentType,
         distanceToCoinMeters: body.distanceToCoinMeters ?? null,
       })
+      const pack = runtimeResult.responsePack
+      if (!pack) {
+        throw new Error('Black Bart runtime returned no response for submit_intent')
+      }
 
       await logCompanionAction({
         tool_called: 'player_companion_reply',
@@ -253,12 +143,16 @@ export async function POST(request: NextRequest) {
           intent_type: body.intentType,
           selected_coin_id: selectedCoin?.id ?? null,
           distance_to_coin_meters: body.distanceToCoinMeters ?? null,
+          runtime_source: runtimeResult.runtimeMeta.source,
+          system_prompt_version: runtimeResult.runtimeMeta.systemPromptVersion,
         },
         reasoning: `Black Bart replied to quick prompt "${body.intentType}".`,
         result: {
           reply_now: pack.reply_now?.message_text ?? null,
           risk_level: pack.meta.risk_level,
           recommended_action: pack.meta.recommended_action,
+          runtime_source: runtimeResult.runtimeMeta.source,
+          situation_summary: runtimeResult.runtimeMeta.promptContext.situationSummary,
           candidate_triggers: pack.candidate_messages.map(candidate => ({
             trigger_type: candidate.trigger_type,
             trigger_value: candidate.trigger_value,
@@ -282,10 +176,12 @@ export async function POST(request: NextRequest) {
       }
 
       const selectedCoin = await getSelectedCoinContext(body.coinId ?? body.selectedCoinId)
-      const pack = buildEventResponse({
-        eventType: body.eventType,
+      const runtimeResult = await generateBlackBartCompanionResponse({
+        action: 'report_event',
         selectedCoin,
+        eventType: body.eventType,
       })
+      const pack = runtimeResult.responsePack
 
       await logCompanionAction({
         tool_called: 'player_companion_event',
@@ -297,12 +193,16 @@ export async function POST(request: NextRequest) {
           coin_id: selectedCoin?.id ?? null,
           distance_to_coin_meters: body.distanceToCoinMeters ?? null,
           payload: body.payload ?? null,
+          runtime_source: runtimeResult.runtimeMeta.source,
+          system_prompt_version: runtimeResult.runtimeMeta.systemPromptVersion,
         },
         reasoning: `Recorded companion event "${body.eventType}".`,
         result: pack
           ? {
               reply_now: pack.reply_now?.message_text ?? null,
               recommended_action: pack.meta.recommended_action,
+              runtime_source: runtimeResult.runtimeMeta.source,
+              situation_summary: runtimeResult.runtimeMeta.promptContext.situationSummary,
             }
           : { acknowledged: true },
       })

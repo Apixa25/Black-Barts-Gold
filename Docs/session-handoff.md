@@ -238,6 +238,19 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - `Docs/archive/mcp-gap-review.md`
 - Confirmed the backend AI/admin surface is ahead of the MCP server
 - Confirmed Sprint 2 should build reusable internal Black Bart runtime helpers first, then expand MCP second
+- Began Sprint 2 scaffolding by adding the new Black Bart runtime foundation under:
+  - `admin-dashboard/src/lib/black-bart/types.ts`
+  - `admin-dashboard/src/lib/black-bart/prompt.ts`
+  - `admin-dashboard/src/lib/black-bart/context.ts`
+  - `admin-dashboard/src/lib/black-bart/response-parser.ts`
+  - `admin-dashboard/src/lib/black-bart/runtime.ts`
+- Rewired the live player companion route to use the new shared context/runtime facade in:
+  - `admin-dashboard/src/app/api/v1/player/companion/route.ts`
+- Preserved existing behavior by keeping the runtime on a scripted fallback path for now
+- Added lightweight runtime metadata to companion audit rows:
+  - `runtime_source`
+  - `system_prompt_version`
+  - `situation_summary`
 
 **Why this mattered:**
 
@@ -253,6 +266,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Targeted lint for the dashboard proxy, recycle route, and Command Center client passed cleanly
 - Targeted lint for the manual coin dialog and coin map client passed cleanly
 - MCP gap review completed by reading the current MCP server and the uncovered queue / timed release / companion routes
+- Targeted lint for the new `black-bart` runtime folder and the player companion route passed cleanly
 
 **What is now true:**
 
@@ -266,14 +280,17 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - The current MCP server still exposes only 5 tools and 3 resources
 - The backend already supports queueing and timed-release orchestration that MCP does not yet expose
 - The player companion route already contains the core context-fetching logic Sprint 2 needs, but only as route-local helpers, not reusable runtime modules
+- The player companion route now depends on reusable `black-bart` context/runtime modules instead of owning all of that logic inline
+- The new runtime is currently a safe facade over the existing scripted companion engine, which gives the repo a clean insertion point for a real model-backed Black Bart without changing the live response contract yet
 
 **Best next coding step:**
 
 - Decide whether Sprint 1 should also add a lightweight standardized admin activity logging helper for manual delete/update routes
-- Then begin Sprint 2 scaffolding:
-  - `admin-dashboard/src/lib/black-bart/types.ts`
-  - `admin-dashboard/src/lib/black-bart/prompt.ts`
-  - `admin-dashboard/src/lib/black-bart/context.ts`
+- Continue Sprint 2 by replacing the scripted-only runtime facade with a real model-provider abstraction and fallback strategy
+- Then extract or build richer runtime context:
+  - local hunt pressure
+  - recent companion history
+  - memory-friendly prompt summaries
 
 ---
 
