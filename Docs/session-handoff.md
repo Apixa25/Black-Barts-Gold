@@ -251,6 +251,12 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - `runtime_source`
   - `system_prompt_version`
   - `situation_summary`
+- Expanded the Black Bart runtime context layer with:
+  - local hunt pressure summary from the player's current S2 pressure cell
+  - recent companion history from `ai_actions`
+- Companion audit rows now also capture:
+  - `local_pressure`
+  - `recent_companion_history_count`
 
 **Why this mattered:**
 
@@ -267,6 +273,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Targeted lint for the manual coin dialog and coin map client passed cleanly
 - MCP gap review completed by reading the current MCP server and the uncovered queue / timed release / companion routes
 - Targeted lint for the new `black-bart` runtime folder and the player companion route passed cleanly
+- Targeted lint passed again after adding local pressure and recent companion history to the Black Bart context/runtime path
 
 **What is now true:**
 
@@ -282,15 +289,15 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - The player companion route already contains the core context-fetching logic Sprint 2 needs, but only as route-local helpers, not reusable runtime modules
 - The player companion route now depends on reusable `black-bart` context/runtime modules instead of owning all of that logic inline
 - The new runtime is currently a safe facade over the existing scripted companion engine, which gives the repo a clean insertion point for a real model-backed Black Bart without changing the live response contract yet
+- The Black Bart runtime now has richer situational context even before introducing a real model provider:
+  - current-cell hunt pressure
+  - short-term companion interaction history
 
 **Best next coding step:**
 
 - Decide whether Sprint 1 should also add a lightweight standardized admin activity logging helper for manual delete/update routes
-- Continue Sprint 2 by replacing the scripted-only runtime facade with a real model-provider abstraction and fallback strategy
-- Then extract or build richer runtime context:
-  - local hunt pressure
-  - recent companion history
-  - memory-friendly prompt summaries
+- Continue Sprint 2 by replacing the scripted-only runtime facade with a real model-provider abstraction and explicit fallback strategy
+- Then add richer summarization and memory-friendly prompt packaging on top of the new context layer
 
 ---
 

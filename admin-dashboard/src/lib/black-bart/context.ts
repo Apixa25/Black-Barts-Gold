@@ -5,7 +5,11 @@ import type {
   CompanionHiderContext,
   CompanionPlayerContext,
 } from '@/lib/companion/companion-engine'
-import type { AuthenticatedPlayer } from '@/lib/black-bart/types'
+import type {
+  AuthenticatedPlayer,
+  BlackBartLocalHuntPressureSummary,
+  BlackBartRecentCompanionAction,
+} from '@/lib/black-bart/types'
 
 interface PlayerContextFallback {
   latitude?: number | null
@@ -129,4 +133,67 @@ export async function getHiderContext(hiderId: string | null): Promise<Companion
     active_hidden_count: activeHiddenCount ?? 0,
     hidden_transaction_count: hiddenTransactionCount ?? 0,
   }
+}
+
+export async function getLocalHuntPressureSummary(
+  currentCellL17: string | null,
+  activeWindowMinutes = 30,
+): Promise<BlackBartLocalHuntPressureSummary | null> {
+  if (!currentCellL17) return null
+
+  const serviceClient = createServiceRoleClient()
+  const cutoff = new Date(Date.now() - activeWindowMinutes * 60 * 1000).toISOString()
+
+  const [{ count: activePlayerCount }, { count: activeCoinCount }] = await Promise.all([
+    serviceClient
+      .from('player_locations')
+      .select('*', { count: 'exact', head: true })
+      .eq('s2_cell_token_l17', currentCellL17)
+      .gte('updated_at', cutoff),
+    serviceClient
+      .from('coins')
+      .select('*', { count: 'exact', head: true })
+      .eq('s2_cell_token_l17', currentCellL17)
+      .in('status', ['hidden', 'visible']),
+  ])
+
+  const players = activePlayerCount ?? 0
+  const coins = activeCoinCount ?? 0
+
+  return {
+    cellId: currentCellL17,
+    activeWindowMinutes,
+    activePlayerCount: players,
+    activeCoinCount: coins,
+    huntPressure: parseFloat((players / Math.max(coins, 1)).toFixed(2)),
+  }
+}
+
+export async function getRecentCompanionHistory(
+  playerId: string,
+  limit = 5,
+): Promise<BlackBartRecentCompanionAction[]> {
+  const serviceClient = createServiceRoleClient()
+  const { data } = await serviceClient
+    .from('ai_actions')
+    .select('id, tool_called, created_at, parameters, result')
+    .eq('agent_id', 'ai_game_master')
+    .contains('parameters', { player_id: playerId })
+    .like('tool_called', 'player_companion_%')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  return (data ?? []).map((row) => {
+    const parameters = (row.parameters ?? {}) as Record<string, unknown>
+    const result = (row.result ?? {}) as Record<string, unknown>
+
+    return {
+      id: row.id,
+      toolCalled: row.tool_called,
+      createdAt: row.created_at,
+      intentType: typeof parameters.intent_type === 'string' ? parameters.intent_type : null,
+      eventType: typeof parameters.event_type === 'string' ? parameters.event_type : null,
+      replyNow: typeof result.reply_now === 'string' ? result.reply_now : null,
+    }
+  })
 }

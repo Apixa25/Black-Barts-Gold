@@ -7,7 +7,9 @@ import {
 import {
   getAuthenticatedPlayer,
   getHiderContext,
+  getLocalHuntPressureSummary,
   getPlayerContext,
+  getRecentCompanionHistory,
   getSelectedCoinContext,
 } from '@/lib/black-bart/context'
 import { generateBlackBartCompanionResponse } from '@/lib/black-bart/runtime'
@@ -72,6 +74,10 @@ export async function POST(request: NextRequest) {
   try {
     const playerContext = await getPlayerContext(authenticatedPlayer.id, body)
     playerContext.display_name = authenticatedPlayer.displayName
+    const [localHuntPressure, recentCompanionHistory] = await Promise.all([
+      getLocalHuntPressureSummary(playerContext.current_cell_l17),
+      getRecentCompanionHistory(authenticatedPlayer.id),
+    ])
 
     if (requestedAction === 'start_session') {
       const selectedCoin = await getSelectedCoinContext(body.selectedCoinId)
@@ -79,6 +85,8 @@ export async function POST(request: NextRequest) {
         action: 'start_session',
         player: playerContext,
         selectedCoin,
+        localHuntPressure,
+        recentCompanionHistory,
       })
       const pack = runtimeResult.responsePack
       if (!pack) {
@@ -94,12 +102,16 @@ export async function POST(request: NextRequest) {
           selected_coin_id: selectedCoin?.id ?? null,
           runtime_source: runtimeResult.runtimeMeta.source,
           system_prompt_version: runtimeResult.runtimeMeta.systemPromptVersion,
+          local_pressure: localHuntPressure,
+          recent_companion_history_count: recentCompanionHistory.length,
         },
         reasoning: 'Started Black Bart companion session for active hunt.',
         result: {
           reply_now: pack.reply_now?.message_text ?? null,
           candidate_count: pack.candidate_messages.length,
           runtime_source: runtimeResult.runtimeMeta.source,
+          local_pressure: localHuntPressure,
+          recent_companion_history_count: recentCompanionHistory.length,
           situation_summary: runtimeResult.runtimeMeta.promptContext.situationSummary,
         },
       })
@@ -129,6 +141,8 @@ export async function POST(request: NextRequest) {
         hider,
         intentType: body.intentType as CompanionIntentType,
         distanceToCoinMeters: body.distanceToCoinMeters ?? null,
+        localHuntPressure,
+        recentCompanionHistory,
       })
       const pack = runtimeResult.responsePack
       if (!pack) {
@@ -145,6 +159,8 @@ export async function POST(request: NextRequest) {
           distance_to_coin_meters: body.distanceToCoinMeters ?? null,
           runtime_source: runtimeResult.runtimeMeta.source,
           system_prompt_version: runtimeResult.runtimeMeta.systemPromptVersion,
+          local_pressure: localHuntPressure,
+          recent_companion_history_count: recentCompanionHistory.length,
         },
         reasoning: `Black Bart replied to quick prompt "${body.intentType}".`,
         result: {
@@ -152,6 +168,8 @@ export async function POST(request: NextRequest) {
           risk_level: pack.meta.risk_level,
           recommended_action: pack.meta.recommended_action,
           runtime_source: runtimeResult.runtimeMeta.source,
+          local_pressure: localHuntPressure,
+          recent_companion_history_count: recentCompanionHistory.length,
           situation_summary: runtimeResult.runtimeMeta.promptContext.situationSummary,
           candidate_triggers: pack.candidate_messages.map(candidate => ({
             trigger_type: candidate.trigger_type,
@@ -180,6 +198,8 @@ export async function POST(request: NextRequest) {
         action: 'report_event',
         selectedCoin,
         eventType: body.eventType,
+        localHuntPressure,
+        recentCompanionHistory,
       })
       const pack = runtimeResult.responsePack
 
@@ -195,6 +215,8 @@ export async function POST(request: NextRequest) {
           payload: body.payload ?? null,
           runtime_source: runtimeResult.runtimeMeta.source,
           system_prompt_version: runtimeResult.runtimeMeta.systemPromptVersion,
+          local_pressure: localHuntPressure,
+          recent_companion_history_count: recentCompanionHistory.length,
         },
         reasoning: `Recorded companion event "${body.eventType}".`,
         result: pack
@@ -202,6 +224,8 @@ export async function POST(request: NextRequest) {
               reply_now: pack.reply_now?.message_text ?? null,
               recommended_action: pack.meta.recommended_action,
               runtime_source: runtimeResult.runtimeMeta.source,
+              local_pressure: localHuntPressure,
+              recent_companion_history_count: recentCompanionHistory.length,
               situation_summary: runtimeResult.runtimeMeta.promptContext.situationSummary,
             }
           : { acknowledged: true },

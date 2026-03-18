@@ -10,10 +10,29 @@ export interface AuthenticatedPlayer {
   displayName: string | null
 }
 
+export interface BlackBartLocalHuntPressureSummary {
+  cellId: string
+  activeWindowMinutes: number
+  activePlayerCount: number
+  activeCoinCount: number
+  huntPressure: number
+}
+
+export interface BlackBartRecentCompanionAction {
+  id: string
+  toolCalled: string
+  createdAt: string
+  intentType: string | null
+  eventType: string | null
+  replyNow: string | null
+}
+
 export interface BlackBartStartSessionInput {
   action: 'start_session'
   player: CompanionPlayerContext
   selectedCoin: CompanionCoinContext | null
+  localHuntPressure: BlackBartLocalHuntPressureSummary | null
+  recentCompanionHistory: BlackBartRecentCompanionAction[]
 }
 
 export interface BlackBartSubmitIntentInput {
@@ -23,12 +42,16 @@ export interface BlackBartSubmitIntentInput {
   hider: CompanionHiderContext | null
   intentType: CompanionIntentType
   distanceToCoinMeters: number | null
+  localHuntPressure: BlackBartLocalHuntPressureSummary | null
+  recentCompanionHistory: BlackBartRecentCompanionAction[]
 }
 
 export interface BlackBartReportEventInput {
   action: 'report_event'
   selectedCoin: CompanionCoinContext | null
   eventType: string
+  localHuntPressure: BlackBartLocalHuntPressureSummary | null
+  recentCompanionHistory: BlackBartRecentCompanionAction[]
 }
 
 export type BlackBartRuntimeInput =
@@ -47,6 +70,8 @@ export interface BlackBartPromptContext {
   distanceToCoinMeters: number | null
   eventType: string | null
   intentType: CompanionIntentType | null
+  localHuntPressure: BlackBartLocalHuntPressureSummary | null
+  recentCompanionHistory: BlackBartRecentCompanionAction[]
   situationSummary: string
 }
 

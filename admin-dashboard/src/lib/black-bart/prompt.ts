@@ -57,6 +57,12 @@ export function buildBlackBartPromptContext(input: BlackBartRuntimeInput): Black
     intentType ? `intent=${intentType}` : null,
     eventType ? `event=${eventType}` : null,
     distanceToCoinMeters !== null ? `distance_m=${Math.round(distanceToCoinMeters)}` : null,
+    input.localHuntPressure
+      ? `local_pressure=${input.localHuntPressure.huntPressure} (${input.localHuntPressure.activePlayerCount}p/${input.localHuntPressure.activeCoinCount}c)`
+      : null,
+    input.recentCompanionHistory.length > 0
+      ? `recent_companion_actions=${input.recentCompanionHistory.length}`
+      : null,
   ].filter((part): part is string => Boolean(part))
 
   return {
@@ -70,6 +76,8 @@ export function buildBlackBartPromptContext(input: BlackBartRuntimeInput): Black
     distanceToCoinMeters,
     eventType,
     intentType,
+    localHuntPressure: input.localHuntPressure,
+    recentCompanionHistory: input.recentCompanionHistory,
     situationSummary: summaryParts.join(' | '),
   }
 }
