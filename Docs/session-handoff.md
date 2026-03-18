@@ -228,6 +228,12 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - `admin-dashboard/src/app/api/v1/admin/ai/recycle-stale/route.ts`
 - Updated the Command Center action feed to visually distinguish admin-triggered proxy actions in:
   - `admin-dashboard/src/app/(dashboard)/ai-governor/ai-governor-client.tsx`
+- Improved manual admin coin provenance in:
+  - `admin-dashboard/src/components/dashboard/coin-dialog.tsx`
+  - `admin-dashboard/src/app/(dashboard)/coins/coins-client.tsx`
+- Manual create/edit/move paths now stamp `metadata.admin_dashboard.*` fields so admin dashboard mutations are easier to trace later
+- New manual coin creation now sets:
+  - `created_by = 'admin'`
 
 **Why this mattered:**
 
@@ -241,6 +247,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Confirmed no references remain
 - Targeted lint for `admin-dashboard/supabase/functions/spawn-governor/index.ts` passed cleanly
 - Targeted lint for the dashboard proxy, recycle route, and Command Center client passed cleanly
+- Targeted lint for the manual coin dialog and coin map client passed cleanly
 
 **What is now true:**
 
@@ -248,11 +255,14 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Sprint 1 control-surface hardening has officially begun with a low-risk production-safety fix
 - Dashboard-triggered `spawn_now` and `recycle_stale` actions now carry explicit `admin_triggered` provenance metadata
 - The Command Center can now label those proxied actions as `admin-triggered` instead of making them read like purely autonomous Black Bart behavior
+- Manual admin coin creation now records `created_by = 'admin'`
+- Manual admin create/edit/move flows now preserve additive provenance in `metadata.admin_dashboard`
+- Manual delete was reviewed, but it still does not write a persisted admin audit row yet because this codebase does not currently expose a standardized helper for writing admin activity records from that route
 
 **Best next coding step:**
 
-- Review the manual coin create/edit/delete flow so admin provenance becomes more consistent outside the AI proxy routes
-- Then do the MCP gap review for Sprint 2 Black Bart runtime planning
+- Do the MCP gap review for Sprint 2 Black Bart runtime planning
+- Then decide whether Sprint 1 should also add a lightweight standardized admin activity logging helper for manual delete/update routes
 
 ---
 

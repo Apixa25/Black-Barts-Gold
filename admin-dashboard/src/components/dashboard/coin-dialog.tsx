@@ -74,6 +74,37 @@ const coinModelOptions: { value: CoinModel; label: string }[] = [
   { value: "prize_race", label: "Prize Race" },
 ]
 
+function readNestedRecord(
+  record: Record<string, unknown> | undefined,
+  key: string
+): Record<string, unknown> | null {
+  if (!record) return null
+  const value = record[key]
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function buildManualAdminCoinMetadata(
+  existingMetadata: Record<string, unknown> | undefined,
+  mutationSurface: "coin_dialog",
+  mutationType: "created" | "updated"
+): Record<string, unknown> {
+  const existingAdminDashboard = readNestedRecord(existingMetadata, "admin_dashboard")
+
+  return {
+    ...(existingMetadata ?? {}),
+    admin_dashboard: {
+      ...(existingAdminDashboard ?? {}),
+      manual_coin_management: true,
+      mutation_source: "admin_dashboard",
+      mutation_surface: mutationSurface,
+      last_mutation_type: mutationType,
+      last_mutation_at: new Date().toISOString(),
+    },
+  }
+}
+
 function buildCoinFormState(
   coin: Coin | null | undefined,
   initialCoordinates?: { lat: number; lng: number } | null
@@ -180,6 +211,11 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
       finds_remaining: form.multi_find ? parseInt(form.finds_remaining, 10) || 3 : 1,
       hider_id: userId || null,
       status: "hidden" as CoinStatus,
+      metadata: buildManualAdminCoinMetadata(
+        coin?.metadata,
+        "coin_dialog",
+        isEditing ? "updated" : "created"
+      ),
     }
 
     let error
@@ -192,7 +228,10 @@ export function CoinDialog({ coin, open, onOpenChange, userId, initialCoordinate
     } else {
       const { error: insertError } = await supabase
         .from("coins")
-        .insert(coinData)
+        .insert({
+          ...coinData,
+          created_by: "admin",
+        })
       error = insertError
     }
 

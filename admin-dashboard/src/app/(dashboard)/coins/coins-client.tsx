@@ -37,6 +37,33 @@ interface CoinsPageClientProps {
   searchParams: { search?: string; status?: string; tier?: string }
 }
 
+function readNestedRecord(
+  record: Record<string, unknown> | undefined,
+  key: string
+): Record<string, unknown> | null {
+  if (!record) return null
+  const value = record[key]
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function buildAdminMoveMetadata(existingMetadata: Record<string, unknown> | undefined) {
+  const existingAdminDashboard = readNestedRecord(existingMetadata, "admin_dashboard")
+
+  return {
+    ...(existingMetadata ?? {}),
+    admin_dashboard: {
+      ...(existingAdminDashboard ?? {}),
+      manual_coin_management: true,
+      mutation_source: "admin_dashboard",
+      mutation_surface: "coin_map_drag",
+      last_mutation_type: "moved",
+      last_mutation_at: new Date().toISOString(),
+    },
+  }
+}
+
 export function CoinsPageClient({ 
   coins, 
   zones,
@@ -148,7 +175,8 @@ export function CoinsPageClient({
       .update({ 
         latitude: newLat, 
         longitude: newLng,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        metadata: buildAdminMoveMetadata(coin.metadata),
       })
       .eq("id", coin.id)
 
