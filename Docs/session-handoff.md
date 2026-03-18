@@ -234,6 +234,10 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Manual create/edit/move paths now stamp `metadata.admin_dashboard.*` fields so admin dashboard mutations are easier to trace later
 - New manual coin creation now sets:
   - `created_by = 'admin'`
+- Completed a concrete MCP gap review and documented it in:
+  - `Docs/archive/mcp-gap-review.md`
+- Confirmed the backend AI/admin surface is ahead of the MCP server
+- Confirmed Sprint 2 should build reusable internal Black Bart runtime helpers first, then expand MCP second
 
 **Why this mattered:**
 
@@ -248,6 +252,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Targeted lint for `admin-dashboard/supabase/functions/spawn-governor/index.ts` passed cleanly
 - Targeted lint for the dashboard proxy, recycle route, and Command Center client passed cleanly
 - Targeted lint for the manual coin dialog and coin map client passed cleanly
+- MCP gap review completed by reading the current MCP server and the uncovered queue / timed release / companion routes
 
 **What is now true:**
 
@@ -258,11 +263,17 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Manual admin coin creation now records `created_by = 'admin'`
 - Manual admin create/edit/move flows now preserve additive provenance in `metadata.admin_dashboard`
 - Manual delete was reviewed, but it still does not write a persisted admin audit row yet because this codebase does not currently expose a standardized helper for writing admin activity records from that route
+- The current MCP server still exposes only 5 tools and 3 resources
+- The backend already supports queueing and timed-release orchestration that MCP does not yet expose
+- The player companion route already contains the core context-fetching logic Sprint 2 needs, but only as route-local helpers, not reusable runtime modules
 
 **Best next coding step:**
 
-- Do the MCP gap review for Sprint 2 Black Bart runtime planning
-- Then decide whether Sprint 1 should also add a lightweight standardized admin activity logging helper for manual delete/update routes
+- Decide whether Sprint 1 should also add a lightweight standardized admin activity logging helper for manual delete/update routes
+- Then begin Sprint 2 scaffolding:
+  - `admin-dashboard/src/lib/black-bart/types.ts`
+  - `admin-dashboard/src/lib/black-bart/prompt.ts`
+  - `admin-dashboard/src/lib/black-bart/context.ts`
 
 ---
 
