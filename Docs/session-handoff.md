@@ -278,6 +278,19 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - scripted fallback companion action count
   - runtime status badges on companion action rows
   - provider / fallback detail text in the action feed
+- Added stronger provider-output guardrails in:
+  - `admin-dashboard/src/lib/black-bart/prompt.ts`
+  - `admin-dashboard/src/lib/black-bart/response-parser.ts`
+- Provider-generated Black Bart replies are now constrained by both:
+  - prompt-level instructions
+  - parser-level gameplay validation
+- The parser now enforces:
+  - shorter reply length
+  - shorter candidate message length
+  - max 3 candidate messages
+  - no duplicate candidate trigger types
+  - action-specific allowed reply types
+  - no candidate messages for `report_event`
 
 **Why this mattered:**
 
@@ -298,6 +311,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Targeted lint passed again after adding the provider-attempt abstraction and fallback metadata path
 - Targeted lint passed again after enabling the first structured provider response path
 - Targeted lint passed again after the Command Center visibility upgrade
+- Targeted lint passed again after the provider-output hardening pass
 
 **What is now true:**
 
@@ -328,6 +342,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - fallback on failure
 - A configured environment can now start returning real model-backed companion responses without changing the public player route contract
 - The ranch house can now visibly distinguish Black Bart's model-backed companion actions from scripted fallback actions
+- The first model-backed companion path is now materially safer because provider output is constrained after generation, not only instructed before generation
 
 **Best next coding step:**
 
@@ -335,7 +350,8 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Continue Sprint 2 by turning the provider scaffold into a real parsed-response path for one provider
 - Next: upgrade the Command Center to show provider-attempt / fallback status for companion actions
 - Next: refine prompt packaging and add stronger guardrails around provider-generated candidate messages and reply lengths
-- After that: consider adding explicit environment/setup docs for `BLACK_BART_MODEL_PROVIDER` and `BLACK_BART_OPENAI_MODEL`
+- Next: consider adding explicit environment/setup docs for `BLACK_BART_MODEL_PROVIDER` and `BLACK_BART_OPENAI_MODEL`
+- After that: decide whether to add a dedicated companion runtime panel in the Command Center for pressure, memory, provider health, and fallback rate
 
 ---
 

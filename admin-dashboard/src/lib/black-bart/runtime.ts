@@ -23,6 +23,7 @@ export async function generateBlackBartCompanionResponse(
   if (providerResult.responseText) {
     try {
       const providerResponsePack = parseBlackBartProviderResponse(
+        input,
         providerResult.responseText,
         promptContext.selectedCoinId,
       )

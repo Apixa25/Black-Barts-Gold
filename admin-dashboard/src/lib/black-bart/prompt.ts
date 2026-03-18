@@ -106,6 +106,10 @@ export function buildBlackBartPromptEnvelope(input: BlackBartRuntimeInput, promp
       : 'Local hunt pressure: unavailable',
     `Recent companion history:\n${recentHistorySummary}`,
     'Respond as Black Bart with concise, in-character guidance grounded only in this context.',
+    'Keep reply_now under 160 characters.',
+    'Keep each candidate message under 120 characters.',
+    'Use no more than 3 candidate messages.',
+    'Do not emit duplicate candidate trigger types.',
     'Return valid JSON only. Do not wrap the JSON in markdown fences.',
     'Use the exact response schema requested by the model API.',
   ].join('\n')
