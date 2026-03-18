@@ -81,3 +81,35 @@ export function buildBlackBartPromptContext(input: BlackBartRuntimeInput): Black
     situationSummary: summaryParts.join(' | '),
   }
 }
+
+export function buildBlackBartPromptEnvelope(input: BlackBartRuntimeInput, promptContext: BlackBartPromptContext) {
+  const recentHistorySummary = promptContext.recentCompanionHistory.length > 0
+    ? promptContext.recentCompanionHistory
+        .map((entry, index) => {
+          const signal = entry.intentType ?? entry.eventType ?? entry.toolCalled
+          const reply = entry.replyNow ? ` -> "${entry.replyNow}"` : ''
+          return `${index + 1}. ${signal}${reply}`
+        })
+        .join('\n')
+    : 'No recent companion history.'
+
+  const userPrompt = [
+    `Action: ${input.action}`,
+    `Situation summary: ${promptContext.situationSummary || 'No summary available.'}`,
+    promptContext.playerName ? `Player name: ${promptContext.playerName}` : 'Player name: unknown',
+    promptContext.selectedCoinId ? `Selected coin id: ${promptContext.selectedCoinId}` : 'Selected coin id: none',
+    promptContext.selectedCoinValue !== null
+      ? `Selected coin value: $${promptContext.selectedCoinValue.toFixed(2)}`
+      : 'Selected coin value: unknown',
+    promptContext.localHuntPressure
+      ? `Local hunt pressure: ${promptContext.localHuntPressure.huntPressure} with ${promptContext.localHuntPressure.activePlayerCount} active players and ${promptContext.localHuntPressure.activeCoinCount} active coins`
+      : 'Local hunt pressure: unavailable',
+    `Recent companion history:\n${recentHistorySummary}`,
+    'Respond as Black Bart with concise, in-character guidance grounded only in this context.',
+  ].join('\n')
+
+  return {
+    systemPrompt: BLACK_BART_SYSTEM_PROMPT,
+    userPrompt,
+  }
+}

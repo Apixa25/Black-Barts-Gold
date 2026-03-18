@@ -75,10 +75,20 @@ export interface BlackBartPromptContext {
   situationSummary: string
 }
 
+export type BlackBartRuntimeSource = 'model_provider' | 'scripted_fallback'
+
+export interface BlackBartProviderAttempt {
+  provider: 'openai_responses' | 'unconfigured' | 'unsupported'
+  outcome: 'success' | 'unavailable' | 'error'
+  reason: string | null
+}
+
 export interface BlackBartRuntimeMeta {
-  source: 'scripted_fallback'
+  source: BlackBartRuntimeSource
   systemPromptVersion: string
   promptContext: BlackBartPromptContext
+  providerAttempt: BlackBartProviderAttempt
+  fallbackReason: string | null
 }
 
 export interface BlackBartRuntimeResult {

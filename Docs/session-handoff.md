@@ -257,6 +257,13 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Companion audit rows now also capture:
   - `local_pressure`
   - `recent_companion_history_count`
+- Added a provider-attempt abstraction and explicit fallback strategy in:
+  - `admin-dashboard/src/lib/black-bart/provider.ts`
+  - `admin-dashboard/src/lib/black-bart/runtime.ts`
+- The runtime now tries the configured model-provider path first, records the provider attempt, and then falls back safely to the scripted companion engine
+- Companion audit rows now also capture:
+  - `provider_attempt`
+  - `fallback_reason`
 
 **Why this mattered:**
 
@@ -274,6 +281,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - MCP gap review completed by reading the current MCP server and the uncovered queue / timed release / companion routes
 - Targeted lint for the new `black-bart` runtime folder and the player companion route passed cleanly
 - Targeted lint passed again after adding local pressure and recent companion history to the Black Bart context/runtime path
+- Targeted lint passed again after adding the provider-attempt abstraction and fallback metadata path
 
 **What is now true:**
 
@@ -292,12 +300,18 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - The Black Bart runtime now has richer situational context even before introducing a real model provider:
   - current-cell hunt pressure
   - short-term companion interaction history
+- The Black Bart runtime now has an explicit model-provider abstraction:
+  - it reads `BLACK_BART_MODEL_PROVIDER`
+  - it records whether the provider path was unavailable / unsupported
+  - it falls back deliberately instead of implicitly
+- The current provider adapter is scaffolded but intentionally not yet enabled for live response parsing, so behavior is still safe and stable
 
 **Best next coding step:**
 
 - Decide whether Sprint 1 should also add a lightweight standardized admin activity logging helper for manual delete/update routes
-- Continue Sprint 2 by replacing the scripted-only runtime facade with a real model-provider abstraction and explicit fallback strategy
-- Then add richer summarization and memory-friendly prompt packaging on top of the new context layer
+- Continue Sprint 2 by turning the provider scaffold into a real parsed-response path for one provider
+- Then add structured model output parsing so provider replies can map safely into `CompanionResponsePack`
+- After that, begin upgrading the Command Center to show provider-attempt / fallback status for companion actions
 
 ---
 

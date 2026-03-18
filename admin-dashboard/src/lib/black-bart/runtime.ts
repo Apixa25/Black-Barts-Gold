@@ -4,26 +4,33 @@ import {
   buildStartSessionResponse,
 } from '@/lib/companion/companion-engine'
 import { buildBlackBartPromptContext, BLACK_BART_SYSTEM_PROMPT_VERSION } from '@/lib/black-bart/prompt'
+import { attemptBlackBartProviderResponse } from '@/lib/black-bart/provider'
 import { normalizeCompanionResponsePack } from '@/lib/black-bart/response-parser'
 import type { BlackBartRuntimeInput, BlackBartRuntimeResult } from '@/lib/black-bart/types'
 
 export async function generateBlackBartCompanionResponse(
   input: BlackBartRuntimeInput
 ): Promise<BlackBartRuntimeResult> {
-  // Sprint 2 scaffold: this facade gives us one safe insertion point for a real
-  // model-backed runtime later while preserving current behavior today.
-  let responsePack = null
+  const promptContext = buildBlackBartPromptContext(input)
+  const providerResult = await attemptBlackBartProviderResponse({
+    input,
+    promptContext,
+  })
+
+  // Sprint 2 scaffold: the runtime now explicitly tries the model-provider path
+  // first and records why it fell back, while still preserving current behavior.
+  let scriptedResponsePack = null
 
   switch (input.action) {
     case 'start_session':
-      responsePack = buildStartSessionResponse({
+      scriptedResponsePack = buildStartSessionResponse({
         player: input.player,
         selectedCoin: input.selectedCoin,
       })
       break
 
     case 'submit_intent':
-      responsePack = buildIntentResponse({
+      scriptedResponsePack = buildIntentResponse({
         intentType: input.intentType,
         player: input.player,
         selectedCoin: input.selectedCoin,
@@ -33,7 +40,7 @@ export async function generateBlackBartCompanionResponse(
       break
 
     case 'report_event':
-      responsePack = buildEventResponse({
+      scriptedResponsePack = buildEventResponse({
         eventType: input.eventType,
         selectedCoin: input.selectedCoin,
       })
@@ -41,11 +48,13 @@ export async function generateBlackBartCompanionResponse(
   }
 
   return {
-    responsePack: normalizeCompanionResponsePack(responsePack),
+    responsePack: normalizeCompanionResponsePack(scriptedResponsePack),
     runtimeMeta: {
       source: 'scripted_fallback',
       systemPromptVersion: BLACK_BART_SYSTEM_PROMPT_VERSION,
-      promptContext: buildBlackBartPromptContext(input),
+      promptContext,
+      providerAttempt: providerResult.providerAttempt,
+      fallbackReason: providerResult.providerAttempt.reason,
     },
   }
 }
