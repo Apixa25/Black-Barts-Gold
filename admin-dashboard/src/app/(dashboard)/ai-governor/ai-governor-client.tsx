@@ -191,6 +191,23 @@ function readRecordString(record: Record<string, unknown> | null | undefined, ke
   return typeof value === 'string' && value.trim().length > 0 ? value : null
 }
 
+function readNestedRecord(record: Record<string, unknown> | null | undefined, key: string): Record<string, unknown> | null {
+  if (!record) return null
+  const value = record[key]
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null
+}
+
+function getActionMetadata(action: AiAction): Record<string, unknown> | null {
+  return readNestedRecord(action.parameters, 'metadata')
+}
+
+function isAdminTriggeredProxyAction(action: AiAction): boolean {
+  const metadata = getActionMetadata(action)
+  return readRecordString(metadata, 'invocation_mode') === 'admin_triggered'
+}
+
 function isCompanionAction(action: AiAction): boolean {
   return action.agent_id === 'ai_game_master' && action.tool_called.startsWith('player_companion_')
 }
@@ -905,7 +922,10 @@ export function AiGovernorClient({
           ) : (
             <div className="divide-y divide-saddle-light/15">
               {displayedActions.map((action, idx) => {
-                const agent = agentConfig(action.agent_id)
+                const adminTriggered = isAdminTriggeredProxyAction(action)
+                const agent = adminTriggered
+                  ? { label: 'Admin Trigger', badge: 'bg-slate-100 text-slate-800 border-slate-300' }
+                  : agentConfig(action.agent_id)
                 const isCycleSummary = action.tool_called === 'spawn_governor_cycle'
                 const companion = isCompanionAction(action)
                 const companionReply = getCompanionReplyText(action)
@@ -948,6 +968,12 @@ export function AiGovernorClient({
                         {companion && (
                           <Badge variant="outline" className="text-xs border-purple-200 text-purple-700">
                             companion
+                          </Badge>
+                        )}
+
+                        {adminTriggered && (
+                          <Badge variant="outline" className="text-xs border-slate-300 text-slate-700">
+                            admin-triggered
                           </Badge>
                         )}
 

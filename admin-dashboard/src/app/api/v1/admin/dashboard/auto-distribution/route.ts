@@ -85,6 +85,15 @@ async function proxyAiWriteRoute(
   }
 }
 
+function buildAdminTriggeredMetadata(actionType: 'spawn_now' | 'recycle_stale') {
+  return {
+    invocation_source: 'admin_dashboard',
+    invocation_mode: 'admin_triggered',
+    requested_by_role: 'admin',
+    dashboard_action_type: actionType,
+  }
+}
+
 export async function GET() {
   try {
     await requireAdminSession()
@@ -326,6 +335,7 @@ export async function POST(request: NextRequest) {
             tier: 'bronze',
             agent_id: 'ai_game_master',
             reasoning: `Human admin triggered dashboard spawn_now for zone ${body.zone_id}`,
+            metadata: buildAdminTriggeredMetadata('spawn_now'),
           })
           results.push(response.payload)
         }
@@ -339,6 +349,7 @@ export async function POST(request: NextRequest) {
             cell_id: body.cell_id ?? null,
             agent_id: 'ai_game_master',
             reasoning: `Human admin triggered dashboard recycle_stale for ${body.cell_id ?? body.zone_id ?? 'system'}`,
+            metadata: buildAdminTriggeredMetadata('recycle_stale'),
           })
 
           return NextResponse.json(response.payload, { status: response.status })

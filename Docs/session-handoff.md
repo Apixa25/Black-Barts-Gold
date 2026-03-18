@@ -222,6 +222,12 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - `admin-dashboard/supabase/functions/spawn-governor/index.ts`
 - Replaced the stale call to `checkZonePressureImmediate(coinId)` with the correct cell-first helper:
   - `checkCellPressureImmediate(coinId)`
+- Cleaned up the dashboard-triggered auto-distribution audit trail by stamping proxied human actions with explicit metadata in:
+  - `admin-dashboard/src/app/api/v1/admin/dashboard/auto-distribution/route.ts`
+- Threaded that metadata through the recycle audit path in:
+  - `admin-dashboard/src/app/api/v1/admin/ai/recycle-stale/route.ts`
+- Updated the Command Center action feed to visually distinguish admin-triggered proxy actions in:
+  - `admin-dashboard/src/app/(dashboard)/ai-governor/ai-governor-client.tsx`
 
 **Why this mattered:**
 
@@ -234,17 +240,19 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Searched the Spawn Governor function for remaining `checkZonePressureImmediate` references
 - Confirmed no references remain
 - Targeted lint for `admin-dashboard/supabase/functions/spawn-governor/index.ts` passed cleanly
+- Targeted lint for the dashboard proxy, recycle route, and Command Center client passed cleanly
 
 **What is now true:**
 
 - The coin-collected webhook path now uses the same immediate cell-pressure helper as the Realtime subscription path
 - Sprint 1 control-surface hardening has officially begun with a low-risk production-safety fix
+- Dashboard-triggered `spawn_now` and `recycle_stale` actions now carry explicit `admin_triggered` provenance metadata
+- The Command Center can now label those proxied actions as `admin-triggered` instead of making them read like purely autonomous Black Bart behavior
 
 **Best next coding step:**
 
-- Clean up human-vs-AI audit identity in:
-  - `admin-dashboard/src/app/api/v1/admin/dashboard/auto-distribution/route.ts`
-- Then improve Command Center labeling so autonomous, companion, and admin-triggered actions are easier to distinguish
+- Review the manual coin create/edit/delete flow so admin provenance becomes more consistent outside the AI proxy routes
+- Then do the MCP gap review for Sprint 2 Black Bart runtime planning
 
 ---
 

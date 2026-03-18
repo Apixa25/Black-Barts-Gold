@@ -4,7 +4,7 @@
  * Canonical stale-coin recycler. Recycles directly from live coin + spawn history
  * rows and supports cell-first cleanup with optional legacy zone filtering.
  *
- * Request Body: { agent_id, reasoning, max_age_hours?, cell_id?, zone_id? }
+ * Request Body: { agent_id, reasoning, max_age_hours?, cell_id?, zone_id?, metadata? }
  *
  * @file admin-dashboard/src/app/api/v1/admin/ai/recycle-stale/route.ts
  */
@@ -40,10 +40,20 @@ async function writeFailedAudit(params: {
   maxAgeHours: number
   targetZoneId: string | null
   targetCellId: string | null
+  metadata: Record<string, unknown> | null
   errorCode: string
   errorMessage: string
 }) {
-  const { agentId, reasoning, maxAgeHours, targetZoneId, targetCellId, errorCode, errorMessage } = params
+  const {
+    agentId,
+    reasoning,
+    maxAgeHours,
+    targetZoneId,
+    targetCellId,
+    metadata,
+    errorCode,
+    errorMessage,
+  } = params
   const supabase = createServiceRoleClient()
   await supabase.from('ai_actions').insert({
     agent_id: agentId,
@@ -54,6 +64,7 @@ async function writeFailedAudit(params: {
       max_age_hours: maxAgeHours,
       zone_id: targetZoneId,
       cell_id: targetCellId,
+      metadata,
     },
     reasoning,
     result: { error: errorMessage },
@@ -73,7 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { agent_id, reasoning, max_age_hours, zone_id, cell_id } = body
+  const { agent_id, reasoning, max_age_hours, zone_id, cell_id, metadata } = body
 
   if (!agent_id || !(AI_AGENT_IDS as readonly string[]).includes(agent_id as string)) {
     return NextResponse.json(
@@ -92,6 +103,7 @@ export async function POST(request: NextRequest) {
   const maxAgeHours = typeof max_age_hours === 'number' ? Math.max(1, Math.min(max_age_hours, 168)) : 48
   const targetZoneId = typeof zone_id === 'string' ? zone_id : null
   const targetCellId = typeof cell_id === 'string' ? cell_id : null
+  const metadataPayload = (metadata as Record<string, unknown>) ?? null
 
   if (targetCellId && (!isValidCellToken(targetCellId) || getCellLevel(targetCellId) !== S2_LEVEL_PRESSURE)) {
     await writeFailedAudit({
@@ -100,6 +112,7 @@ export async function POST(request: NextRequest) {
       maxAgeHours,
       targetZoneId,
       targetCellId,
+      metadata: metadataPayload,
       errorCode: AI_ERROR_CODES.INVALID_CELL_ID,
       errorMessage: `Invalid L${S2_LEVEL_PRESSURE} cell token: ${targetCellId}`,
     })
@@ -224,6 +237,7 @@ export async function POST(request: NextRequest) {
           max_age_hours: maxAgeHours,
           zone_id: targetZoneId,
           cell_id: targetCellId,
+          metadata: metadataPayload,
         },
         reasoning: reasoning as string,
         result: resultPayload,
@@ -257,6 +271,7 @@ export async function POST(request: NextRequest) {
       maxAgeHours,
       targetZoneId,
       targetCellId,
+      metadata: metadataPayload,
       errorCode: AI_ERROR_CODES.SPAWN_FAILED,
       errorMessage,
     })
