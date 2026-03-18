@@ -224,6 +224,45 @@ function getCompanionEventType(action: AiAction): string | null {
   return readRecordString(action.parameters, 'event_type')
 }
 
+function getCompanionRuntimeSource(action: AiAction): string | null {
+  return readRecordString(action.result, 'runtime_source') ?? readRecordString(action.parameters, 'runtime_source')
+}
+
+function getCompanionFallbackReason(action: AiAction): string | null {
+  return readRecordString(action.result, 'fallback_reason') ?? readRecordString(action.parameters, 'fallback_reason')
+}
+
+function getCompanionProviderAttempt(action: AiAction): Record<string, unknown> | null {
+  return readNestedRecord(action.result, 'provider_attempt') ?? readNestedRecord(action.parameters, 'provider_attempt')
+}
+
+function getCompanionProviderSummary(action: AiAction): string | null {
+  const providerAttempt = getCompanionProviderAttempt(action)
+  if (!providerAttempt) return null
+
+  const provider = readRecordString(providerAttempt, 'provider') ?? 'provider'
+  const outcome = readRecordString(providerAttempt, 'outcome') ?? 'unknown'
+  return `${provider} · ${outcome}`
+}
+
+function runtimeSourceBadge(source: string | null): { label: string; className: string } | null {
+  if (source === 'model_provider') {
+    return {
+      label: 'model',
+      className: 'border-emerald-200 text-emerald-700 bg-emerald-50',
+    }
+  }
+
+  if (source === 'scripted_fallback') {
+    return {
+      label: 'fallback',
+      className: 'border-amber-200 text-amber-700 bg-amber-50',
+    }
+  }
+
+  return null
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function AiGovernorClient({
@@ -397,6 +436,8 @@ export function AiGovernorClient({
   const companionSessionsToday = companionActions.filter(action => action.tool_called === 'player_companion_session_start').length
   const companionReplyCount = companionActions.filter(action => action.tool_called === 'player_companion_reply').length
   const companionMessageShownCount = companionActions.filter(action => getCompanionEventType(action) === 'message_shown').length
+  const companionModelCount = companionActions.filter(action => getCompanionRuntimeSource(action) === 'model_provider').length
+  const companionFallbackCount = companionActions.filter(action => getCompanionRuntimeSource(action) === 'scripted_fallback').length
   const displayedActions = actionFeedFilter === 'companion' ? companionActions : recentActions
 
   return (
@@ -816,7 +857,7 @@ export function AiGovernorClient({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               <div className="rounded-lg border border-purple-200 bg-white/70 p-3">
                 <p className="text-xs uppercase tracking-wide text-leather-light">Sessions</p>
                 <p className="mt-1 text-2xl font-bold text-saddle-dark">{companionSessionsToday}</p>
@@ -828,6 +869,14 @@ export function AiGovernorClient({
               <div className="rounded-lg border border-purple-200 bg-white/70 p-3">
                 <p className="text-xs uppercase tracking-wide text-leather-light">Shown</p>
                 <p className="mt-1 text-2xl font-bold text-saddle-dark">{companionMessageShownCount}</p>
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                <p className="text-xs uppercase tracking-wide text-leather-light">Model</p>
+                <p className="mt-1 text-2xl font-bold text-emerald-700">{companionModelCount}</p>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3">
+                <p className="text-xs uppercase tracking-wide text-leather-light">Fallback</p>
+                <p className="mt-1 text-2xl font-bold text-amber-700">{companionFallbackCount}</p>
               </div>
             </div>
 
@@ -931,6 +980,10 @@ export function AiGovernorClient({
                 const companionReply = getCompanionReplyText(action)
                 const companionIntent = getCompanionIntentType(action)
                 const companionEvent = getCompanionEventType(action)
+                const companionRuntimeSource = getCompanionRuntimeSource(action)
+                const companionRuntimeBadge = runtimeSourceBadge(companionRuntimeSource)
+                const companionProviderSummary = getCompanionProviderSummary(action)
+                const companionFallbackReason = getCompanionFallbackReason(action)
 
                 return (
                   <div
@@ -971,6 +1024,12 @@ export function AiGovernorClient({
                           </Badge>
                         )}
 
+                        {companionRuntimeBadge && (
+                          <Badge variant="outline" className={`text-xs ${companionRuntimeBadge.className}`}>
+                            {companionRuntimeBadge.label}
+                          </Badge>
+                        )}
+
                         {adminTriggered && (
                           <Badge variant="outline" className="text-xs border-slate-300 text-slate-700">
                             admin-triggered
@@ -1001,6 +1060,13 @@ export function AiGovernorClient({
                       {(companionIntent || companionEvent) && (
                         <p className="text-xs text-leather-light">
                           {companionIntent ? `intent: ${companionIntent}` : `event: ${companionEvent}`}
+                        </p>
+                      )}
+
+                      {companionProviderSummary && (
+                        <p className="text-xs text-leather-light">
+                          provider: {companionProviderSummary}
+                          {companionFallbackReason ? ` · fallback: ${companionFallbackReason}` : ''}
                         </p>
                       )}
 

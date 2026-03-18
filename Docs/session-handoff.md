@@ -271,6 +271,13 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - The runtime can now return:
   - `source: 'model_provider'` when provider output parses successfully
   - `source: 'scripted_fallback'` when transport / config / parsing fails
+- Upgraded the Command Center companion visibility in:
+  - `admin-dashboard/src/app/(dashboard)/ai-governor/ai-governor-client.tsx`
+- The companion dashboard now shows:
+  - model-backed companion action count
+  - scripted fallback companion action count
+  - runtime status badges on companion action rows
+  - provider / fallback detail text in the action feed
 
 **Why this mattered:**
 
@@ -290,6 +297,7 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
 - Targeted lint passed again after adding local pressure and recent companion history to the Black Bart context/runtime path
 - Targeted lint passed again after adding the provider-attempt abstraction and fallback metadata path
 - Targeted lint passed again after enabling the first structured provider response path
+- Targeted lint passed again after the Command Center visibility upgrade
 
 **What is now true:**
 
@@ -319,13 +327,15 @@ Use this vocabulary in future sessions — Steven knows these terms and responds
   - response parsing
   - fallback on failure
 - A configured environment can now start returning real model-backed companion responses without changing the public player route contract
+- The ranch house can now visibly distinguish Black Bart's model-backed companion actions from scripted fallback actions
 
 **Best next coding step:**
 
 - Decide whether Sprint 1 should also add a lightweight standardized admin activity logging helper for manual delete/update routes
 - Continue Sprint 2 by turning the provider scaffold into a real parsed-response path for one provider
 - Next: upgrade the Command Center to show provider-attempt / fallback status for companion actions
-- Then refine prompt packaging and add stronger guardrails around provider-generated candidate messages and reply lengths
+- Next: refine prompt packaging and add stronger guardrails around provider-generated candidate messages and reply lengths
+- After that: consider adding explicit environment/setup docs for `BLACK_BART_MODEL_PROVIDER` and `BLACK_BART_OPENAI_MODEL`
 
 ---
 
